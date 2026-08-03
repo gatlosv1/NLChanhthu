@@ -1,6 +1,7 @@
 import { auth } from './firebase.js';
 import {
   signInWithEmailAndPassword,
+  signInAnonymously,
   sendPasswordResetEmail,
   signOut,
   onAuthStateChanged,
@@ -13,6 +14,10 @@ import {
 export async function loginWithEmailPassword(email, password, rememberMe = true) {
   await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
   return signInWithEmailAndPassword(auth, email, password);
+}
+
+export async function loginAnonymously() {
+  return signInAnonymously(auth);
 }
 
 export async function resetPassword(email) {

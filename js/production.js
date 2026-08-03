@@ -1,4 +1,4 @@
-import { getCurrentUser, watchAuthState } from './auth.js';
+import { getCurrentUser, watchAuthState, loginAnonymously } from './auth.js';
 import { db } from './firebase.js';
 import {
   collection,
@@ -236,37 +236,46 @@ function formatPercentValue(value) {
   return `${numeric}%`;
 }
 
-function waitForAuth() {
+async function waitForAuth() {
   if (authReadyPromise) return authReadyPromise;
 
-  authReadyPromise = new Promise((resolve) => {
+  authReadyPromise = (async () => {
     const existingUser = getCurrentUser();
     if (existingUser) {
       currentUser = existingUser;
-      resolve(existingUser);
-      return;
+      return existingUser;
     }
 
-    const unsubscribeAuth = watchAuthState((user) => {
-      currentUser = user;
-      unsubscribeAuth();
-      resolve(user);
+    const authUser = await new Promise((resolve) => {
+      const unsubscribeAuth = watchAuthState((user) => {
+        unsubscribeAuth();
+        resolve(user);
+      });
     });
-  });
+
+    if (authUser) {
+      currentUser = authUser;
+      return authUser;
+    }
+
+    const anonymousUser = await loginAnonymously();
+    currentUser = anonymousUser.user;
+    return anonymousUser.user;
+  })();
 
   return authReadyPromise;
 }
 
-function ensureUserDocument() {
-  const user = currentUser || getCurrentUser();
+async function ensureUserDocument() {
+  if (currentUser) return currentUser;
+  const user = await waitForAuth();
   if (!user) throw new Error('Bạn chưa đăng nhập.');
   currentUser = user;
   return user;
 }
 
 async function loadProductionData() {
-  await waitForAuth();
-  const user = ensureUserDocument();
+  const user = await ensureUserDocument();
   showLoading();
   try {
     if (unsubscribe) unsubscribe();
@@ -304,8 +313,8 @@ async function loadProductionData() {
   }
 }
 
-function addNewRow() {
-  const user = ensureUserDocument();
+async function addNewRow() {
+  const user = await ensureUserDocument();
   const newRow = {
     id: `${user.uid}-${Date.now()}`,
     stt: data.length + 1,
@@ -330,7 +339,16 @@ function addNewRow() {
 }
 
 function addQuickEntry() {
-  const lot = quickLot.value.trim();
+  const generatedLot = generateLot({
+    materialType: quickMaterialType.value,
+    manufacturer: quickManufacturer.value,
+    region: quickRegion.value,
+    productionDate: quickProductionDate.value,
+    vehicle: quickVehicle.value,
+    materialKind: quickMaterialKind.value
+  });
+
+  const lot = (quickLot.value || generatedLot).trim();
   if (!lot) {
     showToast('Vui lòng nhập đủ thông tin để tạo Lot.', 'error');
     return;
@@ -391,8 +409,7 @@ function removeSelectedRows() {
 async function saveAllRows() {
   if (isSaving) return;
 
-  await waitForAuth();
-  const user = ensureUserDocument();
+  const user = await ensureUserDocument();
   isSaving = true;
   showLoading();
   try {
