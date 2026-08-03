@@ -1,0 +1,95 @@
+.excel-table {
+  min-height: 560px;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.toolbar-actions .btn {
+  white-space: nowrap;
+}
+
+.compact-form .card-body {
+  padding: 0.8rem 0.95rem;
+}
+
+.compact-form .form-label {
+  margin-bottom: 0.2rem;
+}
+
+.compact-form .form-control,
+.compact-form .form-select {
+  min-height: 32px;
+}
+
+#productionTable {
+  min-height: 560px;
+}
+
+.tabulator {
+  border: 1px solid #d0d7de;
+  border-radius: 0.8rem;
+  overflow: hidden;
+  font-size: 0.95rem;
+}
+
+.tabulator .tabulator-header {
+  background: #f6f8fa;
+  border-bottom: 1px solid #d0d7de;
+}
+
+.tabulator .tabulator-header .tabulator-col {
+  background: #f6f8fa;
+  color: #24292f;
+  font-weight: 700;
+  border-right: 1px solid #d0d7de;
+}
+
+.tabulator .tabulator-row {
+  background: #ffffff;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.tabulator .tabulator-row:hover {
+  background: #f8fbff;
+}
+
+.tabulator .tabulator-row .tabulator-cell {
+  border-right: 1px solid #eef2f7;
+  padding: 0.45rem 0.6rem;
+}
+
+.tabulator .tabulator-selected {
+  background: #dbeafe !important;
+}
+
+.tabulator .tabulator-cell.tabulator-editable {
+  background: #ffffff;
+}
+
+.tabulator .tabulator-cell.tabulator-editable:hover {
+  background: #f5f9ff;
+}
+
+.tabulator .tabulator-row.tabulator-selected {
+  background: #dbeafe !important;
+}
+
+.tabulator .tabulator-row .tabulator-cell.tabulator-editable:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
+.tabulator .tabulator-footer {
+  background: #f6f8fa;
+  border-top: 1px solid #d0d7de;
+}
+
+.tabulator .tabulator-col-resize-handle {
+  background: #cbd5e1;
+}

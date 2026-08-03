@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - Production Data Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="./css/style.css" />
+    <link rel="stylesheet" href="./css/dashboard.css" />
+  </head>
+  <body class="dashboard-page">
+    <div class="d-flex min-vh-100">
+      <aside class="sidebar bg-dark text-white p-4">
+        <div class="mb-4">
+          <h2 class="h5 fw-bold">Production Data</h2>
+          <p class="text-secondary small mb-0">Quản lý nhập liệu sản xuất</p>
+        </div>
+
+        <nav class="nav flex-column gap-2">
+          <a class="nav-link active" href="./dashboard.html">Dashboard</a>
+          <a class="nav-link" href="./profile.html">Profile</a>
+          <a class="nav-link admin-only" id="manageUsersMenu" href="#">Quản lý User</a>
+          <a class="nav-link admin-only" href="#">Quản lý dữ liệu</a>
+          <a class="nav-link admin-only" href="#">Import Excel</a>
+          <a class="nav-link admin-only" href="#">Export Excel</a>
+          <a class="nav-link admin-only" href="#">Nhật ký hoạt động</a>
+          <a class="nav-link" href="#" data-action="logout">Đăng xuất</a>
+        </nav>
+      </aside>
+
+      <main class="flex-grow-1 bg-light p-4">
+        <header class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <p class="text-muted mb-1">Xin chào</p>
+            <h1 class="h3 fw-bold mb-0" id="dashboardGreeting">Dashboard</h1>
+          </div>
+          <div class="d-flex align-items-center gap-3">
+            <div class="text-end">
+              <p class="mb-0 fw-semibold" id="currentUserName">-</p>
+              <p class="small text-muted mb-0" id="currentUserEmail">-</p>
+            </div>
+            <div class="avatar-circle" id="avatarPreview">U</div>
+          </div>
+        </header>
+
+        <section class="row g-4 mb-4">
+          <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+              <div class="card-body">
+                <p class="text-muted mb-2">Vai trò</p>
+                <h3 class="h5 fw-semibold" id="currentUserRole">Staff</h3>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+              <div class="card-body">
+                <p class="text-muted mb-2">Phòng ban</p>
+                <h3 class="h5 fw-semibold" id="currentUserDepartment">-</h3>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+              <div class="card-body">
+                <p class="text-muted mb-2">Trạng thái</p>
+                <h3 class="h5 fw-semibold text-success">Đã đăng nhập</h3>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="row g-4">
+          <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4">
+              <div class="card-body">
+                <h2 class="h5 fw-semibold">Tóm tắt công việc</h2>
+                <p class="text-muted">Bạn có thể nhập dữ liệu sản xuất, chỉnh sửa hồ sơ và quản lý tài khoản theo vai trò của mình.</p>
+                <div class="row g-3 mt-2">
+                  <div class="col-md-6">
+                    <div class="p-3 border rounded-3 bg-light">
+                      <h3 class="h6 fw-semibold">Nhập liệu</h3>
+                      <p class="small text-muted mb-0">Ghi nhận số lượng, lỗi và tiến độ sản xuất.</p>
+                      <a class="btn btn-primary btn-sm mt-3" href="./production.html">Chuyển sang nhập liệu</a>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="p-3 border rounded-3 bg-light">
+                      <h3 class="h6 fw-semibold">Chỉnh sửa</h3>
+                      <p class="small text-muted mb-0">Cập nhật dữ liệu cho các lô hàng và thông tin cá nhân.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4">
+              <div class="card-body">
+                <h2 class="h5 fw-semibold">Phân quyền</h2>
+                <div id="adminActions" class="d-grid gap-2 mt-3"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="row g-4 mt-1 admin-only">
+          <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                  <div>
+                    <h2 class="h5 fw-semibold mb-1">Tạo tài khoản người dùng</h2>
+                    <p class="text-muted small mb-0">Tạo tài khoản mới và lưu vào Firebase Authentication.</p>
+                  </div>
+                </div>
+
+                <form id="createUserForm" class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label" for="createUserEmail">Email</label>
+                    <input id="createUserEmail" type="email" class="form-control" required />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="createUserPassword">Mật khẩu</label>
+                    <input id="createUserPassword" type="text" class="form-control" placeholder="Để trống để tự sinh mật khẩu" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label" for="createUserName">Tên hiển thị</label>
+                    <input id="createUserName" type="text" class="form-control" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label" for="createUserRole">Vai trò</label>
+                    <select id="createUserRole" class="form-select">
+                      <option value="staff">Staff</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label" for="createUserDepartment">Phòng ban</label>
+                    <input id="createUserDepartment" type="text" class="form-control" placeholder="Kho" />
+                  </div>
+                  <div class="col-12">
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+                      <button type="submit" class="btn btn-primary">Tạo tài khoản</button>
+                      <span id="createUserStatus" class="small text-muted"></span>
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <div id="createUserResult" class="alert alert-success mb-0 d-none"></div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="row g-4 mt-1 admin-only" id="userManagementSection">
+          <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                  <div>
+                    <h2 class="h5 fw-semibold mb-1">Danh sách tài khoản</h2>
+                    <p class="text-muted small mb-0">Chỉ admin mới có quyền chỉnh sửa, xóa hoặc đặt lại mật khẩu.</p>
+                  </div>
+                </div>
+
+                <div class="table-responsive">
+                  <table class="table align-middle mb-0 user-management-table">
+                    <thead>
+                      <tr>
+                        <th>Email</th>
+                        <th>Tên</th>
+                        <th>Mật khẩu</th>
+                        <th>Vai trò</th>
+                        <th>Phòng ban</th>
+                        <th>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody id="userTableBody">
+                      <tr>
+                        <td colspan="6" class="text-muted">Đang tải...</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div id="userActionStatus" class="small text-muted mt-3"></div>
+
+                <div id="userEditPanel" class="border rounded-3 p-3 mt-3 bg-light d-none">
+                  <h3 class="h6 fw-semibold mb-3">Chỉnh sửa thông tin tài khoản</h3>
+                  <form id="editUserForm" class="row g-3">
+                    <input id="editUserId" type="hidden" />
+                    <div class="col-md-4">
+                      <label class="form-label" for="editUserName">Tên hiển thị</label>
+                      <input id="editUserName" type="text" class="form-control" />
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label" for="editUserRole">Vai trò</label>
+                      <select id="editUserRole" class="form-select">
+                        <option value="staff">Staff</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label" for="editUserDepartment">Phòng ban</label>
+                      <input id="editUserDepartment" type="text" class="form-control" />
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label" for="editUserPassword">Mật khẩu mới</label>
+                      <input id="editUserPassword" type="text" class="form-control" placeholder="Để trống nếu không đổi" />
+                    </div>
+                    <div class="col-12">
+                      <div class="d-flex gap-2 flex-wrap">
+                        <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                        <button type="button" class="btn btn-outline-secondary" id="cancelEditBtn">Hủy</button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="./js/dashboard.js"></script>
+    <script type="module" src="./js/logout.js"></script>
+  </body>
+</html>

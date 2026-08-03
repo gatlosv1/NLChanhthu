@@ -1,0 +1,44 @@
+.dashboard-page {
+  background: #f8fafc;
+}
+
+.sidebar {
+  width: 280px;
+  min-height: 100vh;
+}
+
+.sidebar .nav-link {
+  color: #d1d5db;
+  padding: 0.7rem 0.95rem;
+  border-radius: 0.8rem;
+}
+
+.sidebar .nav-link.active,
+.sidebar .nav-link:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.admin-only.is-hidden {
+  display: none !important;
+}
+
+#createUserForm .form-control,
+#createUserForm .form-select {
+  border-radius: 0.75rem;
+}
+
+#createUserResult {
+  border-radius: 0.8rem;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    min-height: auto;
+  }
+
+  .dashboard-page .d-flex {
+    flex-direction: column;
+  }
+}

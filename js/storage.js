@@ -1,0 +1,8 @@
+import { storage } from './firebase.js';
+import { ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js';
+
+export async function uploadAvatar(uid, file) {
+  const storageRef = ref(storage, `avatars/${uid}/${file.name}`);
+  const snapshot = await uploadBytes(storageRef, file);
+  return getDownloadURL(snapshot.ref);
+}

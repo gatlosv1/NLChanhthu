@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Production Data Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="./css/style.css" />
+  </head>
+  <body class="bg-light">
+    <main class="min-vh-100 d-flex align-items-center justify-content-center">
+      <section class="container py-5">
+        <div class="row align-items-center g-4">
+          <div class="col-lg-7">
+            <h1 class="display-5 fw-bold text-dark">Hệ thống quản lý nhập liệu sản xuất</h1>
+            <p class="lead text-secondary mt-3">
+              Truy cập an toàn bằng Firebase Authentication, điều khiển quyền theo vai trò Admin và Staff.
+            </p>
+            <div class="d-flex gap-3 mt-4">
+              <a class="btn btn-primary btn-lg" href="./login.html">Đăng nhập</a>
+              <a class="btn btn-outline-secondary btn-lg" href="./dashboard.html">Dashboard</a>
+            </div>
+          </div>
+          <div class="col-lg-5">
+            <div class="card shadow border-0 rounded-4 p-4">
+              <div class="card-body">
+                <h3 class="h4 fw-semibold">Tính năng chính</h3>
+                <ul class="list-group list-group-flush mt-3">
+                  <li class="list-group-item px-0">Đăng nhập bằng email và mật khẩu</li>
+                  <li class="list-group-item px-0">Quên mật khẩu qua email</li>
+                  <li class="list-group-item px-0">Phân quyền Admin/Staff</li>
+                  <li class="list-group-item px-0">Profile và avatar</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./js/index.js"></script>
+  </body>
+</html>
