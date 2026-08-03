@@ -1,4 +1,4 @@
-import { getCurrentUser } from './auth.js';
+import { getCurrentUser, watchAuthState } from './auth.js';
 import { db } from './firebase.js';
 import {
   collection,
@@ -42,6 +42,9 @@ let table;
 let data = [];
 let unsubscribe = null;
 let saveTimer = null;
+let currentUser = null;
+let authReadyPromise = null;
+let isSaving = false;
 
 const columns = [
   { title: 'STT', field: 'stt', width: 70, frozen: true, editor: false, formatter: (cell) => cell.getValue() || '' },
@@ -129,6 +132,7 @@ function initTable() {
 function normalizeRow(row, index) {
   const normalized = {
     id: row.id || `${Date.now()}-${index}`,
+    firestoreId: row.firestoreId || '',
     stt: index + 1,
     productionDate: row.productionDate || '',
     lot: row.lot || '',
@@ -138,7 +142,12 @@ function normalizeRow(row, index) {
     kgB: row.kgB ?? '',
     percentB: row.percentB ?? '',
     kgC: row.kgC ?? '',
-    percentC: row.percentC ?? ''
+    percentC: row.percentC ?? '',
+    materialType: row.materialType ?? '',
+    manufacturer: row.manufacturer ?? '',
+    region: row.region ?? '',
+    vehicle: row.vehicle ?? '',
+    materialKind: row.materialKind ?? ''
   };
   updatePercentages(normalized);
   return normalized;
@@ -227,13 +236,36 @@ function formatPercentValue(value) {
   return `${numeric}%`;
 }
 
+function waitForAuth() {
+  if (authReadyPromise) return authReadyPromise;
+
+  authReadyPromise = new Promise((resolve) => {
+    const existingUser = getCurrentUser();
+    if (existingUser) {
+      currentUser = existingUser;
+      resolve(existingUser);
+      return;
+    }
+
+    const unsubscribeAuth = watchAuthState((user) => {
+      currentUser = user;
+      unsubscribeAuth();
+      resolve(user);
+    });
+  });
+
+  return authReadyPromise;
+}
+
 function ensureUserDocument() {
-  const user = getCurrentUser();
+  const user = currentUser || getCurrentUser();
   if (!user) throw new Error('Bạn chưa đăng nhập.');
+  currentUser = user;
   return user;
 }
 
 async function loadProductionData() {
+  await waitForAuth();
   const user = ensureUserDocument();
   showLoading();
   try {
@@ -253,7 +285,12 @@ async function loadProductionData() {
           kgB: docItem.data().kgB ?? '',
           percentB: docItem.data().percentB ?? '',
           kgC: docItem.data().kgC ?? '',
-          percentC: docItem.data().percentC ?? ''
+          percentC: docItem.data().percentC ?? '',
+          materialType: docItem.data().materialType ?? '',
+          manufacturer: docItem.data().manufacturer ?? '',
+          region: docItem.data().region ?? '',
+          vehicle: docItem.data().vehicle ?? '',
+          materialKind: docItem.data().materialKind ?? ''
         };
         return updatePercentages(row);
       });
@@ -280,7 +317,12 @@ function addNewRow() {
     kgB: '',
     percentB: '',
     kgC: '',
-    percentC: ''
+    percentC: '',
+    materialType: '',
+    manufacturer: '',
+    region: '',
+    vehicle: '',
+    materialKind: ''
   };
   updatePercentages(newRow);
   table.addRow(newRow);
@@ -305,7 +347,12 @@ function addQuickEntry() {
     kgC: quickKgC.value || '',
     percentA: '',
     percentB: '',
-    percentC: ''
+    percentC: '',
+    materialType: quickMaterialType.value,
+    manufacturer: quickManufacturer.value,
+    region: quickRegion.value,
+    vehicle: quickVehicle.value,
+    materialKind: quickMaterialKind.value
   };
 
   updatePercentages(newRow);
@@ -342,14 +389,19 @@ function removeSelectedRows() {
 }
 
 async function saveAllRows() {
+  if (isSaving) return;
+
+  await waitForAuth();
   const user = ensureUserDocument();
+  isSaving = true;
   showLoading();
   try {
     const rows = table.getData();
     const currentIds = new Set(rows.filter((row) => row.firestoreId).map((row) => row.firestoreId));
 
-    for (const row of rows) {
-      if (!row.lot || !row.productionDate || !row.type) continue;
+    const savePromises = rows.map(async (row) => {
+      if (!row.lot || !row.productionDate || !row.type) return;
+
       const payload = {
         productionDate: normalizeDateValue(row.productionDate),
         lot: row.lot,
@@ -360,6 +412,11 @@ async function saveAllRows() {
         percentB: Number(parsePercent(row.percentB) || 0),
         kgC: Number(row.kgC || 0),
         percentC: Number(parsePercent(row.percentC) || 0),
+        materialType: row.materialType || '',
+        manufacturer: row.manufacturer || '',
+        region: row.region || '',
+        vehicle: row.vehicle || '',
+        materialKind: row.materialKind || '',
         createdBy: user.uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -368,23 +425,27 @@ async function saveAllRows() {
       if (row.firestoreId) {
         await updateDoc(doc(db, 'production', row.firestoreId), payload);
       } else {
-        await addDoc(collection(db, 'production'), payload);
-      }
-    }
-
-    const snapshot = await collection(db, 'production');
-    const q = query(snapshot, where('createdBy', '==', user.uid));
-    const docs = await getDocs(q);
-    docs.forEach((docItem) => {
-      if (!currentIds.has(docItem.id)) {
-        deleteDoc(doc(db, 'production', docItem.id));
+        const docRef = await addDoc(collection(db, 'production'), payload);
+        row.firestoreId = docRef.id;
+        row.id = docRef.id;
       }
     });
+
+    await Promise.all(savePromises);
+
+    const q = query(collection(db, 'production'), where('createdBy', '==', user.uid));
+    const docs = await getDocs(q);
+    const deletePromises = docs.docs
+      .filter((docItem) => !currentIds.has(docItem.id))
+      .map((docItem) => deleteDoc(doc(db, 'production', docItem.id)));
+
+    await Promise.all(deletePromises);
 
     showToast('Đã lưu dữ liệu thành công.', 'success');
   } catch (error) {
     showToast(error.message || 'Không thể lưu dữ liệu.', 'error');
   } finally {
+    isSaving = false;
     hideLoading();
   }
 }
@@ -499,5 +560,6 @@ function bindEvents() {
 (async function init() {
   initTable();
   bindEvents();
+  await waitForAuth();
   await loadProductionData();
 })();

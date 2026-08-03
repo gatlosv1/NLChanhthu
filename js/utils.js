@@ -1,4 +1,7 @@
 export function showLoading() {
+  const existingOverlay = document.getElementById('loadingOverlay');
+  if (existingOverlay) return;
+
   const overlay = document.createElement('div');
   overlay.id = 'loadingOverlay';
   overlay.className = 'loading-overlay';
@@ -7,8 +10,8 @@ export function showLoading() {
 }
 
 export function hideLoading() {
-  const overlay = document.getElementById('loadingOverlay');
-  if (overlay) overlay.remove();
+  const overlays = document.querySelectorAll('#loadingOverlay');
+  overlays.forEach((overlay) => overlay.remove());
 }
 
 export function showToast(message, type = 'info') {
