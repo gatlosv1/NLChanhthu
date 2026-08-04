@@ -141,6 +141,11 @@ function hideEditPanel() {
 createUserForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
 
+  if (currentRole !== 'admin') {
+    showToast('Chỉ admin mới được tạo tài khoản.', 'error');
+    return;
+  }
+
   const emailInput = document.getElementById('createUserEmail');
   const passwordInput = document.getElementById('createUserPassword');
   const nameInput = document.getElementById('createUserName');
@@ -189,8 +194,12 @@ watchAuthState(async (user) => {
   try {
     const profile = await getUserProfile(user.uid);
     renderProfile(user, profile);
-    userManagementSection?.classList.remove('d-none');
-    await loadUsers();
+    if (currentRole === 'admin') {
+      userManagementSection?.classList.remove('d-none');
+      await loadUsers();
+    } else {
+      userManagementSection?.classList.add('d-none');
+    }
   } catch (error) {
     showToast(error.message || 'Không thể tải hồ sơ.', 'error');
   } finally {
@@ -211,13 +220,14 @@ function renderProfile(user, profile) {
   currentUserDepartment.textContent = department;
   avatarPreview.textContent = name.charAt(0).toUpperCase();
 
+  const isAdmin = role === 'admin';
   const adminMenuItems = document.querySelectorAll('.admin-only');
   adminMenuItems.forEach((item) => {
-    item.classList.remove('is-hidden');
+    item.classList.toggle('is-hidden', !isAdmin);
   });
-  manageUsersMenu?.classList.remove('is-hidden');
+  manageUsersMenu?.classList.toggle('is-hidden', !isAdmin);
 
-  const actions = role === 'admin'
+  const actions = isAdmin
     ? [
         'Quản lý User',
         'Quản lý dữ liệu',
@@ -240,6 +250,11 @@ userTableBody?.addEventListener('click', async (event) => {
   const action = button.getAttribute('data-action');
 
   if (!userId) return;
+
+  if (currentRole !== 'admin') {
+    showToast('Chỉ admin mới được quản lý tài khoản.', 'error');
+    return;
+  }
 
   if (action === 'edit') {
     const user = (await getAllUsersProfiles()).find((item) => item.id === userId);
@@ -306,6 +321,11 @@ editUserForm?.addEventListener('submit', async (event) => {
 
   const userId = editUserId.value;
   if (!userId) return;
+
+  if (currentRole !== 'admin') {
+    showToast('Chỉ admin mới được chỉnh sửa tài khoản.', 'error');
+    return;
+  }
 
   try {
     const updatePayload = {

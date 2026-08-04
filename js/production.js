@@ -1,5 +1,7 @@
 import { getCurrentUser, watchAuthState } from './auth.js?v=20260804-3';
 import { db } from './firebase.js?v=20260804-3';
+import { getUserProfile } from './firestore.js';
+import { resolveInitialRole } from './roleUtils.js';
 import {
   collection,
   setDoc,
@@ -43,6 +45,7 @@ let saveTimer = null;
 let currentUser = null;
 let authReadyPromise = null;
 let isSaving = false;
+let currentRole = 'staff';
 
 const columns = [
   { title: 'STT', field: 'stt', width: 70, frozen: true, editor: false, formatter: (cell) => {
@@ -92,7 +95,13 @@ function initTable() {
       },
       {
         label: 'Xóa dòng',
-        action: () => removeSelectedRows()
+        action: () => {
+          if (currentRole !== 'admin') {
+            showToast('Bạn chỉ có thể nhập dữ liệu, không được xóa.', 'info');
+            return;
+          }
+          removeSelectedRows();
+        }
       },
       {
         label: 'Copy',
@@ -402,7 +411,21 @@ function addQuickEntry() {
   autoSave();
 }
 
+function updateRoleAccess() {
+  const isAdmin = currentRole === 'admin';
+  if (deleteRowBtn) {
+    deleteRowBtn.disabled = !isAdmin;
+    deleteRowBtn.classList.toggle('d-none', !isAdmin);
+    deleteRowBtn.title = isAdmin ? 'Xóa dòng đã chọn' : 'Chỉ admin mới có quyền xóa';
+  }
+}
+
 function removeSelectedRows() {
+  if (currentRole !== 'admin') {
+    showToast('Bạn chỉ có thể nhập dữ liệu, không được xóa.', 'info');
+    return;
+  }
+
   const selected = table.getSelectedRows();
   if (!selected.length) {
     showToast('Vui lòng chọn dòng để xóa.', 'info');
@@ -581,7 +604,13 @@ function bindEvents() {
   });
 
   quickAddBtn.addEventListener('click', addQuickEntry);
-  deleteRowBtn.addEventListener('click', removeSelectedRows);
+  deleteRowBtn.addEventListener('click', () => {
+    if (currentRole !== 'admin') {
+      showToast('Bạn chỉ có thể nhập dữ liệu, không được xóa.', 'info');
+      return;
+    }
+    removeSelectedRows();
+  });
   refreshBtn.addEventListener('click', loadProductionData);
   importBtn.addEventListener('click', importFromCsv);
   exportBtn.addEventListener('click', exportToCsv);
@@ -592,7 +621,10 @@ function bindEvents() {
   initTable();
   bindEvents();
   try {
-    await waitForAuth();
+    const authUser = await waitForAuth();
+    const profile = await getUserProfile(authUser.uid);
+    currentRole = resolveInitialRole(authUser.email, profile?.role);
+    updateRoleAccess();
     await loadProductionData();
   } catch (error) {
     showToast(error.message || 'Không thể kết nối dữ liệu.', 'error');
