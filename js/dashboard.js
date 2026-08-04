@@ -3,6 +3,7 @@ import { createOrUpdateUserProfile, getUserProfile, updateUserProfile, deleteUse
 import { auth } from './firebase.js';
 import { sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import { hideLoading, showLoading, showToast } from './utils.js';
+import { resolveInitialRole } from './roleUtils.js';
 
 const greeting = document.getElementById('dashboardGreeting');
 const currentUserName = document.getElementById('currentUserName');
@@ -195,7 +196,7 @@ watchAuthState(async (user) => {
 });
 
 function renderProfile(user, profile) {
-  const role = profile?.role || 'staff';
+  const role = resolveInitialRole(user?.email, profile?.role);
   currentRole = role;
   const department = profile?.department || 'Chưa phân phòng';
   const name = profile?.name || user.displayName || 'Nhân viên';

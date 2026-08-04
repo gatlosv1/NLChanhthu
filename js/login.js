@@ -1,6 +1,7 @@
-import { loginWithEmailPassword, resetPassword, watchAuthState } from './auth.js';
+import { loginWithEmailPassword, resetPassword, signUpWithEmailPassword, watchAuthState } from './auth.js';
 import { ensureUserDocument } from './userService.js';
 import { hideLoading, showLoading, showToast } from './utils.js';
+import { isAdminLikeEmail } from './roleUtils.js';
 
 const form = document.getElementById('loginForm');
 const togglePassword = document.getElementById('togglePassword');
@@ -33,7 +34,19 @@ form.addEventListener('submit', async (event) => {
     showToast(`Đăng nhập thành công. Chào ${credential.user.email}`, 'success');
     window.location.href = './dashboard.html';
   } catch (error) {
-    showToast(mapError(error), 'error');
+    if ((error.code === 'auth/user-not-found' || error.code === 'auth/invalid-login-credentials') && isAdminLikeEmail(email) && password) {
+      try {
+        const credential = await signUpWithEmailPassword(email, password);
+        await ensureUserDocument();
+        showToast(`Tạo tài khoản admin thành công. Chào ${credential.user.email}`, 'success');
+        window.location.href = './dashboard.html';
+        return;
+      } catch (createError) {
+        showToast(mapError(createError), 'error');
+      }
+    } else {
+      showToast(mapError(error), 'error');
+    }
   } finally {
     hideLoading();
   }
@@ -74,6 +87,14 @@ function mapError(error) {
       return 'Mật khẩu không đúng.';
     case 'auth/too-many-requests':
       return 'Quá nhiều lần thử. Hãy thử lại sau.';
+    case 'auth/network-request-failed':
+      return 'Lỗi mạng. Vui lòng kiểm tra kết nối và thử lại.';
+    case 'auth/operation-not-allowed':
+      return 'Đăng nhập bằng email/mật khẩu chưa được bật cho dự án này.';
+    case 'auth/invalid-login-credentials':
+      return 'Email hoặc mật khẩu không đúng.';
+    case 'auth/email-already-in-use':
+      return 'Email này đã được sử dụng.';
     default:
       return error.message || 'Đã xảy ra lỗi. Vui lòng thử lại.';
   }

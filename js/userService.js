@@ -1,19 +1,28 @@
 import { getCurrentUser } from './auth.js';
 import { createOrUpdateUserProfile, getUserProfile, updateUserProfile } from './firestore.js';
+import { resolveInitialRole } from './roleUtils.js';
 
 export async function ensureUserDocument() {
   const currentUser = getCurrentUser();
   if (!currentUser) return null;
 
   const existing = await getUserProfile(currentUser.uid);
+  const resolvedRole = resolveInitialRole(currentUser.email, existing?.role);
+
   if (!existing) {
     await createOrUpdateUserProfile(currentUser.uid, {
       name: currentUser.displayName || 'Nhân viên',
       email: currentUser.email,
-      role: 'staff',
+      role: resolvedRole,
       department: 'Chưa phân phòng',
       avatar: '',
       createdAt: new Date()
+    });
+  } else if (!existing.role || existing.role !== resolvedRole) {
+    await updateUserProfile(currentUser.uid, {
+      role: resolvedRole,
+      email: currentUser.email,
+      name: existing.name || currentUser.displayName || 'Nhân viên'
     });
   }
 
