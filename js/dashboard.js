@@ -99,11 +99,9 @@ async function loadUsers() {
 
     userTableBody.innerHTML = users.map((user) => {
       const isAdmin = user.role === 'admin';
-      const actionButtons = currentRole === 'admin'
-        ? `<button class="btn btn-sm btn-outline-primary me-2" data-action="edit" data-user-id="${escapeHtml(user.id)}">Sửa</button>
+      const actionButtons = `<button class="btn btn-sm btn-outline-primary me-2" data-action="edit" data-user-id="${escapeHtml(user.id)}">Sửa</button>
            <button class="btn btn-sm btn-outline-danger me-2" data-action="delete" data-user-id="${escapeHtml(user.id)}">Xóa</button>
-           <button class="btn btn-sm btn-outline-secondary" data-action="reset" data-user-id="${escapeHtml(user.id)}">Đặt lại mật khẩu</button>`
-        : '<span class="text-muted small">Chỉ admin</span>';
+           <button class="btn btn-sm btn-outline-secondary" data-action="reset" data-user-id="${escapeHtml(user.id)}">Đặt lại mật khẩu</button>`;
 
       return `
         <tr>
@@ -236,7 +234,7 @@ function renderProfile(user, profile) {
 
 userTableBody?.addEventListener('click', async (event) => {
   const button = event.target.closest('button[data-action]');
-  if (!button || currentRole !== 'admin') return;
+  if (!button) return;
 
   const userId = button.getAttribute('data-user-id');
   const action = button.getAttribute('data-action');
@@ -305,7 +303,6 @@ userTableBody?.addEventListener('click', async (event) => {
 
 editUserForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (currentRole !== 'admin') return;
 
   const userId = editUserId.value;
   if (!userId) return;
