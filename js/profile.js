@@ -15,6 +15,7 @@ const profileDisplayEmail = document.getElementById('profileDisplayEmail');
 
 let currentAvatarUrl = '';
 
+// Khi trạng thái auth thay đổi, tải hồ sơ người dùng hiện tại.
 watchAuthState(async (user) => {
   if (!user) {
     window.location.href = './login.html';
@@ -32,6 +33,7 @@ watchAuthState(async (user) => {
   }
 });
 
+// Lưu thông tin hồ sơ khi người dùng bấm cập nhật.
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const user = getCurrentUser();
@@ -52,6 +54,7 @@ form.addEventListener('submit', async (event) => {
   }
 });
 
+// Tải ảnh avatar mới lên Firebase Storage.
 avatarInput.addEventListener('change', async (event) => {
   const file = event.target.files?.[0];
   const user = getCurrentUser();
@@ -69,6 +72,7 @@ avatarInput.addEventListener('change', async (event) => {
   }
 });
 
+// Hiển thị thông tin hồ sơ trên giao diện profile.
 function renderProfile(user, profile) {
   const name = profile?.name || user.displayName || 'Nhân viên';
   const department = profile?.department || 'Chưa phân phòng';

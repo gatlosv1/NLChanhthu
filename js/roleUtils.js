@@ -1,5 +1,6 @@
 const ADMIN_EMAILS = ['gatlosv1@gmail.com', 'admin@company.com', 'admin@example.com'];
 
+// Kiểm tra email có thuộc nhóm admin như admin@example.com hay có chứa từ admin.
 export function isAdminLikeEmail(email = '') {
   const normalizedEmail = (email || '').trim().toLowerCase();
 
@@ -10,6 +11,7 @@ export function isAdminLikeEmail(email = '') {
   );
 }
 
+// Xác định vai trò ban đầu dựa trên role trong Firestore hoặc email.
 export function resolveInitialRole(email, existingRole = '') {
   const normalizedExistingRole = (existingRole || '').trim().toLowerCase();
 

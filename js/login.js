@@ -9,12 +9,14 @@ const passwordInput = document.getElementById('password');
 const forgotPasswordLink = document.getElementById('forgotPasswordLink');
 const messageBox = document.getElementById('messageBox');
 
+// Nếu người dùng đã đăng nhập thì chuyển thẳng vào dashboard.
 watchAuthState((user) => {
   if (user) {
     window.location.href = './dashboard.html';
   }
 });
 
+// Xử lý sự kiện đăng nhập bằng email và mật khẩu.
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const email = document.getElementById('email').value.trim();
@@ -52,12 +54,14 @@ form.addEventListener('submit', async (event) => {
   }
 });
 
+// Chuyển đổi hiển thị/ẩn mật khẩu trên form đăng nhập.
 togglePassword.addEventListener('click', () => {
   const isPassword = passwordInput.type === 'password';
   passwordInput.type = isPassword ? 'text' : 'password';
   togglePassword.textContent = isPassword ? 'Ẩn' : 'Hiện';
 });
 
+// Gửi email reset mật khẩu khi người dùng bấm quên mật khẩu.
 forgotPasswordLink.addEventListener('click', async (event) => {
   event.preventDefault();
   const email = document.getElementById('email').value.trim();
@@ -77,6 +81,7 @@ forgotPasswordLink.addEventListener('click', async (event) => {
   }
 });
 
+// Chuyển lỗi Firebase sang thông báo thân thiện với người dùng.
 function mapError(error) {
   switch (error.code) {
     case 'auth/invalid-email':

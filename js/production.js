@@ -1,17 +1,27 @@
+// Nhập các hàm liên quan đến auth, Firestore và UI helper.
 import { getCurrentUser, watchAuthState } from './auth.js?v=20260804-3';
+// Kết nối tới Firestore trong Firebase.
 import { db } from './firebase.js?v=20260804-3';
+// Lấy thông tin hồ sơ người dùng từ Firestore.
 import { getUserProfile } from './firestore.js';
+// Xác định vai trò admin/staff dựa trên email hoặc hồ sơ.
 import { resolveInitialRole } from './roleUtils.js';
+// Các hàm Firestore cần dùng: lấy dữ liệu, lưu dữ liệu, xóa dữ liệu.
 import {
   collection,
   setDoc,
   deleteDoc,
   doc,
   serverTimestamp,
-  getDocs
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+// Các hàm hỗ trợ hiển thị loading, toast và thông báo.
 import { hideLoading, showLoading, showToast } from './utils.js?v=20260804-3';
 
+// Lấy các phần tử DOM từ HTML để code có thể thao tác với form, bảng và nút bấm.
 const tableEl = document.getElementById('productionTable');
 const quickMaterialType = document.getElementById('quickMaterialType');
 const quickManufacturer = document.getElementById('quickManufacturer');
@@ -35,15 +45,17 @@ const summaryA = document.getElementById('summaryA');
 const summaryB = document.getElementById('summaryB');
 const summaryC = document.getElementById('summaryC');
 
+// Biến lưu trữ bảng dữ liệu và trạng thái hiện tại của trang.
 let table;
 let data = [];
-let unsubscribe = null;
+let productionUnsubscribe = null;
 let saveTimer = null;
 let currentUser = null;
 let authReadyPromise = null;
 let isSaving = false;
 let currentRole = 'staff';
 
+// Cấu hình các cột hiển thị trong bảng Tabulator.
 const columns = [
   { title: 'STT', field: 'stt', width: 70, frozen: true, editor: false, formatter: (cell) => {
     const value = cell.getValue();
@@ -60,6 +72,7 @@ const columns = [
   { title: '% BTP C', field: 'percentC', width: 120, editor: false, formatter: percentFormatter }
 ];
 
+// Định dạng giá trị phần trăm để hiển thị trong bảng.
 function percentFormatter(cell) {
   const value = cell.getValue();
   if (value === null || value === undefined || value === '') return '';
@@ -68,6 +81,7 @@ function percentFormatter(cell) {
   return `${numeric}%`;
 }
 
+// Khởi tạo bảng Tabulator và gắn các sự kiện cho bảng.
 function initTable() {
   table = new Tabulator(tableEl, {
     data: [],
@@ -136,6 +150,7 @@ function initTable() {
   });
 }
 
+// Chuẩn hóa một dòng dữ liệu trước khi chèn vào bảng hoặc lưu xuống Firestore.
 function normalizeRow(row, index) {
   const normalized = {
     id: row.id || `${Date.now()}-${index}`,
@@ -160,6 +175,7 @@ function normalizeRow(row, index) {
   return normalized;
 }
 
+// Chuyển đổi giá trị ngày sang định dạng dd/MM/yyyy để hiển thị.
 function formatDateForDisplay(dateValue) {
   if (!dateValue) return '';
   const date = new Date(dateValue);
@@ -170,11 +186,13 @@ function formatDateForDisplay(dateValue) {
   return `${day}/${month}/${year}`;
 }
 
+// Lấy chữ số cuối cùng của năm để tạo mã lot.
 function getYearSuffix(year) {
   const suffix = String(year).slice(-1);
   return suffix;
 }
 
+// Tạo mã lot theo mẫu doanh nghiệp từ các ô nhập nhanh.
 function generateLot({ materialType, manufacturer, region, productionDate, vehicle, materialKind }) {
   if (!materialType || !manufacturer || !region || !productionDate || !vehicle || !materialKind) return '';
 
@@ -192,6 +210,7 @@ function generateLot({ materialType, manufacturer, region, productionDate, vehic
   return `${materialType}${manufacturerCode}${regionCode}${day}${month}${yearSuffix}-${vehicleCode}-${materialCode}`;
 }
 
+// Tự động điền ô Lot dựa trên các thông tin nhập nhanh.
 function updateQuickLot() {
   const lot = generateLot({
     materialType: quickMaterialType.value,
@@ -204,6 +223,7 @@ function updateQuickLot() {
   quickLot.value = lot;
 }
 
+// Chuyển đổi chuỗi phần trăm bằng cách bỏ dấu % nếu có.
 function parsePercent(value) {
   if (value === null || value === undefined || value === '') return '';
   const stringValue = String(value).trim();
@@ -211,6 +231,7 @@ function parsePercent(value) {
   return stringValue;
 }
 
+// Tính lại các cột phần trăm từ các giá trị kg.
 function updatePercentages(rowData) {
   const total = Number(rowData.kgA || 0) + Number(rowData.kgB || 0) + Number(rowData.kgC || 0);
   if (total > 0) {
@@ -225,6 +246,9 @@ function updatePercentages(rowData) {
   return rowData;
 }
 
+
+
+// Chuẩn hóa giá trị ngày để lưu và hiển thị đồng bộ.
 function normalizeDateValue(value) {
   if (!value) return '';
   if (value instanceof Date) return formatDateForDisplay(value);
@@ -236,6 +260,7 @@ function normalizeDateValue(value) {
   return value;
 }
 
+// Định dạng giá trị phần trăm số để hiển thị.
 function formatPercentValue(value) {
   if (value === null || value === undefined || value === '') return '';
   const numeric = Number(value);
@@ -243,6 +268,7 @@ function formatPercentValue(value) {
   return `${numeric}%`;
 }
 
+// Chờ trạng thái đăng nhập của Firebase được xác định trước khi tiếp tục.
 async function waitForAuth() {
   if (authReadyPromise) return authReadyPromise;
 
@@ -271,6 +297,7 @@ async function waitForAuth() {
   return authReadyPromise;
 }
 
+// Đảm bảo có người dùng đăng nhập trước khi thực hiện thao tác phụ thuộc auth.
 async function ensureUserDocument() {
   if (currentUser) return currentUser;
   const user = await waitForAuth();
@@ -279,6 +306,7 @@ async function ensureUserDocument() {
   return user;
 }
 
+// Sắp xếp dòng dữ liệu theo thời gian tạo để bảng tải đúng thứ tự.
 function sortRowsByCreatedAt(rows) {
   return [...rows].sort((a, b) => {
     const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
@@ -287,6 +315,7 @@ function sortRowsByCreatedAt(rows) {
   });
 }
 
+// Tính lại số thứ tự sau khi thêm, xóa hoặc tải dữ liệu.
 function reindexRows(rows) {
   return rows.map((row, index) => ({
     ...row,
@@ -294,9 +323,73 @@ function reindexRows(rows) {
   }));
 }
 
+function mapDocToRow(docItem, index) {
+  const rowData = docItem.data();
+  const row = {
+    id: docItem.id,
+    firestoreId: docItem.id,
+    stt: index + 1,
+    createdAt: rowData.createdAt || null,
+    productionDate: rowData.productionDate || '',
+    lot: rowData.lot || '',
+    type: rowData.type || 'RI',
+    kgA: rowData.kgA ?? '',
+    percentA: rowData.percentA ?? '',
+    kgB: rowData.kgB ?? '',
+    percentB: rowData.percentB ?? '',
+    kgC: rowData.kgC ?? '',
+    percentC: rowData.percentC ?? '',
+    materialType: rowData.materialType ?? '',
+    manufacturer: rowData.manufacturer ?? '',
+    region: rowData.region ?? '',
+    vehicle: rowData.vehicle ?? '',
+    materialKind: rowData.materialKind ?? ''
+  };
+  return updatePercentages(row);
+}
+
+function applyRowsToTable(rows) {
+  data = reindexRows(rows);
+  if (table) {
+    table.setData(data);
+    updateSummary();
+  }
+}
+
+function stopProductionRealtimeListener() {
+  if (productionUnsubscribe) {
+    productionUnsubscribe();
+    productionUnsubscribe = null;
+  }
+}
+
+function startProductionRealtimeListener() {
+  stopProductionRealtimeListener();
+  const productionRef = collection(db, 'production');
+  const productionQuery = query(productionRef, orderBy('createdAt', 'asc'));
+
+  productionUnsubscribe = onSnapshot(productionQuery, (snapshot) => {
+    const rows = snapshot.docs.map((docItem, index) => mapDocToRow(docItem, index));
+    applyRowsToTable(rows);
+  }, (error) => {
+    showToast(error.message || 'Không thể kết nối dữ liệu thời gian thực.', 'error');
+  });
+}
+
+// Tải toàn bộ dữ liệu sản xuất chung từ Firestore vào bảng.
 async function loadProductionData() {
   try {
-    const snapshot = await getDocs(collection(db, 'production'));
+    startProductionRealtimeListener();
+    updateSummary();
+  } catch (error) {
+    showToast(error.message || 'Không thể tải dữ liệu.', 'error');
+  }
+}
+
+// Phiên bản cũ giữ lại để tránh lỗi nếu cần tham khảo.
+async function legacyLoadProductionData() {
+  try {
+    startProductionRealtimeListener();
     data = reindexRows(sortRowsByCreatedAt(snapshot.docs.map((docItem, index) => {
       const row = {
         id: docItem.id,
@@ -327,6 +420,7 @@ async function loadProductionData() {
   }
 }
 
+// Thêm một dòng trống cục bộ để người dùng điền thông tin.
 async function addNewRow() {
   const user = await ensureUserDocument();
   const newRow = {
@@ -353,6 +447,7 @@ async function addNewRow() {
   updateSummary();
 }
 
+// Tạo một dòng dữ liệu từ form nhập nhanh và lưu lại.
 function addQuickEntry() {
   const generatedLot = generateLot({
     materialType: quickMaterialType.value,
@@ -406,6 +501,7 @@ function addQuickEntry() {
   autoSave();
 }
 
+// Ẩn/hiện nút xóa dựa trên vai trò hiện tại của người dùng.
 function updateRoleAccess() {
   const isAdmin = currentRole === 'admin';
   if (deleteRowBtn) {
@@ -415,6 +511,7 @@ function updateRoleAccess() {
   }
 }
 
+// Xóa các dòng được chọn khỏi bảng và khỏi Firestore nếu cần.
 function removeSelectedRows() {
   if (currentRole !== 'admin') {
     showToast('Bạn chỉ có thể nhập dữ liệu, không được xóa.', 'info');
@@ -438,6 +535,7 @@ function removeSelectedRows() {
   updateSummary();
 }
 
+// Lưu toàn bộ dòng dữ liệu trong bảng lên collection Firestore chung.
 async function saveAllRows() {
   if (isSaving) return;
 
@@ -502,6 +600,7 @@ async function saveAllRows() {
   }
 }
 
+// Cập nhật các chỉ số tổng ở cuối trang.
 function updateSummary() {
   const rows = table ? table.getData() : [];
   const numeric = rows.map((row) => ({
@@ -515,6 +614,7 @@ function updateSummary() {
   summaryC.textContent = numeric.reduce((sum, row) => sum + row.kgC, 0).toFixed(2);
 }
 
+// Kích hoạt tự động lưu sau khi bảng thay đổi.
 function autoSave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
@@ -522,11 +622,13 @@ function autoSave() {
   }, 1500);
 }
 
+// Escape các giá trị để ghi an toàn vào file CSV.
 function escapeCsv(value) {
   const stringValue = `${value ?? ''}`;
   return /[",\n]/.test(stringValue) ? `"${stringValue.replace(/"/g, '""')}"` : stringValue;
 }
 
+// Xuất các dòng hiện tại của bảng ra file CSV.
 function exportToCsv() {
   const rows = table.getData();
   const header = ['STT', 'Ngày sản xuất', 'Lot', 'RI/DO', 'kg BTP A', '% BTP A', 'kg BTP B', '% BTP B', 'kg BTP C', '% BTP C'];
@@ -558,6 +660,7 @@ function exportToCsv() {
   showToast('Đã xuất CSV.', 'success');
 }
 
+// Nhập dữ liệu từ file CSV vào bảng.
 async function importFromCsv() {
   const input = document.createElement('input');
   input.type = 'file';
@@ -595,6 +698,7 @@ async function importFromCsv() {
   input.click();
 }
 
+// Gắn các nút và ô nhập trên giao diện với hàm xử lý tương ứng.
 function bindEvents() {
   [quickMaterialType, quickManufacturer, quickRegion, quickProductionDate, quickVehicle, quickMaterialKind].forEach((element) => {
     element.addEventListener('input', updateQuickLot);
@@ -609,21 +713,26 @@ function bindEvents() {
     }
     removeSelectedRows();
   });
-  refreshBtn.addEventListener('click', loadProductionData);
+  refreshBtn.addEventListener('click', () => {
+    startProductionRealtimeListener();
+  });
   importBtn.addEventListener('click', importFromCsv);
   exportBtn.addEventListener('click', exportToCsv);
   saveBtn.addEventListener('click', saveAllRows);
 }
 
+// Điểm khởi đầu: khởi tạo bảng, gắn sự kiện và tải dữ liệu chung.
 (async function init() {
   initTable();
   bindEvents();
+  window.addEventListener('beforeunload', stopProductionRealtimeListener);
 
   watchAuthState(async (user) => {
     if (!user) {
       currentUser = null;
       currentRole = 'staff';
       updateRoleAccess();
+      stopProductionRealtimeListener();
       await loadProductionData();
       return;
     }
