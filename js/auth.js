@@ -40,3 +40,7 @@ export function watchAuthState(callback) {
 export function getCurrentUser() {
   return auth.currentUser;
 }
+
+export function getCurrentUserId() {
+  return auth.currentUser?.uid || null;
+}

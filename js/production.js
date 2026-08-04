@@ -143,6 +143,7 @@ function normalizeRow(row, index) {
   const normalized = {
     id: row.id || `${Date.now()}-${index}`,
     firestoreId: row.firestoreId || '',
+    createdBy: row.createdBy || '',
     stt: row.stt ?? index + 1,
     productionDate: row.productionDate || '',
     lot: row.lot || '',
@@ -472,8 +473,8 @@ async function saveAllRows() {
         region: row.region || '',
         vehicle: row.vehicle || '',
         materialKind: row.materialKind || '',
-        createdBy: user.uid,
-        createdAt: serverTimestamp(),
+        createdBy: row.createdBy || user.uid,
+        createdAt: row.createdAt ? row.createdAt : serverTimestamp(),
         updatedAt: serverTimestamp()
       };
 
@@ -482,6 +483,8 @@ async function saveAllRows() {
       await setDoc(docRef, payload, { merge: true });
       row.firestoreId = docId;
       row.id = docId;
+      row.createdBy = payload.createdBy;
+      row.createdAt = payload.createdAt;
       updatedIds.add(docId);
     });
 
@@ -620,8 +623,37 @@ function bindEvents() {
 (async function init() {
   initTable();
   bindEvents();
+
+  watchAuthState(async (user) => {
+    if (!user) {
+      currentUser = null;
+      currentRole = 'staff';
+      updateRoleAccess();
+      data = [];
+      table.setData([]);
+      updateSummary();
+      window.location.href = './login.html';
+      return;
+    }
+
+    if (currentUser?.uid === user.uid) {
+      return;
+    }
+
+    currentUser = user;
+    try {
+      const profile = await getUserProfile(user.uid);
+      currentRole = resolveInitialRole(user.email, profile?.role);
+      updateRoleAccess();
+      await loadProductionData();
+    } catch (error) {
+      showToast(error.message || 'Không thể tải dữ liệu.', 'error');
+    }
+  });
+
   try {
     const authUser = await waitForAuth();
+    currentUser = authUser;
     const profile = await getUserProfile(authUser.uid);
     currentRole = resolveInitialRole(authUser.email, profile?.role);
     updateRoleAccess();

@@ -26,6 +26,16 @@ export async function getUserProfile(uid) {
   return snapshot.exists() ? snapshot.data() : null;
 }
 
+export function normalizeUserRole(role = '') {
+  const normalizedRole = (role || '').trim().toLowerCase();
+  return normalizedRole === 'admin' ? 'admin' : 'staff';
+}
+
+export async function getUserRole(uid) {
+  const profile = await getUserProfile(uid);
+  return normalizeUserRole(profile?.role);
+}
+
 export async function updateUserProfile(uid, payload) {
   const userRef = doc(db, USERS_COLLECTION, uid);
   await updateDoc(userRef, {
