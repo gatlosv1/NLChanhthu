@@ -17,9 +17,9 @@ service cloud.firestore {
     }
 
     match /production/{docId} {
-      allow read: if isSignedIn() && (isAdmin() || resource.data.createdBy == request.auth.uid);
-      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
-      allow update: if isSignedIn() && (isAdmin() || resource.data.createdBy == request.auth.uid);
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
       allow delete: if isAdmin();
     }
   }

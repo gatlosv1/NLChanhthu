@@ -5,10 +5,7 @@ import { resolveInitialRole } from './roleUtils.js';
 import {
   collection,
   setDoc,
-  updateDoc,
   deleteDoc,
-  query,
-  where,
   doc,
   serverTimestamp,
   getDocs
@@ -143,7 +140,6 @@ function normalizeRow(row, index) {
   const normalized = {
     id: row.id || `${Date.now()}-${index}`,
     firestoreId: row.firestoreId || '',
-    createdBy: row.createdBy || '',
     stt: row.stt ?? index + 1,
     productionDate: row.productionDate || '',
     lot: row.lot || '',
@@ -299,10 +295,9 @@ function reindexRows(rows) {
 }
 
 async function loadProductionData() {
-  const user = await ensureUserDocument();
+  await ensureUserDocument();
   try {
-    const q = query(collection(db, 'production'), where('createdBy', '==', user.uid));
-    const snapshot = await getDocs(q);
+    const snapshot = await getDocs(collection(db, 'production'));
     data = reindexRows(sortRowsByCreatedAt(snapshot.docs.map((docItem, index) => {
       const row = {
         id: docItem.id,
@@ -473,25 +468,22 @@ async function saveAllRows() {
         region: row.region || '',
         vehicle: row.vehicle || '',
         materialKind: row.materialKind || '',
-        createdBy: row.createdBy || user.uid,
         createdAt: row.createdAt ? row.createdAt : serverTimestamp(),
         updatedAt: serverTimestamp()
       };
 
-      const docId = row.firestoreId || row.id || `${user.uid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const docId = row.firestoreId || row.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const docRef = doc(db, 'production', docId);
       await setDoc(docRef, payload, { merge: true });
       row.firestoreId = docId;
       row.id = docId;
-      row.createdBy = payload.createdBy;
       row.createdAt = payload.createdAt;
       updatedIds.add(docId);
     });
 
     await Promise.all(savePromises);
 
-    const q = query(collection(db, 'production'), where('createdBy', '==', user.uid));
-    const docs = await getDocs(q);
+    const docs = await getDocs(collection(db, 'production'));
     const deletePromises = docs.docs
       .filter((docItem) => !updatedIds.has(docItem.id))
       .map((docItem) => deleteDoc(doc(db, 'production', docItem.id)));
