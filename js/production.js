@@ -435,8 +435,21 @@ async function legacyLoadProductionData() {
   }
 }
 
+function ensureAdminCanWrite(actionLabel = 'thêm và đồng bộ dữ liệu') {
+  if (currentRole === 'admin') {
+    return true;
+  }
+
+  showToast(`Chỉ admin mới có quyền ${actionLabel} và đồng bộ với Firebase.`, 'info');
+  return false;
+}
+
 // Thêm một dòng trống cục bộ để người dùng điền thông tin.
 async function addNewRow() {
+  if (!ensureAdminCanWrite('thêm dòng')) {
+    return;
+  }
+
   const user = await ensureUserDocument();
   const newRow = {
     id: `${user.uid}-${Date.now()}`,
@@ -465,6 +478,10 @@ async function addNewRow() {
 
 // Tạo một dòng dữ liệu từ form nhập nhanh và lưu lại.
 function addQuickEntry() {
+  if (!ensureAdminCanWrite('thêm thông tin')) {
+    return;
+  }
+
   const generatedLot = generateLot({
     materialType: quickMaterialKind.value,
     manufacturer: quickManufacturer.value,
@@ -556,6 +573,10 @@ function removeSelectedRows() {
 // Lưu toàn bộ dòng dữ liệu trong bảng lên collection Firestore chung.
 async function saveAllRows() {
   if (isSaving) return;
+
+  if (!ensureAdminCanWrite('đồng bộ dữ liệu')) {
+    return;
+  }
 
   if (!currentUser) {
     showToast('Bạn cần đăng nhập để lưu dữ liệu.', 'info');
@@ -685,6 +706,10 @@ function exportToCsv() {
 
 // Nhập dữ liệu từ file CSV vào bảng.
 async function importFromCsv() {
+  if (!ensureAdminCanWrite('nhập dữ liệu')) {
+    return;
+  }
+
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = '.csv';
