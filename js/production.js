@@ -1,19 +1,17 @@
-import { getCurrentUser, watchAuthState, loginAnonymously } from './auth.js';
-import { db } from './firebase.js';
+import { getCurrentUser, watchAuthState, loginAnonymously } from './auth.js?v=20260804-3';
+import { db } from './firebase.js?v=20260804-3';
 import {
   collection,
   addDoc,
   updateDoc,
   deleteDoc,
-  onSnapshot,
   query,
   where,
-  orderBy,
   doc,
   serverTimestamp,
   getDocs
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
-import { hideLoading, showLoading, showToast } from './utils.js';
+import { hideLoading, showLoading, showToast } from './utils.js?v=20260804-3';
 
 const tableEl = document.getElementById('productionTable');
 const quickMaterialType = document.getElementById('quickMaterialType');
@@ -274,41 +272,45 @@ async function ensureUserDocument() {
   return user;
 }
 
+function sortRowsByCreatedAt(rows) {
+  return [...rows].sort((a, b) => {
+    const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+    const bTime = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+    return aTime - bTime;
+  });
+}
+
 async function loadProductionData() {
   const user = await ensureUserDocument();
-  showLoading();
   try {
-    if (unsubscribe) unsubscribe();
-    const q = query(collection(db, 'production'), where('createdBy', '==', user.uid), orderBy('createdAt', 'asc'));
-    unsubscribe = onSnapshot(q, (snapshot) => {
-      data = snapshot.docs.map((docItem, index) => {
-        const row = {
-          id: docItem.id,
-          firestoreId: docItem.id,
-          stt: index + 1,
-          productionDate: docItem.data().productionDate || '',
-          lot: docItem.data().lot || '',
-          type: docItem.data().type || 'RI',
-          kgA: docItem.data().kgA ?? '',
-          percentA: docItem.data().percentA ?? '',
-          kgB: docItem.data().kgB ?? '',
-          percentB: docItem.data().percentB ?? '',
-          kgC: docItem.data().kgC ?? '',
-          percentC: docItem.data().percentC ?? '',
-          materialType: docItem.data().materialType ?? '',
-          manufacturer: docItem.data().manufacturer ?? '',
-          region: docItem.data().region ?? '',
-          vehicle: docItem.data().vehicle ?? '',
-          materialKind: docItem.data().materialKind ?? ''
-        };
-        return updatePercentages(row);
-      });
-      table.setData(data);
-      updateSummary();
-      hideLoading();
-    });
+    const q = query(collection(db, 'production'), where('createdBy', '==', user.uid));
+    const snapshot = await getDocs(q);
+    data = sortRowsByCreatedAt(snapshot.docs.map((docItem, index) => {
+      const row = {
+        id: docItem.id,
+        firestoreId: docItem.id,
+        stt: index + 1,
+        createdAt: docItem.data().createdAt || null,
+        productionDate: docItem.data().productionDate || '',
+        lot: docItem.data().lot || '',
+        type: docItem.data().type || 'RI',
+        kgA: docItem.data().kgA ?? '',
+        percentA: docItem.data().percentA ?? '',
+        kgB: docItem.data().kgB ?? '',
+        percentB: docItem.data().percentB ?? '',
+        kgC: docItem.data().kgC ?? '',
+        percentC: docItem.data().percentC ?? '',
+        materialType: docItem.data().materialType ?? '',
+        manufacturer: docItem.data().manufacturer ?? '',
+        region: docItem.data().region ?? '',
+        vehicle: docItem.data().vehicle ?? '',
+        materialKind: docItem.data().materialKind ?? ''
+      };
+      return updatePercentages(row);
+    })).map((row, index) => ({ ...row, stt: index + 1 }));
+    table.setData(data);
+    updateSummary();
   } catch (error) {
-    hideLoading();
     showToast(error.message || 'Không thể tải dữ liệu.', 'error');
   }
 }
@@ -414,7 +416,8 @@ async function saveAllRows() {
   showLoading();
   try {
     const rows = table.getData();
-    const currentIds = new Set(rows.filter((row) => row.firestoreId).map((row) => row.firestoreId));
+    const existingIds = new Set(rows.filter((row) => row.firestoreId).map((row) => row.firestoreId));
+    const updatedIds = new Set(existingIds);
 
     const savePromises = rows.map(async (row) => {
       if (!row.lot || !row.productionDate || !row.type) return;
@@ -441,10 +444,12 @@ async function saveAllRows() {
 
       if (row.firestoreId) {
         await updateDoc(doc(db, 'production', row.firestoreId), payload);
+        updatedIds.add(row.firestoreId);
       } else {
         const docRef = await addDoc(collection(db, 'production'), payload);
         row.firestoreId = docRef.id;
         row.id = docRef.id;
+        updatedIds.add(docRef.id);
       }
     });
 
@@ -453,7 +458,7 @@ async function saveAllRows() {
     const q = query(collection(db, 'production'), where('createdBy', '==', user.uid));
     const docs = await getDocs(q);
     const deletePromises = docs.docs
-      .filter((docItem) => !currentIds.has(docItem.id))
+      .filter((docItem) => !updatedIds.has(docItem.id))
       .map((docItem) => deleteDoc(doc(db, 'production', docItem.id)));
 
     await Promise.all(deletePromises);
@@ -484,7 +489,7 @@ function autoSave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     saveAllRows();
-  }, 1000);
+  }, 1500);
 }
 
 function escapeCsv(value) {
