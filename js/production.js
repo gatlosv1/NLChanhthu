@@ -1,8 +1,8 @@
-import { getCurrentUser, watchAuthState, loginAnonymously } from './auth.js?v=20260804-3';
+import { getCurrentUser, watchAuthState } from './auth.js?v=20260804-3';
 import { db } from './firebase.js?v=20260804-3';
 import {
   collection,
-  addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -45,7 +45,10 @@ let authReadyPromise = null;
 let isSaving = false;
 
 const columns = [
-  { title: 'STT', field: 'stt', width: 70, frozen: true, editor: false, formatter: (cell) => cell.getValue() || '' },
+  { title: 'STT', field: 'stt', width: 70, frozen: true, editor: false, formatter: (cell) => {
+    const value = cell.getValue();
+    return value === null || value === undefined || value === '' ? '' : value;
+  } },
   { title: 'Ngày sản xuất', field: 'productionDate', width: 140, editor: 'date', editorParams: { format: 'dd/MM/yyyy' }, sorter: 'date', validator: ['required'] },
   { title: 'Lot', field: 'lot', width: 180, editor: 'input', validator: ['required'] },
   { title: 'RI/DO', field: 'type', width: 100, editor: 'select', editorParams: { values: ['RI', 'DO'] }, validator: ['required'] },
@@ -131,7 +134,7 @@ function normalizeRow(row, index) {
   const normalized = {
     id: row.id || `${Date.now()}-${index}`,
     firestoreId: row.firestoreId || '',
-    stt: index + 1,
+    stt: row.stt ?? index + 1,
     productionDate: row.productionDate || '',
     lot: row.lot || '',
     type: row.type || 'RI',
@@ -256,9 +259,7 @@ async function waitForAuth() {
       return authUser;
     }
 
-    const anonymousUser = await loginAnonymously();
-    currentUser = anonymousUser.user;
-    return anonymousUser.user;
+    throw new Error('Bạn cần đăng nhập trước khi sử dụng trang nhập liệu.');
   })();
 
   return authReadyPromise;
@@ -280,12 +281,19 @@ function sortRowsByCreatedAt(rows) {
   });
 }
 
+function reindexRows(rows) {
+  return rows.map((row, index) => ({
+    ...row,
+    stt: row.stt ?? index + 1
+  }));
+}
+
 async function loadProductionData() {
   const user = await ensureUserDocument();
   try {
     const q = query(collection(db, 'production'), where('createdBy', '==', user.uid));
     const snapshot = await getDocs(q);
-    data = sortRowsByCreatedAt(snapshot.docs.map((docItem, index) => {
+    data = reindexRows(sortRowsByCreatedAt(snapshot.docs.map((docItem, index) => {
       const row = {
         id: docItem.id,
         firestoreId: docItem.id,
@@ -307,7 +315,7 @@ async function loadProductionData() {
         materialKind: docItem.data().materialKind ?? ''
       };
       return updatePercentages(row);
-    })).map((row, index) => ({ ...row, stt: index + 1 }));
+    })).map((row, index) => ({ ...row, stt: index + 1 })));
     table.setData(data);
     updateSummary();
   } catch (error) {
@@ -336,7 +344,8 @@ async function addNewRow() {
     materialKind: ''
   };
   updatePercentages(newRow);
-  table.addRow(newRow);
+  data = reindexRows([...data, newRow]);
+  table.setData(data);
   updateSummary();
 }
 
@@ -376,7 +385,8 @@ function addQuickEntry() {
   };
 
   updatePercentages(newRow);
-  table.addRow(newRow);
+  data = reindexRows([...data, newRow]);
+  table.setData(data);
   quickLot.value = '';
   quickProductionDate.value = '';
   quickManufacturer.value = '';
@@ -405,6 +415,8 @@ function removeSelectedRows() {
     }
     table.deleteRow(row.getIndex());
   });
+  data = reindexRows(table.getData());
+  table.setData(data);
   updateSummary();
 }
 
@@ -442,15 +454,12 @@ async function saveAllRows() {
         updatedAt: serverTimestamp()
       };
 
-      if (row.firestoreId) {
-        await updateDoc(doc(db, 'production', row.firestoreId), payload);
-        updatedIds.add(row.firestoreId);
-      } else {
-        const docRef = await addDoc(collection(db, 'production'), payload);
-        row.firestoreId = docRef.id;
-        row.id = docRef.id;
-        updatedIds.add(docRef.id);
-      }
+      const docId = row.firestoreId || row.id || `${user.uid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const docRef = doc(db, 'production', docId);
+      await setDoc(docRef, payload, { merge: true });
+      row.firestoreId = docId;
+      row.id = docId;
+      updatedIds.add(docId);
     });
 
     await Promise.all(savePromises);
@@ -582,6 +591,11 @@ function bindEvents() {
 (async function init() {
   initTable();
   bindEvents();
-  await waitForAuth();
-  await loadProductionData();
+  try {
+    await waitForAuth();
+    await loadProductionData();
+  } catch (error) {
+    showToast(error.message || 'Không thể kết nối dữ liệu.', 'error');
+    window.location.href = './login.html';
+  }
 })();
