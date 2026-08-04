@@ -20,10 +20,10 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 // Các hàm hỗ trợ hiển thị loading, toast và thông báo.
 import { hideLoading, showLoading, showToast } from './utils.js?v=20260804-3';
+import { ensureDefaultSettings, getSettingOptions, listenToSettings, SETTING_KEYS } from './settings.js';
 
 // Lấy các phần tử DOM từ HTML để code có thể thao tác với form, bảng và nút bấm.
 const tableEl = document.getElementById('productionTable');
-const quickMaterialType = document.getElementById('quickMaterialType');
 const quickManufacturer = document.getElementById('quickManufacturer');
 const quickRegion = document.getElementById('quickRegion');
 const quickProductionDate = document.getElementById('quickProductionDate');
@@ -34,6 +34,7 @@ const quickType = document.getElementById('quickType');
 const quickKgA = document.getElementById('quickKgA');
 const quickKgB = document.getElementById('quickKgB');
 const quickKgC = document.getElementById('quickKgC');
+const quickKgCNoSeed = document.getElementById('quickKgCNoSeed');
 const quickAddBtn = document.getElementById('quickAddBtn');
 const deleteRowBtn = document.getElementById('deleteRowBtn');
 const refreshBtn = document.getElementById('refreshBtn');
@@ -44,6 +45,7 @@ const summaryRows = document.getElementById('summaryRows');
 const summaryA = document.getElementById('summaryA');
 const summaryB = document.getElementById('summaryB');
 const summaryC = document.getElementById('summaryC');
+const summaryCNoSeed = document.getElementById('summaryCNoSeed');
 
 // Biến lưu trữ bảng dữ liệu và trạng thái hiện tại của trang.
 let table;
@@ -54,22 +56,26 @@ let currentUser = null;
 let authReadyPromise = null;
 let isSaving = false;
 let currentRole = 'staff';
+let settingsState = {};
+let stopSettingsListener = null;
 
 // Cấu hình các cột hiển thị trong bảng Tabulator.
 const columns = [
-  { title: 'STT', field: 'stt', width: 70, frozen: true, editor: false, formatter: (cell) => {
+  { title: 'STT', field: 'stt', width: 70, frozen: true, editor: false, editable: false, formatter: (cell) => {
     const value = cell.getValue();
     return value === null || value === undefined || value === '' ? '' : value;
   } },
-  { title: 'Ngày sản xuất', field: 'productionDate', width: 140, editor: 'date', editorParams: { format: 'dd/MM/yyyy' }, sorter: 'date', validator: ['required'] },
-  { title: 'Lot', field: 'lot', width: 180, editor: 'input', validator: ['required'] },
-  { title: 'RI/DO', field: 'type', width: 100, editor: 'select', editorParams: { values: ['RI', 'DO'] }, validator: ['required'] },
-  { title: 'kg BTP A', field: 'kgA', width: 120, editor: 'number', editorParams: { min: 0, step: 0.01 } },
-  { title: '% BTP A', field: 'percentA', width: 120, editor: false, formatter: percentFormatter },
-  { title: 'kg BTP B', field: 'kgB', width: 120, editor: 'number', editorParams: { min: 0, step: 0.01 } },
-  { title: '% BTP B', field: 'percentB', width: 120, editor: false, formatter: percentFormatter },
-  { title: 'kg BTP C', field: 'kgC', width: 120, editor: 'number', editorParams: { min: 0, step: 0.01 } },
-  { title: '% BTP C', field: 'percentC', width: 120, editor: false, formatter: percentFormatter }
+  { title: 'Ngày sản xuất', field: 'productionDate', width: 140, editor: 'date', editorParams: { format: 'dd/MM/yyyy' }, sorter: 'date', validator: ['required'], editable: () => currentRole === 'admin', headerFilter: 'input', headerFilterPlaceholder: 'Lọc ngày', headerFilterLiveFilter: true },
+  { title: 'Lot', field: 'lot', width: 180, editor: 'input', validator: ['required'], editable: () => currentRole === 'admin', headerFilter: 'input', headerFilterPlaceholder: 'Lọc lot', headerFilterLiveFilter: true },
+  { title: 'RI/DO', field: 'type', width: 100, editor: 'select', editorParams: { values: [] }, validator: ['required'], editable: () => currentRole === 'admin', headerFilter: 'select', headerFilterParams: { values: [] }, headerFilterPlaceholder: 'Lọc' },
+  { title: 'kg BTP A', field: 'kgA', width: 120, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => currentRole === 'admin' },
+  { title: '% BTP A', field: 'percentA', width: 120, editor: false, formatter: percentFormatter, editable: false },
+  { title: 'kg BTP B', field: 'kgB', width: 120, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => currentRole === 'admin' },
+  { title: '% BTP B', field: 'percentB', width: 120, editor: false, formatter: percentFormatter, editable: false },
+  { title: 'kg BTP C', field: 'kgC', width: 120, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => currentRole === 'admin' },
+  { title: '% BTP C', field: 'percentC', width: 120, editor: false, formatter: percentFormatter, editable: false },
+  { title: 'kg BTP C Không hạt', field: 'kgCNoSeed', width: 140, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => currentRole === 'admin' },
+  { title: '% BTP C Không hạt', field: 'percentCNoSeed', width: 140, editor: false, formatter: percentFormatter, editable: false }
 ];
 
 // Định dạng giá trị phần trăm để hiển thị trong bảng.
@@ -83,6 +89,9 @@ function percentFormatter(cell) {
 
 // Khởi tạo bảng Tabulator và gắn các sự kiện cho bảng.
 function initTable() {
+  const options = getSettingOptions(settingsState, SETTING_KEYS.loaiSanPham).map((item) => item.ma);
+  columns[3].editorParams.values = options;
+  columns[3].headerFilterParams.values = options;
   table = new Tabulator(tableEl, {
     data: [],
     columns,
@@ -164,7 +173,9 @@ function normalizeRow(row, index) {
     kgB: row.kgB ?? '',
     percentB: row.percentB ?? '',
     kgC: row.kgC ?? '',
+    kgCNoSeed: row.kgCNoSeed ?? '',
     percentC: row.percentC ?? '',
+    percentCNoSeed: row.percentCNoSeed ?? '',
     materialType: row.materialType ?? '',
     manufacturer: row.manufacturer ?? '',
     region: row.region ?? '',
@@ -213,7 +224,7 @@ function generateLot({ materialType, manufacturer, region, productionDate, vehic
 // Tự động điền ô Lot dựa trên các thông tin nhập nhanh.
 function updateQuickLot() {
   const lot = generateLot({
-    materialType: quickMaterialType.value,
+    materialType: quickMaterialKind.value,
     manufacturer: quickManufacturer.value,
     region: quickRegion.value,
     productionDate: quickProductionDate.value,
@@ -238,10 +249,12 @@ function updatePercentages(rowData) {
     rowData.percentA = ((Number(rowData.kgA || 0) / total) * 100).toFixed(2);
     rowData.percentB = ((Number(rowData.kgB || 0) / total) * 100).toFixed(2);
     rowData.percentC = ((Number(rowData.kgC || 0) / total) * 100).toFixed(2);
+    rowData.percentCNoSeed = ((Number(rowData.kgCNoSeed || 0) / total) * 100).toFixed(2);
   } else {
     rowData.percentA = '';
     rowData.percentB = '';
     rowData.percentC = '';
+    rowData.percentCNoSeed = '';
   }
   return rowData;
 }
@@ -338,6 +351,7 @@ function mapDocToRow(docItem, index) {
     kgB: rowData.kgB ?? '',
     percentB: rowData.percentB ?? '',
     kgC: rowData.kgC ?? '',
+    kgCNoSeed: rowData.kgCNoSeed ?? '',
     percentC: rowData.percentC ?? '',
     materialType: rowData.materialType ?? '',
     manufacturer: rowData.manufacturer ?? '',
@@ -405,6 +419,7 @@ async function legacyLoadProductionData() {
         percentB: docItem.data().percentB ?? '',
         kgC: docItem.data().kgC ?? '',
         percentC: docItem.data().percentC ?? '',
+        percentCNoSeed: docItem.data().percentCNoSeed ?? '',
         materialType: docItem.data().materialType ?? '',
         manufacturer: docItem.data().manufacturer ?? '',
         region: docItem.data().region ?? '',
@@ -435,6 +450,7 @@ async function addNewRow() {
     percentB: '',
     kgC: '',
     percentC: '',
+    percentCNoSeed: '',
     materialType: '',
     manufacturer: '',
     region: '',
@@ -450,7 +466,7 @@ async function addNewRow() {
 // Tạo một dòng dữ liệu từ form nhập nhanh và lưu lại.
 function addQuickEntry() {
   const generatedLot = generateLot({
-    materialType: quickMaterialType.value,
+    materialType: quickMaterialKind.value,
     manufacturer: quickManufacturer.value,
     region: quickRegion.value,
     productionDate: quickProductionDate.value,
@@ -473,10 +489,12 @@ function addQuickEntry() {
     kgA: quickKgA.value || '',
     kgB: quickKgB.value || '',
     kgC: quickKgC.value || '',
+    kgCNoSeed: quickKgCNoSeed.value || '',
     percentA: '',
     percentB: '',
     percentC: '',
-    materialType: quickMaterialType.value,
+    percentCNoSeed: '',
+    materialType: quickMaterialKind.value,
     manufacturer: quickManufacturer.value,
     region: quickRegion.value,
     vehicle: quickVehicle.value,
@@ -494,9 +512,9 @@ function addQuickEntry() {
   quickKgA.value = '';
   quickKgB.value = '';
   quickKgC.value = '';
-  quickType.value = 'RI';
-  quickMaterialType.value = 'D';
-  quickMaterialKind.value = 'M';
+  quickKgCNoSeed.value = '';
+  quickType.value = '';
+  quickMaterialKind.value = '';
   updateSummary();
   autoSave();
 }
@@ -564,6 +582,8 @@ async function saveAllRows() {
         percentB: Number(parsePercent(row.percentB) || 0),
         kgC: Number(row.kgC || 0),
         percentC: Number(parsePercent(row.percentC) || 0),
+        kgCNoSeed: Number(row.kgCNoSeed || 0),
+        percentCNoSeed: Number(parsePercent(row.percentCNoSeed) || 0),
         materialType: row.materialType || '',
         manufacturer: row.manufacturer || '',
         region: row.region || '',
@@ -612,6 +632,7 @@ function updateSummary() {
   summaryA.textContent = numeric.reduce((sum, row) => sum + row.kgA, 0).toFixed(2);
   summaryB.textContent = numeric.reduce((sum, row) => sum + row.kgB, 0).toFixed(2);
   summaryC.textContent = numeric.reduce((sum, row) => sum + row.kgC, 0).toFixed(2);
+  summaryCNoSeed.textContent = numeric.reduce((sum, row) => sum + Number(row.kgCNoSeed || 0), 0).toFixed(2);
 }
 
 // Kích hoạt tự động lưu sau khi bảng thay đổi.
@@ -631,7 +652,7 @@ function escapeCsv(value) {
 // Xuất các dòng hiện tại của bảng ra file CSV.
 function exportToCsv() {
   const rows = table.getData();
-  const header = ['STT', 'Ngày sản xuất', 'Lot', 'RI/DO', 'kg BTP A', '% BTP A', 'kg BTP B', '% BTP B', 'kg BTP C', '% BTP C'];
+  const header = ['STT', 'Ngày sản xuất', 'Lot', 'RI/DO', 'kg BTP A', '% BTP A', 'kg BTP B', '% BTP B', 'kg BTP C', '% BTP C', 'kg BTP C Không hạt', '% BTP C Không hạt'];
   const lines = [header.join(',')];
 
   rows.forEach((row) => {
@@ -645,7 +666,9 @@ function exportToCsv() {
       row.kgB || '',
       row.percentB || '',
       row.kgC || '',
-      row.percentC || ''
+      row.percentC || '',
+      row.kgCNoSeed || '',
+      row.percentCNoSeed || ''
     ];
     lines.push(values.map(escapeCsv).join(','));
   });
@@ -687,7 +710,8 @@ async function importFromCsv() {
         kgB: values[6] || '',
         percentB: values[7] || '',
         kgC: values[8] || '',
-        percentC: values[9] || ''
+        percentC: values[9] || '',
+        percentCNoSeed: values[10] || ''
       };
     });
 
@@ -699,8 +723,27 @@ async function importFromCsv() {
 }
 
 // Gắn các nút và ô nhập trên giao diện với hàm xử lý tương ứng.
+function renderCategorySelects() {
+  const manufacturerOptions = getSettingOptions(settingsState, SETTING_KEYS.nhaCungCap);
+  const regionOptions = getSettingOptions(settingsState, SETTING_KEYS.vungNguyenLieu);
+  const materialKindOptions = getSettingOptions(settingsState, SETTING_KEYS.loaiNguyenLieu);
+  const typeOptions = getSettingOptions(settingsState, SETTING_KEYS.loaiSanPham);
+
+  const buildOptions = (options, selectedValue = '') => options.map((item) => {
+    const value = item.ma;
+    const label = `${item.ma} - ${item.ten}`;
+    const isSelected = value === selectedValue;
+    return `<option value="${value}" ${isSelected ? 'selected' : ''}>${label}</option>`;
+  }).join('');
+
+  quickManufacturer.innerHTML = `<option value="">-- Chọn NCC --</option>${buildOptions(manufacturerOptions, quickManufacturer.value)}`;
+  quickRegion.innerHTML = `<option value="">-- Chọn vùng --</option>${buildOptions(regionOptions, quickRegion.value)}`;
+  quickMaterialKind.innerHTML = `<option value="">-- Chọn loại --</option>${buildOptions(materialKindOptions, quickMaterialKind.value)}`;
+  quickType.innerHTML = `<option value="">-- Chọn loại sản phẩm --</option>${buildOptions(typeOptions, quickType.value)}`;
+}
+
 function bindEvents() {
-  [quickMaterialType, quickManufacturer, quickRegion, quickProductionDate, quickVehicle, quickMaterialKind].forEach((element) => {
+  [quickManufacturer, quickRegion, quickProductionDate, quickVehicle, quickMaterialKind, quickType].forEach((element) => {
     element.addEventListener('input', updateQuickLot);
     element.addEventListener('change', updateQuickLot);
   });
@@ -721,10 +764,30 @@ function bindEvents() {
   saveBtn.addEventListener('click', saveAllRows);
 }
 
+async function startSettingsSync() {
+  if (stopSettingsListener) {
+    stopSettingsListener();
+  }
+
+  await ensureDefaultSettings();
+  stopSettingsListener = listenToSettings((state) => {
+    settingsState = state;
+    renderCategorySelects();
+    if (table) {
+      const options = getSettingOptions(settingsState, SETTING_KEYS.loaiSanPham).map((item) => item.ma);
+      const currentType = table.getColumn('type');
+      if (currentType) {
+        currentType.updateDefinition({ editorParams: { values: options }, headerFilterParams: { values: options } });
+      }
+    }
+  });
+}
+
 // Điểm khởi đầu: khởi tạo bảng, gắn sự kiện và tải dữ liệu chung.
 (async function init() {
   initTable();
   bindEvents();
+  await startSettingsSync();
   window.addEventListener('beforeunload', stopProductionRealtimeListener);
 
   watchAuthState(async (user) => {
