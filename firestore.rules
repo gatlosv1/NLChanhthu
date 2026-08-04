@@ -17,7 +17,7 @@ service cloud.firestore {
     }
 
     match /production/{docId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isAdmin();

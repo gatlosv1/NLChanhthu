@@ -295,7 +295,6 @@ function reindexRows(rows) {
 }
 
 async function loadProductionData() {
-  await ensureUserDocument();
   try {
     const snapshot = await getDocs(collection(db, 'production'));
     data = reindexRows(sortRowsByCreatedAt(snapshot.docs.map((docItem, index) => {
@@ -442,7 +441,11 @@ function removeSelectedRows() {
 async function saveAllRows() {
   if (isSaving) return;
 
-  const user = await ensureUserDocument();
+  if (!currentUser) {
+    showToast('Bạn cần đăng nhập để lưu dữ liệu.', 'info');
+    return;
+  }
+
   isSaving = true;
   showLoading();
   try {
@@ -621,10 +624,7 @@ function bindEvents() {
       currentUser = null;
       currentRole = 'staff';
       updateRoleAccess();
-      data = [];
-      table.setData([]);
-      updateSummary();
-      window.location.href = './login.html';
+      await loadProductionData();
       return;
     }
 
@@ -652,6 +652,6 @@ function bindEvents() {
     await loadProductionData();
   } catch (error) {
     showToast(error.message || 'Không thể kết nối dữ liệu.', 'error');
-    window.location.href = './login.html';
+    await loadProductionData();
   }
 })();
