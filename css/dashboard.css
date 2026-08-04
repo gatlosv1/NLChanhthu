@@ -23,6 +23,14 @@
   display: none !important;
 }
 
+.dashboard-page main {
+  display: block;
+}
+
+.dashboard-page .card {
+  display: block;
+}
+
 #createUserForm .form-control,
 #createUserForm .form-select {
   border-radius: 0.75rem;

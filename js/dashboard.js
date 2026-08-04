@@ -191,16 +191,8 @@ watchAuthState(async (user) => {
   try {
     const profile = await getUserProfile(user.uid);
     renderProfile(user, profile);
-    if (currentRole === 'admin') {
-      userManagementSection?.classList.remove('d-none');
-      await loadUsers();
-    } else {
-      userManagementSection?.classList.add('d-none');
-      userTableBody.innerHTML = '<tr><td colspan="5" class="text-muted">Bạn không có quyền xem danh sách tài khoản.</td></tr>';
-    }
-    if (currentRole !== 'admin') {
-      userTableBody.innerHTML = '<tr><td colspan="5" class="text-muted">Bạn đang xem chế độ Staff.</td></tr>';
-    }
+    userManagementSection?.classList.remove('d-none');
+    await loadUsers();
   } catch (error) {
     showToast(error.message || 'Không thể tải hồ sơ.', 'error');
   } finally {
@@ -222,8 +214,10 @@ function renderProfile(user, profile) {
   avatarPreview.textContent = name.charAt(0).toUpperCase();
 
   const adminMenuItems = document.querySelectorAll('.admin-only');
-  adminMenuItems.forEach((item) => item.classList.toggle('is-hidden', role !== 'admin'));
-  manageUsersMenu?.classList.toggle('is-hidden', role !== 'admin');
+  adminMenuItems.forEach((item) => {
+    item.classList.remove('is-hidden');
+  });
+  manageUsersMenu?.classList.remove('is-hidden');
 
   const actions = role === 'admin'
     ? [
