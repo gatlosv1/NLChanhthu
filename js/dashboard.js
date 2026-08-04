@@ -30,6 +30,7 @@ const userManagementSection = document.getElementById('userManagementSection');
 
 const FIREBASE_API_KEY = 'AIzaSyAFQQ5yvXsA5B3etXDM_k0g6-HcEjDEpGo';
 let currentRole = 'staff';
+let activeUsersLoadToken = 0;
 
 function generatePassword(length = 12) {
   const charset = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
@@ -83,9 +84,14 @@ async function createFirebaseUser(email, password, displayName, role, department
 async function loadUsers() {
   if (!userTableBody) return;
 
+  const loadToken = ++activeUsersLoadToken;
   userTableBody.innerHTML = '<tr><td colspan="6" class="text-muted">Đang tải...</td></tr>';
   try {
     const users = await getAllUsersProfiles();
+    if (loadToken !== activeUsersLoadToken) {
+      return;
+    }
+
     if (!users.length) {
       userTableBody.innerHTML = '<tr><td colspan="6" class="text-muted">Chưa có tài khoản nào.</td></tr>';
       return;
@@ -110,6 +116,9 @@ async function loadUsers() {
         </tr>`;
     }).join('');
   } catch (error) {
+    if (loadToken !== activeUsersLoadToken) {
+      return;
+    }
     userTableBody.innerHTML = '<tr><td colspan="6" class="text-muted">Không thể tải danh sách tài khoản.</td></tr>';
     userActionStatus.textContent = error.message || 'Không thể tải dữ liệu.';
   }
@@ -177,6 +186,7 @@ watchAuthState(async (user) => {
     return;
   }
 
+  activeUsersLoadToken += 1;
   showLoading();
   try {
     const profile = await getUserProfile(user.uid);
@@ -187,6 +197,9 @@ watchAuthState(async (user) => {
     } else {
       userManagementSection?.classList.add('d-none');
       userTableBody.innerHTML = '<tr><td colspan="5" class="text-muted">Bạn không có quyền xem danh sách tài khoản.</td></tr>';
+    }
+    if (currentRole !== 'admin') {
+      userTableBody.innerHTML = '<tr><td colspan="5" class="text-muted">Bạn đang xem chế độ Staff.</td></tr>';
     }
   } catch (error) {
     showToast(error.message || 'Không thể tải hồ sơ.', 'error');
