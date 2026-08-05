@@ -68,6 +68,7 @@ const columns = [
   } },
   { title: 'Ngày sản xuất', field: 'productionDate', width: 140, editor: 'date', editorParams: { format: 'dd/MM/yyyy' }, sorter: 'date', validator: ['required'], editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'input', headerFilterPlaceholder: 'Lọc ngày', headerFilterLiveFilter: true },
   { title: 'Lot', field: 'lot', width: 180, editor: 'input', validator: ['required'], editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'input', headerFilterPlaceholder: 'Lọc lot', headerFilterLiveFilter: true },
+  { title: 'Kho', field: 'warehouse', width: 140, editor: 'input', editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'input', headerFilterPlaceholder: 'Lọc kho', headerFilterLiveFilter: true },
   { title: 'RI/DO', field: 'type', width: 100, editor: 'select', editorParams: { values: [] }, validator: ['required'], editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'select', headerFilterParams: { values: [] }, headerFilterPlaceholder: 'Lọc' },
   { title: 'kg BTP A', field: 'kgA', width: 120, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => canEditProductionRows(currentUser, currentRole) },
   { title: '% BTP A', field: 'percentA', width: 120, editor: false, formatter: percentFormatter, editable: false },
@@ -91,8 +92,11 @@ function percentFormatter(cell) {
 // Khởi tạo bảng Tabulator và gắn các sự kiện cho bảng.
 function initTable() {
   const options = getSettingOptions(settingsState, SETTING_KEYS.loaiSanPham).map((item) => item.ma);
-  columns[3].editorParams.values = options;
-  columns[3].headerFilterParams.values = options;
+  const typeColumnIndex = columns.findIndex((column) => column.field === 'type');
+  if (typeColumnIndex >= 0) {
+    columns[typeColumnIndex].editorParams.values = options;
+    columns[typeColumnIndex].headerFilterParams.values = options;
+  }
 
   if (!tableEl) {
     console.warn('[Production] Table container not found; skipping Tabulator init');
@@ -185,6 +189,7 @@ function normalizeRow(row, index) {
     materialType: row.materialType ?? '',
     manufacturer: row.manufacturer ?? '',
     region: row.region ?? '',
+    warehouse: row.warehouse ?? '',
     vehicle: row.vehicle ?? '',
     materialKind: row.materialKind ?? ''
   };
@@ -247,6 +252,14 @@ function parsePercent(value) {
   const stringValue = String(value).trim();
   if (stringValue.endsWith('%')) return stringValue.replace('%', '');
   return stringValue;
+}
+
+function getDefaultProductionDate() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 // Tính lại các cột phần trăm từ các giá trị kg.
@@ -445,7 +458,7 @@ async function addNewRow() {
   const newRow = {
     id: `${user.uid}-${Date.now()}`,
     stt: data.length + 1,
-    productionDate: '',
+    productionDate: getDefaultProductionDate(),
     lot: '',
     type: 'RI',
     kgA: '',
@@ -477,7 +490,7 @@ async function addQuickEntry() {
     materialType: quickMaterialKind.value,
     manufacturer: quickManufacturer.value,
     region: quickRegion.value,
-    productionDate: quickProductionDate.value,
+    productionDate: getDefaultProductionDate(),
     warehouse: quickWarehouse.value,
     materialKind: quickMaterialKind.value,
     type: quickType.value
@@ -492,7 +505,7 @@ async function addQuickEntry() {
   const newRow = {
     id: `${Date.now()}`,
     stt: data.length + 1,
-    productionDate: '',
+    productionDate: getDefaultProductionDate(),
     lot,
     type: quickType.value,
     kgA: quickKgA.value || '',
@@ -587,10 +600,10 @@ async function saveAllRows() {
     const updatedIds = new Set(existingIds);
 
     const savePromises = rows.map(async (row) => {
-      if (!row.lot || !row.productionDate || !row.type) return;
+      if (!row.lot || !row.type) return;
 
       const payload = {
-        productionDate: normalizeDateValue(row.productionDate),
+        productionDate: normalizeDateValue(row.productionDate) || getDefaultProductionDate(),
         lot: row.lot,
         type: row.type,
         kgA: Number(row.kgA || 0),
@@ -604,6 +617,7 @@ async function saveAllRows() {
         materialType: row.materialType || '',
         manufacturer: row.manufacturer || '',
         region: row.region || '',
+        warehouse: row.warehouse || '',
         vehicle: row.vehicle || '',
         materialKind: row.materialKind || '',
         createdAt: row.createdAt ? row.createdAt : serverTimestamp(),
@@ -672,7 +686,7 @@ function escapeCsv(value) {
 // Xuất các dòng hiện tại của bảng ra file CSV.
 function exportToCsv() {
   const rows = table.getData();
-  const header = ['STT', 'Ngày sản xuất', 'Lot', 'RI/DO', 'kg BTP A', '% BTP A', 'kg BTP B', '% BTP B', 'kg BTP C', '% BTP C', 'kg BTP C Không hạt', '% BTP C Không hạt'];
+  const header = ['STT', 'Ngày sản xuất', 'Lot', 'Kho', 'RI/DO', 'kg BTP A', '% BTP A', 'kg BTP B', '% BTP B', 'kg BTP C', '% BTP C', 'kg BTP C Không hạt', '% BTP C Không hạt'];
   const lines = [header.join(',')];
 
   rows.forEach((row) => {
@@ -680,6 +694,7 @@ function exportToCsv() {
       row.stt || '',
       normalizeDateValue(row.productionDate),
       row.lot || '',
+      row.warehouse || '',
       row.type || '',
       row.kgA || '',
       row.percentA || '',
@@ -728,14 +743,15 @@ async function importFromCsv() {
         stt: '',
         productionDate: values[1] || '',
         lot: values[2] || '',
-        type: values[3] || 'RI',
-        kgA: values[4] || '',
-        percentA: values[5] || '',
-        kgB: values[6] || '',
-        percentB: values[7] || '',
-        kgC: values[8] || '',
-        percentC: values[9] || '',
-        percentCNoSeed: values[10] || ''
+        warehouse: values[3] || '',
+        type: values[4] || 'RI',
+        kgA: values[5] || '',
+        percentA: values[6] || '',
+        kgB: values[7] || '',
+        percentB: values[8] || '',
+        kgC: values[9] || '',
+        percentC: values[10] || '',
+        percentCNoSeed: values[11] || ''
       };
     });
 
