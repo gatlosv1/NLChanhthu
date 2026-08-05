@@ -1,4 +1,5 @@
 import { db } from './firebase.js';
+import { waitForAuth } from './auth.js';
 import {
   collection,
   doc,
@@ -19,7 +20,8 @@ export const SETTING_KEYS = {
 const DEFAULT_SETTINGS = {
   [SETTING_KEYS.nhaCungCap]: [
     { ma: '001', ten: 'Công ty A' },
-    { ma: '002', ten: 'Công ty B' }
+    { ma: '002', ten: 'Công ty B' },
+    { ma: '009', ten: 'CTBT' }
   ],
   [SETTING_KEYS.vungNguyenLieu]: [
     { ma: 'DN', ten: 'Đắk Nông' },
@@ -51,11 +53,16 @@ function buildDocRef(key) {
 }
 
 export async function ensureDefaultSettings() {
+  const authUser = await waitForAuth();
+  if (!authUser) return;
+
   const keys = Object.values(SETTING_KEYS);
   for (const key of keys) {
     const ref = buildDocRef(key);
+    console.log('[Firestore] getDoc', ref.path);
     const snapshot = await getDoc(ref);
     if (!snapshot.exists()) {
+      console.log('[Firestore] setDoc', ref.path);
       await setDoc(ref, {
         danhSach: normalizeItems(DEFAULT_SETTINGS[key])
       });
@@ -74,6 +81,8 @@ export function listenToSettings(callback) {
       const rawItems = snapshot.data()?.danhSach || [];
       state[key] = normalizeItems(rawItems);
       callback(state);
+    }, (error) => {
+      console.error('[Firestore] onSnapshot failed', error);
     });
     unsubscribes.push(unsubscribe);
   });
@@ -93,7 +102,11 @@ export function getSettingDisplayValue(settingsState, key, value) {
 }
 
 export async function saveSettingsDocument(key, items) {
+  const authUser = await waitForAuth();
+  if (!authUser) return;
+
   const ref = buildDocRef(key);
+  console.log('[Firestore] setDoc', ref.path);
   await setDoc(ref, {
     danhSach: normalizeItems(items)
   }, { merge: true });

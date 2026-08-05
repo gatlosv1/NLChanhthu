@@ -25,15 +25,17 @@
               <form id="loginForm" novalidate>
                 <div class="mb-3">
                   <label for="email" class="form-label">Email</label>
-                  <input id="email" name="email" type="email" class="form-control form-control-lg" placeholder="you@company.com" required />
+                  <input id="email" name="email" type="email" class="form-control form-control-lg" placeholder="you@company.com" autocomplete="email" required />
+                  <div class="form-text text-danger mt-2" id="emailError"></div>
                 </div>
 
                 <div class="mb-3">
                   <label for="password" class="form-label">Mật khẩu</label>
                   <div class="input-group input-group-lg">
-                    <input id="password" name="password" type="password" class="form-control" placeholder="••••••••" required />
+                    <input id="password" name="password" type="password" class="form-control" placeholder="••••••••" autocomplete="current-password" required />
                     <button class="btn btn-outline-secondary" type="button" id="togglePassword" aria-label="Hiện / Ẩn mật khẩu">Hiện</button>
                   </div>
+                  <div class="form-text text-danger mt-2" id="passwordError"></div>
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mb-3">

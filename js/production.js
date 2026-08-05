@@ -1,7 +1,7 @@
 // Nhập các hàm liên quan đến auth, Firestore và UI helper.
-import { getCurrentUser, watchAuthState } from './auth.js?v=20260804-3';
+import { getCurrentUser, watchAuthState, waitForAuth } from './auth.js?v=20260804-8';
 // Kết nối tới Firestore trong Firebase.
-import { db } from './firebase.js?v=20260804-3';
+import { db } from './firebase.js?v=20260804-8';
 // Lấy thông tin hồ sơ người dùng từ Firestore.
 import { getUserProfile } from './firestore.js';
 // Xác định vai trò admin/staff dựa trên email hoặc hồ sơ.
@@ -19,8 +19,9 @@ import {
   query
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 // Các hàm hỗ trợ hiển thị loading, toast và thông báo.
-import { hideLoading, showLoading, showToast } from './utils.js?v=20260804-3';
+import { hideLoading, showLoading, showToast } from './utils.js?v=20260804-8';
 import { ensureDefaultSettings, getSettingOptions, listenToSettings, SETTING_KEYS } from './settings.js';
+import { canDeleteProductionRows, canEditProductionRows } from './productionPermissions.js';
 
 // Lấy các phần tử DOM từ HTML để code có thể thao tác với form, bảng và nút bấm.
 const tableEl = document.getElementById('productionTable');
@@ -65,16 +66,16 @@ const columns = [
     const value = cell.getValue();
     return value === null || value === undefined || value === '' ? '' : value;
   } },
-  { title: 'Ngày sản xuất', field: 'productionDate', width: 140, editor: 'date', editorParams: { format: 'dd/MM/yyyy' }, sorter: 'date', validator: ['required'], editable: () => currentRole === 'admin', headerFilter: 'input', headerFilterPlaceholder: 'Lọc ngày', headerFilterLiveFilter: true },
-  { title: 'Lot', field: 'lot', width: 180, editor: 'input', validator: ['required'], editable: () => currentRole === 'admin', headerFilter: 'input', headerFilterPlaceholder: 'Lọc lot', headerFilterLiveFilter: true },
-  { title: 'RI/DO', field: 'type', width: 100, editor: 'select', editorParams: { values: [] }, validator: ['required'], editable: () => currentRole === 'admin', headerFilter: 'select', headerFilterParams: { values: [] }, headerFilterPlaceholder: 'Lọc' },
-  { title: 'kg BTP A', field: 'kgA', width: 120, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => currentRole === 'admin' },
+  { title: 'Ngày sản xuất', field: 'productionDate', width: 140, editor: 'date', editorParams: { format: 'dd/MM/yyyy' }, sorter: 'date', validator: ['required'], editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'input', headerFilterPlaceholder: 'Lọc ngày', headerFilterLiveFilter: true },
+  { title: 'Lot', field: 'lot', width: 180, editor: 'input', validator: ['required'], editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'input', headerFilterPlaceholder: 'Lọc lot', headerFilterLiveFilter: true },
+  { title: 'RI/DO', field: 'type', width: 100, editor: 'select', editorParams: { values: [] }, validator: ['required'], editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'select', headerFilterParams: { values: [] }, headerFilterPlaceholder: 'Lọc' },
+  { title: 'kg BTP A', field: 'kgA', width: 120, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => canEditProductionRows(currentUser, currentRole) },
   { title: '% BTP A', field: 'percentA', width: 120, editor: false, formatter: percentFormatter, editable: false },
-  { title: 'kg BTP B', field: 'kgB', width: 120, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => currentRole === 'admin' },
+  { title: 'kg BTP B', field: 'kgB', width: 120, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => canEditProductionRows(currentUser, currentRole) },
   { title: '% BTP B', field: 'percentB', width: 120, editor: false, formatter: percentFormatter, editable: false },
-  { title: 'kg BTP C', field: 'kgC', width: 120, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => currentRole === 'admin' },
+  { title: 'kg BTP C', field: 'kgC', width: 120, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => canEditProductionRows(currentUser, currentRole) },
   { title: '% BTP C', field: 'percentC', width: 120, editor: false, formatter: percentFormatter, editable: false },
-  { title: 'kg BTP C Không hạt', field: 'kgCNoSeed', width: 140, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => currentRole === 'admin' },
+  { title: 'kg BTP C Không hạt', field: 'kgCNoSeed', width: 140, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => canEditProductionRows(currentUser, currentRole) },
   { title: '% BTP C Không hạt', field: 'percentCNoSeed', width: 140, editor: false, formatter: percentFormatter, editable: false }
 ];
 
@@ -92,71 +93,76 @@ function initTable() {
   const options = getSettingOptions(settingsState, SETTING_KEYS.loaiSanPham).map((item) => item.ma);
   columns[3].editorParams.values = options;
   columns[3].headerFilterParams.values = options;
-  table = new Tabulator(tableEl, {
-    data: [],
-    columns,
-    layout: 'fitDataFill',
-    movableColumns: true,
-    resizableRows: true,
-    selectable: 1,
-    clipboard: true,
-    clipboardPasteAction: 'replace',
-    history: true,
-    autoColumns: false,
-    reactiveData: false,
-    columnDefaults: {
-      headerSort: true,
-      resizable: true
-    },
-    rowContextMenu: [
-      {
-        label: 'Thêm dòng',
-        action: () => addNewRow()
+
+  if (!tableEl) {
+    console.warn('[Production] Table container not found; skipping Tabulator init');
+    return;
+  }
+
+  try {
+    table = new Tabulator(tableEl, {
+      data: [],
+      columns,
+      layout: 'fitDataFill',
+      movableColumns: true,
+      resizableRows: true,
+      selectable: 1,
+      clipboard: true,
+      clipboardPasteAction: 'replace',
+      history: true,
+      autoColumns: false,
+      reactiveData: false,
+      columnDefaults: {
+        headerSort: true,
+        resizable: true
       },
-      {
-        label: 'Xóa dòng',
-        action: () => {
-          if (currentRole !== 'admin') {
-            showToast('Bạn chỉ có thể nhập dữ liệu, không được xóa.', 'info');
-            return;
+      rowContextMenu: [
+        {
+          label: 'Thêm dòng',
+          action: () => addNewRow()
+        },
+        {
+          label: 'Xóa dòng',
+          action: () => {
+            if (currentRole !== 'admin') {
+              showToast('Bạn chỉ có thể nhập dữ liệu, không được xóa.', 'info');
+              return;
+            }
+            removeSelectedRows();
           }
-          removeSelectedRows();
+        },
+        {
+          label: 'Copy',
+          action: () => table.copyToClipboard('all')
+        },
+        {
+          label: 'Paste',
+          action: () => table.pasteFromClipboard()
         }
-      },
-      {
-        label: 'Copy',
-        action: () => table.copyToClipboard('all')
-      },
-      {
-        label: 'Paste',
-        action: () => table.pasteFromClipboard()
+      ],
+      keybindings: {},
+      rowAdded: () => autoSave(),
+      rowDeleted: () => autoSave(),
+      dataEdited: () => autoSave(),
+      renderComplete: updateSummary
+    });
+
+    table.on('cellEdited', (cell) => {
+      const field = cell.getField();
+      if (['kgA', 'kgB', 'kgC'].includes(field)) {
+        const rowData = cell.getRow().getData();
+        updatePercentages(rowData);
+        cell.getRow().update(rowData);
       }
-    ],
-    keybindings: {
-      enter: 'navigateDown',
-      shiftEnter: 'navigateUp',
-      tab: 'navigateRight',
-      delete: 'deleteTable',
-      ctrlKey: true
-    },
-    rowAdded: () => autoSave(),
-    rowDeleted: () => autoSave(),
-    dataEdited: () => autoSave(),
-    renderComplete: updateSummary
-  });
+    });
 
-  table.on('cellEdited', (cell) => {
-    const field = cell.getField();
-    if (['kgA', 'kgB', 'kgC'].includes(field)) {
-      const rowData = cell.getRow().getData();
-      updatePercentages(rowData);
-      cell.getRow().update(rowData);
-    }
-  });
-
-  table.on('tableBuilt', () => {
-    table.setData([]);
-  });
+    table.on('tableBuilt', () => {
+      table.setData([]);
+    });
+  } catch (error) {
+    console.error('[Production] Tabulator init failed', error);
+    tableEl.innerHTML = '<div class="text-muted p-3">Bảng dữ liệu không thể khởi tạo. Bạn vẫn có thể thêm dòng bằng form nhập nhanh.</div>';
+  }
 }
 
 // Chuẩn hóa một dòng dữ liệu trước khi chèn vào bảng hoặc lưu xuống Firestore.
@@ -281,38 +287,7 @@ function formatPercentValue(value) {
   return `${numeric}%`;
 }
 
-// Chờ trạng thái đăng nhập của Firebase được xác định trước khi tiếp tục.
-async function waitForAuth() {
-  if (authReadyPromise) return authReadyPromise;
-
-  authReadyPromise = (async () => {
-    const existingUser = getCurrentUser();
-    if (existingUser) {
-      currentUser = existingUser;
-      return existingUser;
-    }
-
-    const authUser = await new Promise((resolve) => {
-      const unsubscribeAuth = watchAuthState((user) => {
-        unsubscribeAuth();
-        resolve(user);
-      });
-    });
-
-    if (authUser) {
-      currentUser = authUser;
-      return authUser;
-    }
-
-    throw new Error('Bạn cần đăng nhập trước khi sử dụng trang nhập liệu.');
-  })();
-
-  return authReadyPromise;
-}
-
-// Đảm bảo có người dùng đăng nhập trước khi thực hiện thao tác phụ thuộc auth.
 async function ensureUserDocument() {
-  if (currentUser) return currentUser;
   const user = await waitForAuth();
   if (!user) throw new Error('Bạn chưa đăng nhập.');
   currentUser = user;
@@ -377,15 +352,26 @@ function stopProductionRealtimeListener() {
   }
 }
 
-function startProductionRealtimeListener() {
+async function startProductionRealtimeListener() {
   stopProductionRealtimeListener();
+  const authUser = await waitForAuth();
+  if (!authUser) {
+    return;
+  }
+
+  console.log('Current User:', authUser);
+  console.log('UID:', authUser?.uid);
+  console.log('Current Role:', currentRole);
+
   const productionRef = collection(db, 'production');
   const productionQuery = query(productionRef, orderBy('createdAt', 'asc'));
+  console.log('[Firestore] onSnapshot', productionQuery);
 
   productionUnsubscribe = onSnapshot(productionQuery, (snapshot) => {
     const rows = snapshot.docs.map((docItem, index) => mapDocToRow(docItem, index));
     applyRowsToTable(rows);
   }, (error) => {
+    console.error('[Firestore] onSnapshot failed', error);
     showToast(error.message || 'Không thể kết nối dữ liệu thời gian thực.', 'error');
   });
 }
@@ -393,9 +379,10 @@ function startProductionRealtimeListener() {
 // Tải toàn bộ dữ liệu sản xuất chung từ Firestore vào bảng.
 async function loadProductionData() {
   try {
-    startProductionRealtimeListener();
+    await startProductionRealtimeListener();
     updateSummary();
   } catch (error) {
+    console.error('[Firestore] loadProductionData failed', error);
     showToast(error.message || 'Không thể tải dữ liệu.', 'error');
   }
 }
@@ -435,18 +422,21 @@ async function legacyLoadProductionData() {
   }
 }
 
-function ensureAdminCanWrite(actionLabel = 'thêm và đồng bộ dữ liệu') {
-  if (currentRole === 'admin') {
+async function ensureAdminCanWrite(actionLabel = 'thêm và đồng bộ dữ liệu') {
+  const authUser = await waitForAuth();
+  currentUser = authUser;
+
+  if (authUser) {
     return true;
   }
 
-  showToast(`Chỉ admin mới có quyền ${actionLabel} và đồng bộ với Firebase.`, 'info');
+  showToast(`Bạn cần đăng nhập để ${actionLabel}.`, 'info');
   return false;
 }
 
 // Thêm một dòng trống cục bộ để người dùng điền thông tin.
 async function addNewRow() {
-  if (!ensureAdminCanWrite('thêm dòng')) {
+  if (!(await ensureAdminCanWrite('thêm dòng'))) {
     return;
   }
 
@@ -477,8 +467,8 @@ async function addNewRow() {
 }
 
 // Tạo một dòng dữ liệu từ form nhập nhanh và lưu lại.
-function addQuickEntry() {
-  if (!ensureAdminCanWrite('thêm thông tin')) {
+async function addQuickEntry() {
+  if (!(await ensureAdminCanWrite('thêm thông tin'))) {
     return;
   }
 
@@ -544,11 +534,15 @@ function updateRoleAccess() {
     deleteRowBtn.classList.toggle('d-none', !isAdmin);
     deleteRowBtn.title = isAdmin ? 'Xóa dòng đã chọn' : 'Chỉ admin mới có quyền xóa';
   }
+
+  if (saveBtn) {
+    saveBtn.disabled = !canEditProductionRows(currentUser, currentRole);
+  }
 }
 
 // Xóa các dòng được chọn khỏi bảng và khỏi Firestore nếu cần.
 function removeSelectedRows() {
-  if (currentRole !== 'admin') {
+  if (!canDeleteProductionRows(currentRole)) {
     showToast('Bạn chỉ có thể nhập dữ liệu, không được xóa.', 'info');
     return;
   }
@@ -561,7 +555,9 @@ function removeSelectedRows() {
 
   selected.forEach(async (row) => {
     if (row.getData().firestoreId) {
-      await deleteDoc(doc(db, 'production', row.getData().firestoreId));
+      const deleteRef = doc(db, 'production', row.getData().firestoreId);
+      console.log('[Firestore] deleteDoc', deleteRef.path);
+      await deleteDoc(deleteRef);
     }
     table.deleteRow(row.getIndex());
   });
@@ -574,10 +570,8 @@ function removeSelectedRows() {
 async function saveAllRows() {
   if (isSaving) return;
 
-  if (!ensureAdminCanWrite('đồng bộ dữ liệu')) {
-    return;
-  }
-
+  if (!(await ensureAdminCanWrite('đồng bộ dữ liệu'))) {
+  await waitForAuth();
   if (!currentUser) {
     showToast('Bạn cần đăng nhập để lưu dữ liệu.', 'info');
     return;
@@ -616,6 +610,7 @@ async function saveAllRows() {
 
       const docId = row.firestoreId || row.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const docRef = doc(db, 'production', docId);
+      console.log('[Firestore] setDoc', docRef.path);
       await setDoc(docRef, payload, { merge: true });
       row.firestoreId = docId;
       row.id = docId;
@@ -625,7 +620,9 @@ async function saveAllRows() {
 
     await Promise.all(savePromises);
 
-    const docs = await getDocs(collection(db, 'production'));
+    const productionCollection = collection(db, 'production');
+    console.log('[Firestore] getDocs', productionCollection.path);
+    const docs = await getDocs(productionCollection);
     const deletePromises = docs.docs
       .filter((docItem) => !updatedIds.has(docItem.id))
       .map((docItem) => deleteDoc(doc(db, 'production', docItem.id)));
@@ -706,7 +703,7 @@ function exportToCsv() {
 
 // Nhập dữ liệu từ file CSV vào bảng.
 async function importFromCsv() {
-  if (!ensureAdminCanWrite('nhập dữ liệu')) {
+  if (!(await ensureAdminCanWrite('nhập dữ liệu'))) {
     return;
   }
 
@@ -749,10 +746,18 @@ async function importFromCsv() {
 
 // Gắn các nút và ô nhập trên giao diện với hàm xử lý tương ứng.
 function renderCategorySelects() {
-  const manufacturerOptions = getSettingOptions(settingsState, SETTING_KEYS.nhaCungCap);
-  const regionOptions = getSettingOptions(settingsState, SETTING_KEYS.vungNguyenLieu);
-  const materialKindOptions = getSettingOptions(settingsState, SETTING_KEYS.loaiNguyenLieu);
-  const typeOptions = getSettingOptions(settingsState, SETTING_KEYS.loaiSanPham);
+  const manufacturerOptions = getSettingOptions(settingsState, SETTING_KEYS.nhaCungCap).length
+    ? getSettingOptions(settingsState, SETTING_KEYS.nhaCungCap)
+    : [{ ma: '009', ten: 'CTBT' }];
+  const regionOptions = getSettingOptions(settingsState, SETTING_KEYS.vungNguyenLieu).length
+    ? getSettingOptions(settingsState, SETTING_KEYS.vungNguyenLieu)
+    : [{ ma: 'DL', ten: 'Đắk Lắk' }];
+  const materialKindOptions = getSettingOptions(settingsState, SETTING_KEYS.loaiNguyenLieu).length
+    ? getSettingOptions(settingsState, SETTING_KEYS.loaiNguyenLieu)
+    : [{ ma: 'M', ten: 'Múi' }, { ma: 'TA', ten: 'Trái' }, { ma: 'K', ten: 'Kem' }];
+  const typeOptions = getSettingOptions(settingsState, SETTING_KEYS.loaiSanPham).length
+    ? getSettingOptions(settingsState, SETTING_KEYS.loaiSanPham)
+    : [{ ma: 'RI', ten: 'RI' }, { ma: 'DO', ten: 'DO' }];
 
   const buildOptions = (options, selectedValue = '') => options.map((item) => {
     const value = item.ma;
@@ -775,7 +780,7 @@ function bindEvents() {
 
   quickAddBtn.addEventListener('click', addQuickEntry);
   deleteRowBtn.addEventListener('click', () => {
-    if (currentRole !== 'admin') {
+    if (!canDeleteProductionRows(currentRole)) {
       showToast('Bạn chỉ có thể nhập dữ liệu, không được xóa.', 'info');
       return;
     }
@@ -831,11 +836,13 @@ async function startSettingsSync() {
 
     currentUser = user;
     try {
+      await waitForAuth();
       const profile = await getUserProfile(user.uid);
       currentRole = resolveInitialRole(user.email, profile?.role);
       updateRoleAccess();
       await loadProductionData();
     } catch (error) {
+      console.error('[Auth] watchAuthState failed', error);
       showToast(error.message || 'Không thể tải dữ liệu.', 'error');
     }
   });
@@ -848,6 +855,7 @@ async function startSettingsSync() {
     updateRoleAccess();
     await loadProductionData();
   } catch (error) {
+    console.error('[Auth] init failed', error);
     showToast(error.message || 'Không thể kết nối dữ liệu.', 'error');
     await loadProductionData();
   }

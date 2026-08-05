@@ -11,6 +11,34 @@ import {
   browserSessionPersistence
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 
+let authReadyPromise = null;
+
+function setAuthReadyPromise(promise) {
+  authReadyPromise = promise;
+  return promise;
+}
+
+export function waitForAuth() {
+  if (authReadyPromise) {
+    return authReadyPromise;
+  }
+
+  const promise = new Promise((resolve, reject) => {
+    const existingUser = auth.currentUser;
+    if (existingUser) {
+      resolve(existingUser);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      unsubscribe();
+      resolve(user);
+    }, reject);
+  });
+
+  return setAuthReadyPromise(promise);
+}
+
 // Đăng nhập bằng email và mật khẩu, có thể ghi nhớ phiên đăng nhập.
 export async function loginWithEmailPassword(email, password, rememberMe = true) {
   await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);

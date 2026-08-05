@@ -1,4 +1,4 @@
-import { watchAuthState, getCurrentUser } from './auth.js';
+import { watchAuthState, getCurrentUser, waitForAuth } from './auth.js';
 import { getUserProfile, updateUserProfile } from './firestore.js';
 import { uploadAvatar } from './storage.js';
 import { hideLoading, showLoading, showToast } from './utils.js';
@@ -24,8 +24,9 @@ watchAuthState(async (user) => {
 
   showLoading();
   try {
+    await waitForAuth();
     const profile = await getUserProfile(user.uid);
-    renderProfile(user, profile);
+    renderProfile(user, profile || {});
   } catch (error) {
     showToast(error.message || 'Không thể tải hồ sơ.', 'error');
   } finally {
@@ -41,6 +42,7 @@ form.addEventListener('submit', async (event) => {
 
   showLoading();
   try {
+    await waitForAuth();
     await updateUserProfile(user.uid, {
       name: profileNameInput.value.trim(),
       department: profileDepartmentInput.value.trim(),

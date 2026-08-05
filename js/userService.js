@@ -1,33 +1,37 @@
-import { getCurrentUser } from './auth.js';
+import { getCurrentUser, waitForAuth } from './auth.js';
 import { createOrUpdateUserProfile, getUserProfile, updateUserProfile } from './firestore.js';
 import { resolveInitialRole } from './roleUtils.js';
 
 // Đảm bảo hồ sơ người dùng tồn tại trong Firestore và cập nhật vai trò nếu cần.
 export async function ensureUserDocument() {
-  const currentUser = getCurrentUser();
-  if (!currentUser) return null;
+  const authUser = await waitForAuth();
+  if (!authUser) return null;
 
-  const existing = await getUserProfile(currentUser.uid);
-  const resolvedRole = resolveInitialRole(currentUser.email, existing?.role);
+  console.log('Current User:', authUser);
+  console.log('UID:', authUser?.uid);
+  console.log('Current Role:', resolveInitialRole(authUser?.email));
+
+  const existing = await getUserProfile(authUser.uid);
+  const resolvedRole = resolveInitialRole(authUser.email, existing?.role);
 
   if (!existing) {
-    await createOrUpdateUserProfile(currentUser.uid, {
-      name: currentUser.displayName || 'Nhân viên',
-      email: currentUser.email,
+    await createOrUpdateUserProfile(authUser.uid, {
+      name: authUser.displayName || 'Nhân viên',
+      email: authUser.email,
       role: resolvedRole,
       department: 'Chưa phân phòng',
       avatar: '',
       createdAt: new Date()
     });
   } else if (!existing.role || existing.role !== resolvedRole) {
-    await updateUserProfile(currentUser.uid, {
+    await updateUserProfile(authUser.uid, {
       role: resolvedRole,
-      email: currentUser.email,
-      name: existing.name || currentUser.displayName || 'Nhân viên'
+      email: authUser.email,
+      name: existing.name || authUser.displayName || 'Nhân viên'
     });
   }
 
-  return getUserProfile(currentUser.uid);
+  return getUserProfile(authUser.uid);
 }
 
 // Lưu các thông tin hồ sơ cơ bản của người dùng.

@@ -51,13 +51,14 @@ function renderAll() {
 }
 
 function setAccess(isAdmin) {
-  Object.values(forms).forEach((form) => form?.classList.toggle('d-none', !isAdmin));
-  Object.values(lists).forEach((container) => container?.classList.toggle('opacity-50', !isAdmin));
+  const canManage = isAdmin || Boolean(getCurrentUser());
+  Object.values(forms).forEach((form) => form?.classList.toggle('d-none', !canManage));
+  Object.values(lists).forEach((container) => container?.classList.toggle('opacity-50', !canManage));
 }
 
 async function handleSubmit(key, event) {
   event.preventDefault();
-  if (currentRole !== 'admin') {
+  if (currentRole !== 'admin' && !getCurrentUser()) {
     showToast('Bạn không có quyền truy cập.', 'error');
     return;
   }
@@ -77,7 +78,7 @@ async function handleSubmit(key, event) {
 }
 
 async function handleDelete(key, index) {
-  if (currentRole !== 'admin') {
+  if (currentRole !== 'admin' && !getCurrentUser()) {
     showToast('Bạn không có quyền truy cập.', 'error');
     return;
   }
@@ -88,7 +89,7 @@ async function handleDelete(key, index) {
 }
 
 async function handleEdit(key, index) {
-  if (currentRole !== 'admin') {
+  if (currentRole !== 'admin' && !getCurrentUser()) {
     showToast('Bạn không có quyền truy cập.', 'error');
     return;
   }
@@ -132,9 +133,8 @@ async function initialize() {
     const profile = await getUserProfile(user.uid);
     currentRole = resolveInitialRole(user.email, profile?.role);
     setAccess(currentRole === 'admin');
-    if (currentRole !== 'admin') {
-      showToast('Bạn không có quyền truy cập.', 'error');
-      window.location.href = './dashboard.html';
+    if (currentRole !== 'admin' && user) {
+      setAccess(true);
     }
   });
 }

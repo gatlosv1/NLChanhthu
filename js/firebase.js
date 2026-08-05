@@ -5,9 +5,13 @@ import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.13.0/firebas
 import { getStorage } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js';
 
 // Your web app's Firebase configuration
+const defaultAuthDomain = 'quanlynlchanhthu.firebaseapp.com';
+const currentHostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+const isLocalHost = currentHostname === 'localhost' || currentHostname === '127.0.0.1' || currentHostname === '0.0.0.0';
+
 const firebaseConfig = {
   apiKey: 'AIzaSyAFQQ5yvXsA5B3etXDM_k0g6-HcEjDEpGo',
-  authDomain: 'quanlynlchanhthu.firebaseapp.com',
+  authDomain: isLocalHost ? currentHostname : defaultAuthDomain,
   projectId: 'quanlynlchanhthu',
   storageBucket: 'quanlynlchanhthu.firebasestorage.app',
   messagingSenderId: '776184745772',

@@ -4,10 +4,57 @@ import { hideLoading, showLoading, showToast } from './utils.js';
 import { isAdminLikeEmail } from './roleUtils.js';
 
 const form = document.getElementById('loginForm');
+const emailInput = document.getElementById('email');
 const togglePassword = document.getElementById('togglePassword');
 const passwordInput = document.getElementById('password');
 const forgotPasswordLink = document.getElementById('forgotPasswordLink');
 const messageBox = document.getElementById('messageBox');
+const emailError = document.getElementById('emailError');
+const passwordError = document.getElementById('passwordError');
+
+if (!form || !emailInput || !passwordInput || !togglePassword || !forgotPasswordLink || !messageBox) {
+  console.warn('Một số phần tử form đăng nhập không tồn tại.');
+}
+
+function clearFieldErrors() {
+  if (emailError) emailError.textContent = '';
+  if (passwordError) passwordError.textContent = '';
+}
+
+function validateEmail(email) {
+  if (!email) {
+    if (emailError) emailError.textContent = 'Vui lòng nhập email.';
+    return false;
+  }
+
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailPattern.test(email)) {
+    if (emailError) emailError.textContent = 'Email không đúng định dạng.';
+    return false;
+  }
+
+  return true;
+}
+
+function validateFields(email, password) {
+  clearFieldErrors();
+
+  if (!validateEmail(email)) {
+    return false;
+  }
+
+  if (!password) {
+    if (passwordError) passwordError.textContent = 'Vui lòng nhập mật khẩu.';
+    return false;
+  }
+
+  if (password.length < 6) {
+    if (passwordError) passwordError.textContent = 'Mật khẩu phải có ít nhất 6 ký tự.';
+    return false;
+  }
+
+  return true;
+}
 
 // Nếu người dùng đã đăng nhập thì chuyển thẳng vào dashboard.
 watchAuthState((user) => {
@@ -16,16 +63,25 @@ watchAuthState((user) => {
   }
 });
 
+if (emailInput) {
+  emailInput.addEventListener('input', clearFieldErrors);
+}
+
+if (passwordInput) {
+  passwordInput.addEventListener('input', clearFieldErrors);
+}
+
 // Xử lý sự kiện đăng nhập bằng email và mật khẩu.
-form.addEventListener('submit', async (event) => {
+if (form) {
+  form.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const email = document.getElementById('email').value.trim();
+  const email = emailInput.value.trim();
   const password = passwordInput.value;
   const rememberMe = document.getElementById('rememberMe').checked;
   messageBox.innerHTML = '';
 
-  if (!email || !password) {
-    showToast('Vui lòng nhập email và mật khẩu.', 'error');
+  if (!validateFields(email, password)) {
+    showToast('Vui lòng kiểm tra lại thông tin nhập.', 'error');
     return;
   }
 
@@ -53,20 +109,24 @@ form.addEventListener('submit', async (event) => {
     hideLoading();
   }
 });
+}
 
 // Chuyển đổi hiển thị/ẩn mật khẩu trên form đăng nhập.
-togglePassword.addEventListener('click', () => {
+if (togglePassword) {
+  togglePassword.addEventListener('click', () => {
   const isPassword = passwordInput.type === 'password';
   passwordInput.type = isPassword ? 'text' : 'password';
   togglePassword.textContent = isPassword ? 'Ẩn' : 'Hiện';
 });
+}
 
 // Gửi email reset mật khẩu khi người dùng bấm quên mật khẩu.
-forgotPasswordLink.addEventListener('click', async (event) => {
+if (forgotPasswordLink) {
+  forgotPasswordLink.addEventListener('click', async (event) => {
   event.preventDefault();
-  const email = document.getElementById('email').value.trim();
-  if (!email) {
-    showToast('Nhập email trước khi gửi link reset password.', 'info');
+  const email = emailInput.value.trim();
+  if (!validateEmail(email)) {
+    showToast('Nhập email hợp lệ trước khi gửi link reset password.', 'info');
     return;
   }
 
@@ -80,6 +140,7 @@ forgotPasswordLink.addEventListener('click', async (event) => {
     hideLoading();
   }
 });
+}
 
 // Chuyển lỗi Firebase sang thông báo thân thiện với người dùng.
 function mapError(error) {
@@ -96,8 +157,12 @@ function mapError(error) {
       return 'Lỗi mạng. Vui lòng kiểm tra kết nối và thử lại.';
     case 'auth/operation-not-allowed':
       return 'Đăng nhập bằng email/mật khẩu chưa được bật cho dự án này.';
+    case 'auth/invalid-domain':
+      return 'Tên miền hiện tại chưa được phép trong Firebase Authentication. Hãy thêm localhost hoặc 127.0.0.1 vào Authorized domains.';
     case 'auth/invalid-login-credentials':
       return 'Email hoặc mật khẩu không đúng.';
+    case 'auth/invalid-password':
+      return 'Mật khẩu không hợp lệ. Vui lòng nhập mật khẩu mạnh hơn.';
     case 'auth/email-already-in-use':
       return 'Email này đã được sử dụng.';
     default:

@@ -1,4 +1,5 @@
 import { db } from './firebase.js';
+import { getCurrentUser } from './auth.js';
 import {
   collection,
   deleteDoc,
@@ -12,20 +13,44 @@ import {
 
 const USERS_COLLECTION = 'users';
 
+function logFirestoreRequest(action, ref) {
+  console.log(`[Firestore] ${action}`, ref?.path || ref);
+}
+
 // Tạo hoặc cập nhật hồ sơ người dùng trong collection users.
 export async function createOrUpdateUserProfile(uid, payload) {
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    console.warn('[Firestore] createOrUpdateUserProfile skipped: user not authenticated');
+    return null;
+  }
+
   const userRef = doc(db, USERS_COLLECTION, uid);
+  logFirestoreRequest('setDoc', userRef);
   await setDoc(userRef, {
     ...payload,
     updatedAt: serverTimestamp()
   }, { merge: true });
+  return userRef;
 }
 
 // Lấy hồ sơ người dùng dựa trên UID.
 export async function getUserProfile(uid) {
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    console.warn('[Firestore] getUserProfile skipped: user not authenticated');
+    return null;
+  }
+
   const userRef = doc(db, USERS_COLLECTION, uid);
-  const snapshot = await getDoc(userRef);
-  return snapshot.exists() ? snapshot.data() : null;
+  logFirestoreRequest('getDoc', userRef);
+  try {
+    const snapshot = await getDoc(userRef);
+    return snapshot.exists() ? snapshot.data() : null;
+  } catch (error) {
+    console.error('[Firestore] getUserProfile failed', error);
+    return null;
+  }
 }
 
 // Chuẩn hóa vai trò về admin hoặc staff.
@@ -42,11 +67,24 @@ export async function getUserRole(uid) {
 
 // Cập nhật thông tin hồ sơ người dùng.
 export async function updateUserProfile(uid, payload) {
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    console.warn('[Firestore] updateUserProfile skipped: user not authenticated');
+    return null;
+  }
+
   const userRef = doc(db, USERS_COLLECTION, uid);
-  await updateDoc(userRef, {
-    ...payload,
-    updatedAt: serverTimestamp()
-  });
+  logFirestoreRequest('updateDoc', userRef);
+  try {
+    await updateDoc(userRef, {
+      ...payload,
+      updatedAt: serverTimestamp()
+    });
+    return userRef;
+  } catch (error) {
+    console.error('[Firestore] updateUserProfile failed', error);
+    return null;
+  }
 }
 
 // Trả về reference của collection users.
@@ -56,14 +94,41 @@ export async function getUsersCollection() {
 
 // Lấy toàn bộ hồ sơ người dùng để dùng cho dashboard quản lý.
 export async function getAllUsersProfiles() {
-  const snapshot = await getDocs(collection(db, USERS_COLLECTION));
-  return snapshot.docs.map((docSnap) => ({
-    id: docSnap.id,
-    ...docSnap.data()
-  }));
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    console.warn('[Firestore] getAllUsersProfiles skipped: user not authenticated');
+    return [];
+  }
+
+  const usersRef = collection(db, USERS_COLLECTION);
+  logFirestoreRequest('getDocs', usersRef);
+  try {
+    const snapshot = await getDocs(usersRef);
+    return snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    }));
+  } catch (error) {
+    console.error('[Firestore] getAllUsersProfiles failed', error);
+    return [];
+  }
 }
 
 // Xóa hồ sơ người dùng khỏi Firestore.
 export async function deleteUserProfile(uid) {
-  await deleteDoc(doc(db, USERS_COLLECTION, uid));
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    console.warn('[Firestore] deleteUserProfile skipped: user not authenticated');
+    return null;
+  }
+
+  const userRef = doc(db, USERS_COLLECTION, uid);
+  logFirestoreRequest('deleteDoc', userRef);
+  try {
+    await deleteDoc(userRef);
+    return userRef;
+  } catch (error) {
+    console.error('[Firestore] deleteUserProfile failed', error);
+    return null;
+  }
 }
