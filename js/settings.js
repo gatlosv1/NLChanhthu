@@ -51,6 +51,18 @@ function buildDocRef(key) {
   return doc(db, SETTINGS_COLLECTION, key);
 }
 
+function notifySettingsChanged(key = null) {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem('catalog-sync', JSON.stringify({ key, ts: Date.now() }));
+  } catch (error) {
+    console.warn('[Settings] localStorage sync notification failed', error);
+  }
+
+  window.dispatchEvent(new CustomEvent('catalog-updated', { detail: { key } }));
+}
+
 function getDefaultSettingsState() {
   return Object.fromEntries(
     Object.values(SETTING_KEYS).map((key) => [key, normalizeItems(DEFAULT_SETTINGS[key])])
@@ -80,6 +92,7 @@ export async function ensureDefaultSettings() {
         const defaultItems = normalizeItems(DEFAULT_SETTINGS[key]);
         console.log('[Firestore] setDoc', ref.path);
         await setDoc(ref, { danhSach: defaultItems }, { merge: true });
+        notifySettingsChanged(key);
       }
     } catch (error) {
       console.warn(`[Settings] fallback used for ${ref.path}`, error);
@@ -142,6 +155,7 @@ export async function saveSettingsDocument(key, items) {
     await setDoc(ref, {
       danhSach: normalizeItems(items)
     }, { merge: true });
+    notifySettingsChanged(key);
     return true;
   } catch (error) {
     console.error('[Settings] saveSettingsDocument failed', error);
