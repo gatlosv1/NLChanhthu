@@ -158,7 +158,7 @@ function mapError(error) {
     case 'auth/operation-not-allowed':
       return 'Đăng nhập bằng email/mật khẩu chưa được bật cho dự án này.';
     case 'auth/invalid-domain':
-      return 'Tên miền hiện tại chưa được phép trong Firebase Authentication. Hãy thêm localhost hoặc 127.0.0.1 vào Authorized domains.';
+      return `Tên miền hiện tại (${window.location.hostname}) chưa được phép trong Firebase Authentication. Hãy thêm ${window.location.hostname} vào Authorized domains trong Firebase console.`;
     case 'auth/invalid-login-credentials':
       return 'Email hoặc mật khẩu không đúng.';
     case 'auth/invalid-password':
