@@ -24,16 +24,27 @@ export function waitForAuth() {
   }
 
   const promise = new Promise((resolve, reject) => {
+    if (!auth) {
+      reject(new Error('Firebase Auth chưa sẵn sàng. Vui lòng tải lại trang hoặc kiểm tra cấu hình Firebase.'));
+      return;
+    }
+
     const existingUser = auth.currentUser;
     if (existingUser) {
       resolve(existingUser);
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      unsubscribe();
-      resolve(user);
-    }, reject);
+    try {
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        unsubscribe();
+        resolve(user);
+      }, (error) => {
+        reject(error);
+      });
+    } catch (error) {
+      reject(error);
+    }
   });
 
   return setAuthReadyPromise(promise);
@@ -41,41 +52,60 @@ export function waitForAuth() {
 
 // Đăng nhập bằng email và mật khẩu, có thể ghi nhớ phiên đăng nhập.
 export async function loginWithEmailPassword(email, password, rememberMe = true) {
+  if (!auth) {
+    throw new Error('Firebase Auth chưa sẵn sàng. Vui lòng tải lại trang hoặc kiểm tra cấu hình Firebase.');
+  }
+
   await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
   return signInWithEmailAndPassword(auth, email, password);
 }
 
 // Đăng nhập ẩn danh bằng Firebase Auth.
 export async function loginAnonymously() {
+  if (!auth) {
+    throw new Error('Firebase Auth chưa sẵn sàng. Vui lòng tải lại trang hoặc kiểm tra cấu hình Firebase.');
+  }
   return signInAnonymously(auth);
 }
 
 // Tạo tài khoản mới bằng email và mật khẩu.
 export async function signUpWithEmailPassword(email, password) {
+  if (!auth) {
+    throw new Error('Firebase Auth chưa sẵn sàng. Vui lòng tải lại trang hoặc kiểm tra cấu hình Firebase.');
+  }
   return createUserWithEmailAndPassword(auth, email, password);
 }
 
 // Gửi email đặt lại mật khẩu cho người dùng.
 export async function resetPassword(email) {
+  if (!auth) {
+    throw new Error('Firebase Auth chưa sẵn sàng. Vui lòng tải lại trang hoặc kiểm tra cấu hình Firebase.');
+  }
   return sendPasswordResetEmail(auth, email);
 }
 
 // Đăng xuất khỏi Firebase Auth.
 export async function logout() {
+  if (!auth) {
+    return;
+  }
   return signOut(auth);
 }
 
 // Lắng nghe thay đổi trạng thái đăng nhập của người dùng.
 export function watchAuthState(callback) {
+  if (!auth) {
+    return () => {};
+  }
   return onAuthStateChanged(auth, callback);
 }
 
 // Trả về user hiện tại đang đăng nhập.
 export function getCurrentUser() {
-  return auth.currentUser;
+  return auth?.currentUser || null;
 }
 
 // Trả về UID của user hiện tại.
 export function getCurrentUserId() {
-  return auth.currentUser?.uid || null;
+  return auth?.currentUser?.uid || null;
 }

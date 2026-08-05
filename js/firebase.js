@@ -10,8 +10,6 @@ const currentHostname = typeof window !== 'undefined' ? window.location.hostname
 const isLocalHost = currentHostname === 'localhost' || currentHostname === '127.0.0.1' || currentHostname === '0.0.0.0';
 const authDomain = isLocalHost ? currentHostname : defaultAuthDomain;
 
-console.log('Firebase authDomain:', authDomain);
-
 const firebaseConfig = {
   apiKey: 'AIzaSyAFQQ5yvXsA5B3etXDM_k0g6-HcEjDEpGo',
   authDomain,
@@ -22,12 +20,25 @@ const firebaseConfig = {
   measurementId: 'G-M2FGGW25WL'
 };
 
-// Initialize Firebase
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-const analytics = typeof window !== 'undefined' && typeof window.gtag !== 'undefined' ? getAnalytics(app) : null;
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+let app;
+let analytics = null;
+let auth;
+let db;
+let storage;
+
+try {
+  app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  analytics = typeof window !== 'undefined' && typeof window.gtag !== 'undefined' ? getAnalytics(app) : null;
+  auth = getAuth(app);
+  db = getFirestore(app);
+  storage = getStorage(app);
+} catch (error) {
+  console.warn('Firebase initialization warning:', error);
+  app = getApps()[0] || null;
+  auth = app ? getAuth(app) : null;
+  db = app ? getFirestore(app) : null;
+  storage = app ? getStorage(app) : null;
+}
 
 export { app, analytics, auth, db, storage };
 export default app;
