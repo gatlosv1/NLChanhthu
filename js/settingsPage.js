@@ -51,9 +51,21 @@ function renderAll() {
 }
 
 function setAccess(isAdmin) {
-  const canManage = isAdmin || Boolean(getCurrentUser());
-  Object.values(forms).forEach((form) => form?.classList.toggle('d-none', !canManage));
-  Object.values(lists).forEach((container) => container?.classList.toggle('opacity-50', !canManage));
+  if (!isAdmin) {
+    document.body.innerHTML = `
+      <div class="min-vh-100 d-flex align-items-center justify-content-center bg-light">
+        <div class="text-center p-4">
+          <h2 class="h4 fw-bold mb-2">Không có quyền truy cập</h2>
+          <p class="text-muted mb-3">Chỉ admin mới được phép quản lý danh mục.</p>
+          <a href="./dashboard.html" class="btn btn-primary">Quay về Dashboard</a>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  Object.values(forms).forEach((form) => form?.classList.remove('d-none'));
+  Object.values(lists).forEach((container) => container?.classList.remove('opacity-50'));
 }
 
 async function handleSubmit(key, event) {
@@ -145,9 +157,6 @@ async function initialize() {
     const profile = await getUserProfile(user.uid);
     currentRole = resolveInitialRole(user.email, profile?.role);
     setAccess(currentRole === 'admin');
-    if (currentRole !== 'admin' && user) {
-      setAccess(true);
-    }
 
     if (!user) {
       showToast('Vui lòng đăng nhập để dữ liệu được lưu vào Firebase.', 'info');
