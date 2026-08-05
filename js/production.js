@@ -859,4 +859,4 @@ async function startSettingsSync() {
     showToast(error.message || 'Không thể kết nối dữ liệu.', 'error');
     await loadProductionData();
   }
-})();
+})();}
