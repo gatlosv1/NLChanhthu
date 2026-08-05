@@ -1,4 +1,4 @@
-import { db } from './firebase.js';
+﻿import { db } from './firebase.js';
 import { waitForAuth } from './auth.js';
 import {
   doc,
@@ -8,14 +8,14 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
 const SETTINGS_COLLECTION = 'settings';
-
+// Định nghĩa các nhóm cài đặt dùng chung cho các trang cần danh mục và tùy chọn.
 export const SETTING_KEYS = {
   nhaCungCap: 'nhaCungCap',
   vungNguyenLieu: 'vungNguyenLieu',
   loaiNguyenLieu: 'loaiNguyenLieu',
   loaiSanPham: 'loaiSanPham'
 };
-
+// Giá trị mặc định ban đầu cho từng nhóm cài đặt, nhằm giữ UI luôn có dữ liệu khi Firestore chưa được khởi tạo.
 const DEFAULT_SETTINGS = {
   [SETTING_KEYS.nhaCungCap]: [
     { ma: '001', ten: 'Công ty A' },
@@ -36,7 +36,7 @@ const DEFAULT_SETTINGS = {
     { ma: 'DO', ten: 'DO' }
   ]
 };
-
+// Chuẩn hóa danh sách mục cài đặt để dữ liệu luôn có cấu trúc nhất quán trước khi được dùng trong UI hoặc lưu xuống Firestore.
 function normalizeItems(items = []) {
   return (Array.isArray(items) ? items : [])
     .filter((item) => item && typeof item === 'object')
@@ -46,11 +46,11 @@ function normalizeItems(items = []) {
     }))
     .filter((item) => item.ma || item.ten);
 }
-
+// Tạo tham chiếu đến tài liệu cài đặt tương ứng trong Firestore dựa trên tên nhóm.
 function buildDocRef(key) {
   return doc(db, SETTINGS_COLLECTION, key);
 }
-
+// Thông báo cho các thành phần khác biết rằng danh mục đã thay đổi, để UI có thể cập nhật mà không cần tải lại toàn bộ trang.
 function notifySettingsChanged(key = null) {
   if (typeof window === 'undefined') return;
 
@@ -62,19 +62,19 @@ function notifySettingsChanged(key = null) {
 
   window.dispatchEvent(new CustomEvent('catalog-updated', { detail: { key } }));
 }
-
+// Tạo trạng thái cài đặt ban đầu từ các giá trị mặc định để UI luôn có dữ liệu sẵn khi chưa có bản ghi nào trong Firestore.
 function getDefaultSettingsState() {
   return Object.fromEntries(
     Object.values(SETTING_KEYS).map((key) => [key, normalizeItems(DEFAULT_SETTINGS[key])])
   );
 }
-
+// Chuẩn hóa trạng thái cài đặt hiện có bằng cách thay thế dữ liệu không hợp lệ bằng giá trị mặc định.
 function normalizeSettingsState(state = {}) {
   return Object.fromEntries(
     Object.values(SETTING_KEYS).map((key) => [key, normalizeItems(state?.[key] ?? DEFAULT_SETTINGS[key])])
   );
 }
-
+// Đảm bảo mỗi nhóm cài đặt đều tồn tại trong Firestore; nếu chưa có, tạo bản ghi mặc định để tránh lỗi khi mở trang.
 export async function ensureDefaultSettings() {
   const authUser = await waitForAuth();
   if (!authUser) {
@@ -106,7 +106,7 @@ export async function ensureDefaultSettings() {
 
   return getDefaultSettingsState();
 }
-
+// Lắng nghe thay đổi dữ liệu cài đặt trong Firestore và cập nhật trạng thái cho các thành phần đang dùng danh mục.
 export function listenToSettings(callback) {
   const keys = Object.values(SETTING_KEYS);
   const unsubscribes = [];
@@ -132,16 +132,16 @@ export function listenToSettings(callback) {
     unsubscribes.forEach((unsubscribe) => unsubscribe());
   };
 }
-
+// Trả về danh sách mục cho một nhóm cài đặt cụ thể; nếu chưa có dữ liệu từ Firestore thì dùng giá trị mặc định.
 export function getSettingOptions(settingsState, key) {
   return Array.isArray(settingsState?.[key]) ? settingsState[key] : normalizeItems(DEFAULT_SETTINGS[key]);
 }
-
+// Trả về chuỗi hiển thị thân thiện cho một mã cài đặt, ví dụ "001 - Công ty A".
 export function getSettingDisplayValue(settingsState, key, value) {
   const match = getSettingOptions(settingsState, key).find((item) => item.ma === String(value));
   return match ? `${match.ma} - ${match.ten}` : value;
 }
-
+// Lưu danh sách mục của một nhóm cài đặt lên Firestore khi người dùng chỉnh sửa danh mục.
 export async function saveSettingsDocument(key, items) {
   const authUser = await waitForAuth();
   if (!authUser) {
@@ -162,3 +162,7 @@ export async function saveSettingsDocument(key, items) {
     return false;
   }
 }
+
+
+
+

@@ -1,4 +1,4 @@
-// Nhập các hàm liên quan đến auth, Firestore và UI helper.
+﻿// Nhập các hàm liên quan đến auth, Firestore và UI helper.
 import { getCurrentUser, watchAuthState, waitForAuth } from './auth.js?v=20260804-8';
 // Kết nối tới Firestore trong Firebase.
 import { db } from './firebase.js?v=20260804-8';
@@ -22,6 +22,7 @@ import {
 import { hideLoading, showLoading, showToast } from './utils.js?v=20260804-8';
 import { ensureDefaultSettings, getSettingOptions, listenToSettings, SETTING_KEYS } from './settings.js';
 import { canDeleteProductionRows, canEditProductionRows } from './productionPermissions.js';
+import { canPersistProductionRow, normalizeProductionRowForPersistence } from './productionDataUtils.mjs?v=20260804-8';
 
 // Lấy các phần tử DOM từ HTML để code có thể thao tác với form, bảng và nút bấm.
 const tableEl = document.getElementById('productionTable');
@@ -171,27 +172,28 @@ function initTable() {
 
 // Chuẩn hóa một dòng dữ liệu trước khi chèn vào bảng hoặc lưu xuống Firestore.
 function normalizeRow(row, index) {
+  const normalizedSource = normalizeProductionRowForPersistence(row);
   const normalized = {
-    id: row.id || `${Date.now()}-${index}`,
-    firestoreId: row.firestoreId || '',
-    stt: row.stt ?? index + 1,
-    productionDate: row.productionDate || '',
-    lot: row.lot || '',
-    type: row.type || 'RI',
-    kgA: row.kgA ?? '',
-    percentA: row.percentA ?? '',
-    kgB: row.kgB ?? '',
-    percentB: row.percentB ?? '',
-    kgC: row.kgC ?? '',
-    kgCNoSeed: row.kgCNoSeed ?? '',
-    percentC: row.percentC ?? '',
-    percentCNoSeed: row.percentCNoSeed ?? '',
-    materialType: row.materialType ?? '',
-    manufacturer: row.manufacturer ?? '',
-    region: row.region ?? '',
-    warehouse: row.warehouse ?? '',
-    vehicle: row.vehicle ?? '',
-    materialKind: row.materialKind ?? ''
+    id: normalizedSource.id || `${Date.now()}-${index}`,
+    firestoreId: normalizedSource.firestoreId || '',
+    stt: normalizedSource.stt ?? index + 1,
+    productionDate: normalizedSource.productionDate || '',
+    lot: normalizedSource.lot || '',
+    type: normalizedSource.type || 'RI',
+    kgA: normalizedSource.kgA ?? '',
+    percentA: normalizedSource.percentA ?? '',
+    kgB: normalizedSource.kgB ?? '',
+    percentB: normalizedSource.percentB ?? '',
+    kgC: normalizedSource.kgC ?? '',
+    kgCNoSeed: normalizedSource.kgCNoSeed ?? '',
+    percentC: normalizedSource.percentC ?? '',
+    percentCNoSeed: normalizedSource.percentCNoSeed ?? '',
+    materialType: normalizedSource.materialType ?? '',
+    manufacturer: normalizedSource.manufacturer ?? '',
+    region: normalizedSource.region ?? '',
+    warehouse: normalizedSource.warehouse || '',
+    vehicle: normalizedSource.vehicle ?? '',
+    materialKind: normalizedSource.materialKind ?? ''
   };
   updatePercentages(normalized);
   return normalized;
@@ -496,9 +498,15 @@ async function addQuickEntry() {
     type: quickType.value
   });
 
-  const lot = quickLot.value.trim();
-  if (!lot) {
-    showToast('Vui lòng nhập Lot trước khi thêm dòng.', 'error');
+  const normalizedRow = normalizeProductionRowForPersistence({
+    lot: quickLot.value,
+    type: quickType.value,
+    productionDate: getDefaultProductionDate(),
+    warehouse: quickWarehouse.value
+  });
+
+  if (!canPersistProductionRow(normalizedRow)) {
+    showToast('Vui lòng nhập Lot và loại sản phẩm trước khi thêm dòng.', 'error');
     return;
   }
 
@@ -506,8 +514,8 @@ async function addQuickEntry() {
     id: `${Date.now()}`,
     stt: data.length + 1,
     productionDate: getDefaultProductionDate(),
-    lot,
-    type: quickType.value,
+    lot: normalizedRow.lot,
+    type: normalizedRow.type,
     kgA: quickKgA.value || '',
     kgB: quickKgB.value || '',
     kgC: quickKgC.value || '',
@@ -600,12 +608,13 @@ async function saveAllRows() {
     const updatedIds = new Set(existingIds);
 
     const savePromises = rows.map(async (row) => {
-      if (!row.lot || !row.type) return;
+      const normalizedRow = normalizeProductionRowForPersistence(row);
+      if (!canPersistProductionRow(normalizedRow)) return;
 
       const payload = {
-        productionDate: normalizeDateValue(row.productionDate) || getDefaultProductionDate(),
-        lot: row.lot,
-        type: row.type,
+        productionDate: normalizeDateValue(normalizedRow.productionDate) || getDefaultProductionDate(),
+        lot: normalizedRow.lot,
+        type: normalizedRow.type,
         kgA: Number(row.kgA || 0),
         percentA: Number(parsePercent(row.percentA) || 0),
         kgB: Number(row.kgB || 0),
@@ -614,12 +623,12 @@ async function saveAllRows() {
         percentC: Number(parsePercent(row.percentC) || 0),
         kgCNoSeed: Number(row.kgCNoSeed || 0),
         percentCNoSeed: Number(parsePercent(row.percentCNoSeed) || 0),
-        materialType: row.materialType || '',
-        manufacturer: row.manufacturer || '',
-        region: row.region || '',
-        warehouse: row.warehouse || '',
-        vehicle: row.vehicle || '',
-        materialKind: row.materialKind || '',
+        materialType: normalizedRow.materialType || '',
+        manufacturer: normalizedRow.manufacturer || '',
+        region: normalizedRow.region || '',
+        warehouse: normalizedRow.warehouse || '',
+        vehicle: normalizedRow.vehicle || '',
+        materialKind: normalizedRow.materialKind || '',
         createdAt: row.createdAt ? row.createdAt : serverTimestamp(),
         updatedAt: serverTimestamp()
       };

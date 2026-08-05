@@ -1,4 +1,4 @@
-import { loginWithEmailPassword, resetPassword, signUpWithEmailPassword, watchAuthState } from './auth.js';
+﻿import { loginWithEmailPassword, resetPassword, signUpWithEmailPassword, watchAuthState } from './auth.js';
 import { ensureUserDocument } from './userService.js';
 import { hideLoading, showLoading, showToast } from './utils.js';
 import { isAdminLikeEmail } from './roleUtils.js';
@@ -15,12 +15,12 @@ const passwordError = document.getElementById('passwordError');
 if (!form || !emailInput || !passwordInput || !togglePassword || !forgotPasswordLink || !messageBox) {
   console.warn('Một số phần tử form đăng nhập không tồn tại.');
 }
-
+// Xóa thông báo lỗi trên các trường nhập liệu.
 function clearFieldErrors() {
   if (emailError) emailError.textContent = '';
   if (passwordError) passwordError.textContent = '';
 }
-
+// Kiểm tra định dạng email.
 function validateEmail(email) {
   if (!email) {
     if (emailError) emailError.textContent = 'Vui lòng nhập email.';
@@ -35,7 +35,7 @@ function validateEmail(email) {
 
   return true;
 }
-
+// Kiểm tra các trường nhập liệu trước khi đăng nhập.
 function validateFields(email, password) {
   clearFieldErrors();
 
@@ -55,7 +55,6 @@ function validateFields(email, password) {
 
   return true;
 }
-
 // Nếu người dùng đã đăng nhập thì chuyển thẳng vào dashboard.
 watchAuthState((user) => {
   if (user) {
@@ -70,7 +69,6 @@ if (emailInput) {
 if (passwordInput) {
   passwordInput.addEventListener('input', clearFieldErrors);
 }
-
 // Xử lý sự kiện đăng nhập bằng email và mật khẩu.
 if (form) {
   form.addEventListener('submit', async (event) => {
@@ -110,8 +108,7 @@ if (form) {
   }
 });
 }
-
-// Chuyển đổi hiển thị/ẩn mật khẩu trên form đăng nhập.
+// Chuyển đổi hiển thị hoặc ẩn mật khẩu trên form đăng nhập.
 if (togglePassword) {
   togglePassword.addEventListener('click', () => {
   const isPassword = passwordInput.type === 'password';
@@ -119,21 +116,20 @@ if (togglePassword) {
   togglePassword.textContent = isPassword ? 'Ẩn' : 'Hiện';
 });
 }
-
-// Gửi email reset mật khẩu khi người dùng bấm quên mật khẩu.
+// Gửi email đặt lại mật khẩu khi người dùng bấm quên mật khẩu.
 if (forgotPasswordLink) {
   forgotPasswordLink.addEventListener('click', async (event) => {
   event.preventDefault();
   const email = emailInput.value.trim();
   if (!validateEmail(email)) {
-    showToast('Nhập email hợp lệ trước khi gửi link reset password.', 'info');
+    showToast('Nhập email hợp lệ trước khi gửi liên kết đặt lại mật khẩu.', 'info');
     return;
   }
 
   showLoading();
   try {
     await resetPassword(email);
-    showToast('Email reset mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư.', 'success');
+    showToast('Email đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư.', 'success');
   } catch (error) {
     showToast(mapError(error), 'error');
   } finally {
@@ -141,8 +137,7 @@ if (forgotPasswordLink) {
   }
 });
 }
-
-// Chuyển lỗi Firebase sang thông báo thân thiện với người dùng.
+// Chuyển lỗi từ Firebase sang thông báo thân thiện với người dùng.
 function mapError(error) {
   switch (error.code) {
     case 'auth/invalid-email':
@@ -169,3 +164,7 @@ function mapError(error) {
       return error.message || 'Đã xảy ra lỗi. Vui lòng thử lại.';
   }
 }
+
+
+
+

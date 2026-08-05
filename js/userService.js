@@ -1,7 +1,6 @@
-import { getCurrentUser, waitForAuth } from './auth.js';
+﻿import { getCurrentUser, waitForAuth } from './auth.js';
 import { createOrUpdateUserProfile, getUserProfile, updateUserProfile } from './firestore.js';
 import { resolveInitialRole } from './roleUtils.js';
-
 // Đảm bảo hồ sơ người dùng tồn tại trong Firestore và cập nhật vai trò nếu cần.
 export async function ensureUserDocument() {
   const authUser = await waitForAuth();
@@ -33,7 +32,6 @@ export async function ensureUserDocument() {
 
   return getUserProfile(authUser.uid);
 }
-
 // Lưu các thông tin hồ sơ cơ bản của người dùng.
 export async function saveProfile({ name, department, avatar }) {
   const currentUser = getCurrentUser();
@@ -51,3 +49,6 @@ export async function saveProfile({ name, department, avatar }) {
   await updateUserProfile(currentUser.uid, payload);
   return getUserProfile(currentUser.uid);
 }
+
+
+

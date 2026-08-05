@@ -1,4 +1,4 @@
-// Hiển thị overlay loading toàn màn hình.
+﻿// Hiển thị lớp phủ loading che toàn màn hình.
 export function showLoading() {
   const existingOverlay = document.getElementById('loadingOverlay');
   if (existingOverlay) return;
@@ -9,13 +9,11 @@ export function showLoading() {
   overlay.innerHTML = '<div class="spinner"></div>';
   document.body.appendChild(overlay);
 }
-
-// Ẩn overlay loading nếu đang hiện.
+// Ẩn lớp phủ loading nếu nó đang được hiển thị.
 export function hideLoading() {
   const overlays = document.querySelectorAll('#loadingOverlay');
   overlays.forEach((overlay) => overlay.remove());
 }
-
 // Hiển thị thông báo dạng toast ở góc màn hình.
 export function showToast(message, type = 'info') {
   const stack = document.getElementById('toastStack') || createToastStack();
@@ -28,7 +26,6 @@ export function showToast(message, type = 'info') {
     toast.remove();
   }, 3200);
 }
-
 // Tạo vùng chứa các toast nếu chưa tồn tại.
 function createToastStack() {
   const stack = document.createElement('div');
@@ -37,8 +34,10 @@ function createToastStack() {
   document.body.appendChild(stack);
   return stack;
 }
-
-// Trả về tên file trang hiện tại trong URL.
+// Trả về tên tệp của trang hiện tại trong URL.
 export function getCurrentPageName() {
   return window.location.pathname.split('/').pop() || 'index.html';
 }
+
+
+

@@ -1,4 +1,4 @@
-import { watchAuthState, getCurrentUser, waitForAuth } from './auth.js';
+﻿import { watchAuthState, getCurrentUser, waitForAuth } from './auth.js';
 import { getUserProfile, updateUserProfile } from './firestore.js';
 import { uploadAvatar } from './storage.js';
 import { hideLoading, showLoading, showToast } from './utils.js';
@@ -14,8 +14,7 @@ const profileDisplayName = document.getElementById('profileDisplayName');
 const profileDisplayEmail = document.getElementById('profileDisplayEmail');
 
 let currentAvatarUrl = '';
-
-// Khi trạng thái auth thay đổi, tải hồ sơ người dùng hiện tại.
+// Khi trạng thái xác thực thay đổi, tải hồ sơ người dùng hiện tại.
 watchAuthState(async (user) => {
   if (!user) {
     window.location.href = './login.html';
@@ -33,7 +32,6 @@ watchAuthState(async (user) => {
     hideLoading();
   }
 });
-
 // Lưu thông tin hồ sơ khi người dùng bấm cập nhật.
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -55,7 +53,6 @@ form.addEventListener('submit', async (event) => {
     hideLoading();
   }
 });
-
 // Tải ảnh avatar mới lên Firebase Storage.
 avatarInput.addEventListener('change', async (event) => {
   const file = event.target.files?.[0];
@@ -73,7 +70,6 @@ avatarInput.addEventListener('change', async (event) => {
     hideLoading();
   }
 });
-
 // Hiển thị thông tin hồ sơ trên giao diện profile.
 function renderProfile(user, profile) {
   const name = profile?.name || user.displayName || 'Nhân viên';
@@ -89,3 +85,6 @@ function renderProfile(user, profile) {
   profileDisplayEmail.textContent = user.email || '';
   profileAvatarPreview.textContent = name.charAt(0).toUpperCase();
 }
+
+
+

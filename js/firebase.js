@@ -1,10 +1,9 @@
-import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+﻿import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import { getAnalytics } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-analytics.js';
 import { getAuth } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 import { getStorage } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js';
-
-// Your web app's Firebase configuration
+// Cấu hình ứng dụng web Firebase.
 const defaultAuthDomain = 'quanlynlchanhthu.firebaseapp.com';
 const currentHostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const isLocalHost = currentHostname === 'localhost' || currentHostname === '127.0.0.1' || currentHostname === '0.0.0.0';
@@ -42,3 +41,6 @@ try {
 
 export { app, analytics, auth, db, storage };
 export default app;
+
+
+

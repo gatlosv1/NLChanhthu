@@ -1,4 +1,4 @@
-import { getCurrentUser, watchAuthState } from './auth.js';
+﻿import { getCurrentUser, watchAuthState } from './auth.js';
 import { getUserProfile } from './firestore.js';
 import { resolveInitialRole } from './roleUtils.js';
 import { ensureDefaultSettings, listenToSettings, saveSettingsDocument, SETTING_KEYS } from './settings.js';
@@ -21,7 +21,7 @@ const lists = {
 let currentRole = 'staff';
 let settingsState = {};
 let stopSettingsListener = null;
-
+// Hàm hiển thị danh sách.
 function renderList(key, items) {
   const container = lists[key];
   if (!container) return;
@@ -43,13 +43,13 @@ function renderList(key, items) {
     </div>
   `).join('');
 }
-
+// Hàm hiển thị toàn bộ danh sách.
 function renderAll() {
   Object.entries(lists).forEach(([key, container]) => {
     renderList(key, settingsState[key] || []);
   });
 }
-
+// Hàm thiết lập quyền truy cập.
 function setAccess(isAdmin) {
   if (!isAdmin) {
     document.body.innerHTML = `
@@ -67,7 +67,7 @@ function setAccess(isAdmin) {
   Object.values(forms).forEach((form) => form?.classList.remove('d-none'));
   Object.values(lists).forEach((container) => container?.classList.remove('opacity-50'));
 }
-
+// Hàm xử lý gửi biểu mẫu.
 async function handleSubmit(key, event) {
   event.preventDefault();
   if (currentRole !== 'admin') {
@@ -92,7 +92,7 @@ async function handleSubmit(key, event) {
   form.reset();
   showToast('Đã thêm mục mới.', 'success');
 }
-
+// Hàm xử lý xóa mục.
 async function handleDelete(key, index) {
   if (currentRole !== 'admin') {
     showToast('Bạn không có quyền chỉnh sửa danh mục.', 'error');
@@ -107,7 +107,7 @@ async function handleDelete(key, index) {
   }
   showToast('Đã xóa mục.', 'success');
 }
-
+// Hàm xử lý chỉnh sửa mục.
 async function handleEdit(key, index) {
   if (currentRole !== 'admin') {
     showToast('Bạn không có quyền chỉnh sửa danh mục.', 'error');
@@ -127,7 +127,7 @@ async function handleEdit(key, index) {
   }
   showToast('Đã cập nhật mục.', 'success');
 }
-
+// Hàm khởi tạo.
 async function initialize() {
   await ensureDefaultSettings();
   stopSettingsListener = listenToSettings((state) => {
@@ -165,3 +165,7 @@ async function initialize() {
 }
 
 initialize();
+
+
+
+

@@ -1,4 +1,4 @@
-import { watchAuthState, getCurrentUser } from './auth.js';
+﻿import { watchAuthState, getCurrentUser } from './auth.js';
 import { createOrUpdateUserProfile, getUserProfile, updateUserProfile, deleteUserProfile, getAllUsersProfiles } from './firestore.js';
 import { auth } from './firebase.js';
 import { sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
@@ -31,7 +31,7 @@ const userManagementSection = document.getElementById('userManagementSection');
 const FIREBASE_API_KEY = 'AIzaSyAFQQ5yvXsA5B3etXDM_k0g6-HcEjDEpGo';
 let currentRole = 'staff';
 let activeUsersLoadToken = 0;
-
+// Tạo mật khẩu ngẫu nhiên cho tài khoản mới khi cần.
 function generatePassword(length = 12) {
   const charset = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
   let password = '';
@@ -40,7 +40,7 @@ function generatePassword(length = 12) {
   }
   return password;
 }
-
+// Tránh lỗi hiển thị HTML khi render dữ liệu người dùng vào bảng.
 function escapeHtml(value) {
   return String(value || '')
     .replace(/&/g, '&amp;')
@@ -49,7 +49,7 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
-
+// Tạo người dùng trên Firebase Authentication rồi lưu hồ sơ vào Firestore.
 async function createFirebaseUser(email, password, displayName, role, department) {
   const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`, {
     method: 'POST',
@@ -80,7 +80,7 @@ async function createFirebaseUser(email, password, displayName, role, department
 
   return { uid, password };
 }
-
+// Tải danh sách người dùng và render vào bảng quản lý.
 async function loadUsers() {
   if (!userTableBody) return;
 
@@ -121,7 +121,7 @@ async function loadUsers() {
     userActionStatus.textContent = error.message || 'Không thể tải dữ liệu.';
   }
 }
-
+// Hiển thị panel chỉnh sửa thông tin người dùng.
 function showEditPanel(user) {
   if (!userEditPanel || !editUserForm) return;
   editUserId.value = user.id;
@@ -131,7 +131,7 @@ function showEditPanel(user) {
   editUserPassword.value = '';
   userEditPanel.classList.remove('d-none');
 }
-
+// Ẩn panel chỉnh sửa sau khi hoàn tất hoặc hủy thao tác.
 function hideEditPanel() {
   if (!userEditPanel) return;
   userEditPanel.classList.add('d-none');
@@ -206,7 +206,7 @@ watchAuthState(async (user) => {
     hideLoading();
   }
 });
-
+// Hiển thị thông tin hồ sơ người dùng trên dashboard.
 function renderProfile(user, profile) {
   const role = resolveInitialRole(user?.email, profile?.role);
   currentRole = role;
@@ -354,3 +354,7 @@ cancelEditBtn?.addEventListener('click', () => {
   hideEditPanel();
   userActionStatus.textContent = '';
 });
+
+
+
+

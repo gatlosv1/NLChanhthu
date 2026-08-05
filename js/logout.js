@@ -1,9 +1,8 @@
-import { logout } from './auth.js';
+﻿import { logout } from './auth.js';
 import { hideLoading, showLoading, showToast } from './utils.js';
 
 const logoutLinks = document.querySelectorAll('[data-action="logout"]');
-
-// Gắn sự kiện đăng xuất cho các link có data-action="logout".
+// Gắn sự kiện đăng xuất cho các liên kết có thuộc tính data-action="logout".
 logoutLinks.forEach((link) => {
   link.addEventListener('click', async (event) => {
     event.preventDefault();
@@ -20,3 +19,6 @@ logoutLinks.forEach((link) => {
     }
   });
 });
+
+
+
