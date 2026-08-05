@@ -58,8 +58,8 @@ function setAccess(isAdmin) {
 
 async function handleSubmit(key, event) {
   event.preventDefault();
-  if (currentRole !== 'admin' && !getCurrentUser()) {
-    showToast('Bạn không có quyền truy cập.', 'error');
+  if (currentRole !== 'admin') {
+    showToast('Bạn không có quyền chỉnh sửa danh mục.', 'error');
     return;
   }
   const form = forms[key];
@@ -72,25 +72,33 @@ async function handleSubmit(key, event) {
   }
 
   const items = [...(settingsState[key] || []), { ma, ten }];
-  await saveSettingsDocument(key, items);
+  const saved = await saveSettingsDocument(key, items);
+  if (!saved) {
+    showToast('Không thể lưu vào Firebase. Vui lòng kiểm tra quyền truy cập.', 'error');
+    return;
+  }
   form.reset();
   showToast('Đã thêm mục mới.', 'success');
 }
 
 async function handleDelete(key, index) {
-  if (currentRole !== 'admin' && !getCurrentUser()) {
-    showToast('Bạn không có quyền truy cập.', 'error');
+  if (currentRole !== 'admin') {
+    showToast('Bạn không có quyền chỉnh sửa danh mục.', 'error');
     return;
   }
   const items = [...(settingsState[key] || [])];
   items.splice(index, 1);
-  await saveSettingsDocument(key, items);
+  const saved = await saveSettingsDocument(key, items);
+  if (!saved) {
+    showToast('Không thể lưu vào Firebase. Vui lòng kiểm tra quyền truy cập.', 'error');
+    return;
+  }
   showToast('Đã xóa mục.', 'success');
 }
 
 async function handleEdit(key, index) {
-  if (currentRole !== 'admin' && !getCurrentUser()) {
-    showToast('Bạn không có quyền truy cập.', 'error');
+  if (currentRole !== 'admin') {
+    showToast('Bạn không có quyền chỉnh sửa danh mục.', 'error');
     return;
   }
   const items = [...(settingsState[key] || [])];
@@ -100,7 +108,11 @@ async function handleEdit(key, index) {
   const ten = window.prompt('Nhập tên mới', item?.ten || '');
   if (ten === null) return;
   items[index] = { ma: ma.trim(), ten: ten.trim() };
-  await saveSettingsDocument(key, items);
+  const saved = await saveSettingsDocument(key, items);
+  if (!saved) {
+    showToast('Không thể lưu vào Firebase. Vui lòng kiểm tra quyền truy cập.', 'error');
+    return;
+  }
   showToast('Đã cập nhật mục.', 'success');
 }
 
