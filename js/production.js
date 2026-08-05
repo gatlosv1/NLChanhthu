@@ -27,8 +27,7 @@ import { canDeleteProductionRows, canEditProductionRows } from './productionPerm
 const tableEl = document.getElementById('productionTable');
 const quickManufacturer = document.getElementById('quickManufacturer');
 const quickRegion = document.getElementById('quickRegion');
-const quickProductionDate = document.getElementById('quickProductionDate');
-const quickVehicle = document.getElementById('quickVehicle');
+const quickWarehouse = document.getElementById('quickWarehouse');
 const quickMaterialKind = document.getElementById('quickMaterialKind');
 const quickLot = document.getElementById('quickLot');
 const quickType = document.getElementById('quickType');
@@ -44,6 +43,7 @@ const exportBtn = document.getElementById('exportBtn');
 const saveBtn = document.getElementById('saveBtn');
 const summaryRows = document.getElementById('summaryRows');
 const summaryA = document.getElementById('summaryA');
+const realtimeClock = document.getElementById('realtimeClock');
 const summaryB = document.getElementById('summaryB');
 const summaryC = document.getElementById('summaryC');
 const summaryCNoSeed = document.getElementById('summaryCNoSeed');
@@ -210,8 +210,8 @@ function getYearSuffix(year) {
 }
 
 // Tạo mã lot theo mẫu doanh nghiệp từ các ô nhập nhanh.
-function generateLot({ materialType, manufacturer, region, productionDate, vehicle, materialKind, type }) {
-  if (!materialType || !manufacturer || !region || !productionDate || !vehicle || !materialKind) return '';
+function generateLot({ materialType, manufacturer, region, productionDate, warehouse, materialKind, type }) {
+  if (!materialType || !manufacturer || !region || !productionDate || !warehouse || !materialKind) return '';
 
   const dateObj = new Date(productionDate);
   if (Number.isNaN(dateObj.getTime())) return '';
@@ -221,11 +221,11 @@ function generateLot({ materialType, manufacturer, region, productionDate, vehic
   const yearSuffix = getYearSuffix(dateObj.getFullYear());
   const manufacturerCode = String(manufacturer).trim().padStart(3, '0');
   const regionCode = String(region).trim().toUpperCase();
-  const vehicleCode = String(vehicle).trim().padStart(2, '0');
+  const warehouseCode = String(warehouse).trim().toUpperCase();
   const materialCode = String(materialKind).trim().toUpperCase();
   const lotTypePrefix = String(type || '').trim().toUpperCase() === 'DO' ? 'D' : 'R';
 
-  return `${lotTypePrefix}${materialType}${manufacturerCode}${regionCode}${day}${month}${yearSuffix}-${vehicleCode}-${materialCode}`;
+  return `${lotTypePrefix}${materialType}${manufacturerCode}${regionCode}${day}${month}${yearSuffix}-${warehouseCode}-${materialCode}`;
 }
 
 // Tự động điền ô Lot dựa trên các thông tin nhập nhanh.
@@ -234,8 +234,7 @@ function updateQuickLot() {
     materialType: quickMaterialKind.value,
     manufacturer: quickManufacturer.value,
     region: quickRegion.value,
-    productionDate: quickProductionDate.value,
-    vehicle: quickVehicle.value,
+    warehouse: quickWarehouse.value,
     materialKind: quickMaterialKind.value,
     type: quickType.value
   });
@@ -333,7 +332,7 @@ function mapDocToRow(docItem, index) {
     materialType: rowData.materialType ?? '',
     manufacturer: rowData.manufacturer ?? '',
     region: rowData.region ?? '',
-    vehicle: rowData.vehicle ?? '',
+    warehouse: rowData.warehouse ?? '',
     materialKind: rowData.materialKind ?? ''
   };
   return updatePercentages(row);
@@ -412,7 +411,7 @@ async function legacyLoadProductionData() {
         materialType: docItem.data().materialType ?? '',
         manufacturer: docItem.data().manufacturer ?? '',
         region: docItem.data().region ?? '',
-        vehicle: docItem.data().vehicle ?? '',
+        warehouse: docItem.data().warehouse ?? '',
         materialKind: docItem.data().materialKind ?? ''
       };
       return updatePercentages(row);
@@ -459,7 +458,7 @@ async function addNewRow() {
     materialType: '',
     manufacturer: '',
     region: '',
-    vehicle: '',
+    warehouse: '',
     materialKind: ''
   };
   updatePercentages(newRow);
@@ -479,21 +478,21 @@ async function addQuickEntry() {
     manufacturer: quickManufacturer.value,
     region: quickRegion.value,
     productionDate: quickProductionDate.value,
-    vehicle: quickVehicle.value,
+    warehouse: quickWarehouse.value,
     materialKind: quickMaterialKind.value,
     type: quickType.value
   });
 
-  const lot = (quickLot.value || generatedLot).trim();
+  const lot = quickLot.value.trim();
   if (!lot) {
-    showToast('Vui lòng nhập đủ thông tin để tạo Lot.', 'error');
+    showToast('Vui lòng nhập Lot trước khi thêm dòng.', 'error');
     return;
   }
 
   const newRow = {
     id: `${Date.now()}`,
     stt: data.length + 1,
-    productionDate: quickProductionDate.value,
+    productionDate: '',
     lot,
     type: quickType.value,
     kgA: quickKgA.value || '',
@@ -507,7 +506,7 @@ async function addQuickEntry() {
     materialType: quickMaterialKind.value,
     manufacturer: quickManufacturer.value,
     region: quickRegion.value,
-    vehicle: quickVehicle.value,
+    warehouse: quickWarehouse.value,
     materialKind: quickMaterialKind.value
   };
 
@@ -515,10 +514,9 @@ async function addQuickEntry() {
   data = reindexRows([...data, newRow]);
   table.setData(data);
   quickLot.value = '';
-  quickProductionDate.value = '';
   quickManufacturer.value = '';
   quickRegion.value = '';
-  quickVehicle.value = '';
+  quickWarehouse.value = '';
   quickKgA.value = '';
   quickKgB.value = '';
   quickKgC.value = '';
@@ -776,8 +774,22 @@ function renderCategorySelects() {
   quickType.innerHTML = `<option value="">-- Chọn loại sản phẩm --</option>${buildOptions(typeOptions, quickType.value)}`;
 }
 
+function updateRealtimeClock() {
+  if (!realtimeClock) return;
+  const now = new Date();
+  const value = now.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+  realtimeClock.textContent = value;
+}
+
 function bindEvents() {
-  [quickManufacturer, quickRegion, quickProductionDate, quickVehicle, quickMaterialKind, quickType].forEach((element) => {
+  [quickManufacturer, quickRegion, quickWarehouse, quickMaterialKind, quickType].forEach((element) => {
     element.addEventListener('input', updateQuickLot);
     element.addEventListener('change', updateQuickLot);
   });
@@ -833,6 +845,8 @@ function bindSettingsSyncEvents() {
 (async function init() {
   initTable();
   bindEvents();
+  updateRealtimeClock();
+  setInterval(updateRealtimeClock, 1000);
   bindSettingsSyncEvents();
   await startSettingsSync();
   window.addEventListener('beforeunload', stopProductionRealtimeListener);

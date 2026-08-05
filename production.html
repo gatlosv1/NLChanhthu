@@ -57,12 +57,8 @@
                 </select>
               </div>
               <div class="col-12 col-md-6 col-lg-3">
-                <label class="form-label small mb-1">Ngày</label>
-                <input id="quickProductionDate" type="date" class="form-control form-control-sm modern-input" />
-              </div>
-              <div class="col-12 col-md-6 col-lg-3">
-                <label class="form-label small mb-1">Xe</label>
-                <input id="quickVehicle" class="form-control form-control-sm modern-input" placeholder="08" />
+                <label class="form-label small mb-1">Kho</label>
+                <input id="quickWarehouse" class="form-control form-control-sm modern-input" placeholder="Kho A" />
               </div>
 
               <div class="col-12 col-md-6 col-lg-3">
@@ -113,6 +109,10 @@
 
         <section class="card border-0 shadow-sm rounded-4 mt-3 summary-card">
           <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+              <div class="fw-semibold">Ngày giờ realtime</div>
+              <div id="realtimeClock" class="text-muted small">--</div>
+            </div>
             <div class="row g-3">
               <div class="col-12 col-md-6 col-xl-3"><strong>Tổng số dòng:</strong> <span id="summaryRows">0</span></div>
               <div class="col-12 col-md-6 col-xl-3"><strong>Tổng kg BTP A:</strong> <span id="summaryA">0</span></div>
