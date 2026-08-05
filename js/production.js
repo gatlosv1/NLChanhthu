@@ -873,4 +873,4 @@ function bindSettingsSyncEvents() {
     showToast(error.message || 'Không thể kết nối dữ liệu.', 'error');
     await loadProductionData();
   }
-})();}
+})();
