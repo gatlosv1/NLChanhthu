@@ -570,13 +570,14 @@ function removeSelectedRows() {
 async function saveAllRows() {
   if (isSaving) return;
 
-  if (!(await ensureAdminCanWrite('đồng bộ dữ liệu'))) {
-  await waitForAuth();
-  if (!currentUser) {
+  const authUser = await waitForAuth();
+  currentUser = authUser;
+  if (!authUser) {
     showToast('Bạn cần đăng nhập để lưu dữ liệu.', 'info');
     return;
   }
 
+  await ensureUserDocument();
   isSaving = true;
   showLoading();
   try {
@@ -813,10 +814,23 @@ async function startSettingsSync() {
   });
 }
 
+function bindSettingsSyncEvents() {
+  window.addEventListener('catalog-updated', () => {
+    startSettingsSync();
+  });
+
+  window.addEventListener('storage', (event) => {
+    if (event.key === 'catalog-sync') {
+      startSettingsSync();
+    }
+  });
+}
+
 // Điểm khởi đầu: khởi tạo bảng, gắn sự kiện và tải dữ liệu chung.
 (async function init() {
   initTable();
   bindEvents();
+  bindSettingsSyncEvents();
   await startSettingsSync();
   window.addEventListener('beforeunload', stopProductionRealtimeListener);
 
