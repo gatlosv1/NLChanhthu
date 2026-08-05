@@ -54,7 +54,10 @@ function buildDocRef(key) {
 
 export async function ensureDefaultSettings() {
   const authUser = await waitForAuth();
-  if (!authUser) return;
+  if (!authUser) {
+    console.warn('[Settings] skipped default setup because no authenticated user is available');
+    return;
+  }
 
   const keys = Object.values(SETTING_KEYS);
   for (const key of keys) {
@@ -103,7 +106,10 @@ export function getSettingDisplayValue(settingsState, key, value) {
 
 export async function saveSettingsDocument(key, items) {
   const authUser = await waitForAuth();
-  if (!authUser) return;
+  if (!authUser) {
+    console.warn('[Settings] skipped save because no authenticated user is available');
+    return;
+  }
 
   const ref = buildDocRef(key);
   console.log('[Firestore] setDoc', ref.path);

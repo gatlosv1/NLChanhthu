@@ -136,6 +136,10 @@ async function initialize() {
     if (currentRole !== 'admin' && user) {
       setAccess(true);
     }
+
+    if (!user) {
+      showToast('Vui lòng đăng nhập để dữ liệu được lưu vào Firebase.', 'info');
+    }
   });
 }
 
