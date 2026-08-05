@@ -210,7 +210,7 @@ function getYearSuffix(year) {
 }
 
 // Tạo mã lot theo mẫu doanh nghiệp từ các ô nhập nhanh.
-function generateLot({ materialType, manufacturer, region, productionDate, vehicle, materialKind }) {
+function generateLot({ materialType, manufacturer, region, productionDate, vehicle, materialKind, type }) {
   if (!materialType || !manufacturer || !region || !productionDate || !vehicle || !materialKind) return '';
 
   const dateObj = new Date(productionDate);
@@ -223,8 +223,9 @@ function generateLot({ materialType, manufacturer, region, productionDate, vehic
   const regionCode = String(region).trim().toUpperCase();
   const vehicleCode = String(vehicle).trim().padStart(2, '0');
   const materialCode = String(materialKind).trim().toUpperCase();
+  const lotTypePrefix = String(type || '').trim().toUpperCase() === 'DO' ? 'D' : 'R';
 
-  return `${materialType}${manufacturerCode}${regionCode}${day}${month}${yearSuffix}-${vehicleCode}-${materialCode}`;
+  return `${lotTypePrefix}${materialType}${manufacturerCode}${regionCode}${day}${month}${yearSuffix}-${vehicleCode}-${materialCode}`;
 }
 
 // Tự động điền ô Lot dựa trên các thông tin nhập nhanh.
@@ -235,7 +236,8 @@ function updateQuickLot() {
     region: quickRegion.value,
     productionDate: quickProductionDate.value,
     vehicle: quickVehicle.value,
-    materialKind: quickMaterialKind.value
+    materialKind: quickMaterialKind.value,
+    type: quickType.value
   });
   quickLot.value = lot;
 }
@@ -478,7 +480,8 @@ async function addQuickEntry() {
     region: quickRegion.value,
     productionDate: quickProductionDate.value,
     vehicle: quickVehicle.value,
-    materialKind: quickMaterialKind.value
+    materialKind: quickMaterialKind.value,
+    type: quickType.value
   });
 
   const lot = (quickLot.value || generatedLot).trim();
