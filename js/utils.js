@@ -9,7 +9,7 @@ export function showLoading() {
   overlay.innerHTML = '<div class="spinner"></div>';
   document.body.appendChild(overlay);
 }
-// Ẩn lớp phủ loading nếu nó đang được hiển thị.
+// Ẩn lớp phủ loading nếu lớp phủ đang được hiển thị.
 export function hideLoading() {
   const overlays = document.querySelectorAll('#loadingOverlay');
   overlays.forEach((overlay) => overlay.remove());

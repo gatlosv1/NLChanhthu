@@ -12,12 +12,12 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 
 let authReadyPromise = null;
-// Thiết lập promise chờ auth sẵn sàng để tái sử dụng trong các hàm khác.
+// Khởi tạo promise chờ Auth sẵn sàng để tái sử dụng trong các hàm khác.
 function setAuthReadyPromise(promise) {
   authReadyPromise = promise;
   return promise;
 }
-// Chờ cho đến khi Firebase Auth sẵn sàng và trả về người dùng hiện tại nếu đã đăng nhập.
+// Đợi cho đến khi Firebase Auth sẵn sàng và trả về người dùng hiện tại nếu đã đăng nhập.
 export function waitForAuth() {
   if (authReadyPromise) {
     return authReadyPromise;
@@ -25,7 +25,7 @@ export function waitForAuth() {
 
   const promise = new Promise((resolve, reject) => {
     if (!auth) {
-      reject(new Error('Firebase Auth chÆ°a sáºµn sÃ ng. Vui lÃ²ng táº£i láº¡i trang hoáº·c kiá»ƒm tra cáº¥u hÃ¬nh Firebase.'));
+      reject(new Error('Firebase Auth chưa sẵn sàng. Vui lòng tải lại trang hoặc kiểm tra cấu hình Firebase.'));
       return;
     }
 
@@ -52,7 +52,7 @@ export function waitForAuth() {
 // Đăng nhập bằng email và mật khẩu, có thể ghi nhớ phiên đăng nhập.
 export async function loginWithEmailPassword(email, password, rememberMe = true) {
   if (!auth) {
-    throw new Error('Firebase Auth chÆ°a sáºµn sÃ ng. Vui lÃ²ng táº£i láº¡i trang hoáº·c kiá»ƒm tra cáº¥u hÃ¬nh Firebase.');
+    throw new Error('Firebase Auth chưa sẵn sàng. Vui lòng tải lại trang hoặc kiểm tra cấu hình Firebase.');
   }
 
   await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
@@ -61,21 +61,21 @@ export async function loginWithEmailPassword(email, password, rememberMe = true)
 // Đăng nhập ẩn danh bằng Firebase Auth.
 export async function loginAnonymously() {
   if (!auth) {
-    throw new Error('Firebase Auth chÆ°a sáºµn sÃ ng. Vui lÃ²ng táº£i láº¡i trang hoáº·c kiá»ƒm tra cáº¥u hÃ¬nh Firebase.');
+    throw new Error('Firebase Auth chưa sẵn sàng. Vui lòng tải lại trang hoặc kiểm tra cấu hình Firebase.');
   }
   return signInAnonymously(auth);
 }
 // Tạo tài khoản mới bằng email và mật khẩu.
 export async function signUpWithEmailPassword(email, password) {
   if (!auth) {
-    throw new Error('Firebase Auth chÆ°a sáºµn sÃ ng. Vui lÃ²ng táº£i láº¡i trang hoáº·c kiá»ƒm tra cáº¥u hÃ¬nh Firebase.');
+    throw new Error('Firebase Auth chưa sẵn sàng. Vui lòng tải lại trang hoặc kiểm tra cấu hình Firebase.');
   }
   return createUserWithEmailAndPassword(auth, email, password);
 }
 // Gửi email đặt lại mật khẩu cho người dùng.
 export async function resetPassword(email) {
   if (!auth) {
-    throw new Error('Firebase Auth chÆ°a sáºµn sÃ ng. Vui lÃ²ng táº£i láº¡i trang hoáº·c kiá»ƒm tra cáº¥u hÃ¬nh Firebase.');
+    throw new Error('Firebase Auth chưa sẵn sàng. Vui lòng tải lại trang hoặc kiểm tra cấu hình Firebase.');
   }
   return sendPasswordResetEmail(auth, email);
 }
