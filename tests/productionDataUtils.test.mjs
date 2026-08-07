@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { canPersistProductionRow, normalizeProductionRowForPersistence } from '../js/productionDataUtils.mjs';
+import { buildProductionPayload, canPersistProductionRow, normalizeProductionRowForPersistence } from '../js/productionDataUtils.mjs';
 
 test('canPersistProductionRow trims whitespace before validating', () => {
   assert.equal(canPersistProductionRow({ lot: '   ', type: 'RI' }), false);
@@ -21,4 +21,16 @@ test('normalizeProductionRowForPersistence trims and preserves values', () => {
     productionDate: '2026-08-05',
     warehouse: 'WH1'
   });
+});
+
+test('buildProductionPayload always includes ownerId for the current user', () => {
+  const payload = buildProductionPayload({
+    lot: '  LOT-02  ',
+    type: 'RI',
+    warehouse: '  WH2  '
+  }, 'user-123');
+
+  assert.equal(payload.ownerId, 'user-123');
+  assert.equal(payload.lot, 'LOT-02');
+  assert.equal(payload.type, 'RI');
 });

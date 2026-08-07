@@ -20,3 +20,28 @@ export function normalizeProductionRowForPersistence(row = {}) {
     warehouse: normalizedWarehouse
   };
 }
+
+// Xây dựng payload Firestore cho một dòng sản xuất, bắt buộc có ownerId.
+export function buildProductionPayload(row = {}, ownerId = '') {
+  const normalizedRow = normalizeProductionRowForPersistence(row);
+  return {
+    ownerId: ownerId || '',
+    productionDate: normalizedRow.productionDate || '',
+    lot: normalizedRow.lot || '',
+    type: normalizedRow.type || 'RI',
+    kgA: Number(normalizedRow.kgA || 0),
+    percentA: Number(normalizedRow.percentA || 0),
+    kgB: Number(normalizedRow.kgB || 0),
+    percentB: Number(normalizedRow.percentB || 0),
+    kgC: Number(normalizedRow.kgC || 0),
+    percentC: Number(normalizedRow.percentC || 0),
+    kgCNoSeed: Number(normalizedRow.kgCNoSeed || 0),
+    percentCNoSeed: Number(normalizedRow.percentCNoSeed || 0),
+    materialType: normalizedRow.materialType || '',
+    manufacturer: normalizedRow.manufacturer || '',
+    region: normalizedRow.region || '',
+    warehouse: normalizedRow.warehouse || '',
+    vehicle: normalizedRow.vehicle || '',
+    materialKind: normalizedRow.materialKind || ''
+  };
+}

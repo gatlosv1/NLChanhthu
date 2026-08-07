@@ -22,7 +22,7 @@ import {
 import { hideLoading, showLoading, showToast } from './utils.js?v=20260804-8';
 import { ensureDefaultSettings, getSettingOptions, listenToSettings, SETTING_KEYS } from './settings.js';
 import { canDeleteProductionRows, canEditProductionRows } from './productionPermissions.js';
-import { canPersistProductionRow, normalizeProductionRowForPersistence } from './productionDataUtils.mjs?v=20260804-8';
+import { buildProductionPayload, canPersistProductionRow, normalizeProductionRowForPersistence } from './productionDataUtils.mjs?v=20260804-8';
 
 // Lấy các phần tử DOM từ HTML để code có thể thao tác với form, bảng và nút bấm.
 const tableEl = document.getElementById('productionTable');
@@ -612,23 +612,18 @@ async function saveAllRows() {
       if (!canPersistProductionRow(normalizedRow)) return;
 
       const payload = {
+        ...buildProductionPayload({
+          ...normalizedRow,
+          kgA: row.kgA,
+          percentA: row.percentA,
+          kgB: row.kgB,
+          percentB: row.percentB,
+          kgC: row.kgC,
+          percentC: row.percentC,
+          kgCNoSeed: row.kgCNoSeed,
+          percentCNoSeed: row.percentCNoSeed
+        }, authUser.uid),
         productionDate: normalizeDateValue(normalizedRow.productionDate) || getDefaultProductionDate(),
-        lot: normalizedRow.lot,
-        type: normalizedRow.type,
-        kgA: Number(row.kgA || 0),
-        percentA: Number(parsePercent(row.percentA) || 0),
-        kgB: Number(row.kgB || 0),
-        percentB: Number(parsePercent(row.percentB) || 0),
-        kgC: Number(row.kgC || 0),
-        percentC: Number(parsePercent(row.percentC) || 0),
-        kgCNoSeed: Number(row.kgCNoSeed || 0),
-        percentCNoSeed: Number(parsePercent(row.percentCNoSeed) || 0),
-        materialType: normalizedRow.materialType || '',
-        manufacturer: normalizedRow.manufacturer || '',
-        region: normalizedRow.region || '',
-        warehouse: normalizedRow.warehouse || '',
-        vehicle: normalizedRow.vehicle || '',
-        materialKind: normalizedRow.materialKind || '',
         createdAt: row.createdAt ? row.createdAt : serverTimestamp(),
         updatedAt: serverTimestamp()
       };
