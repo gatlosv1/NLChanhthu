@@ -40,14 +40,31 @@ function generatePassword(length = 12) {
   }
   return password;
 }
-// Tránh lỗi hiển thị HTML khi render dữ liệu người dùng vào bảng.
-function escapeHtml(value) {
-  return String(value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+// Hiển thị trạng thái tải trong bảng mà không diễn giải dữ liệu thành HTML.
+function renderUserTableStatus(message) {
+  const row = document.createElement('tr');
+  const cell = document.createElement('td');
+  cell.colSpan = 6;
+  cell.className = 'text-muted';
+  cell.textContent = message;
+  row.appendChild(cell);
+  userTableBody.replaceChildren(row);
+}
+// Tạo ô dữ liệu người dùng an toàn.
+function createUserCell(value) {
+  const cell = document.createElement('td');
+  cell.textContent = value || '-';
+  return cell;
+}
+// Tạo nút thao tác để giữ nguyên cơ chế event delegation của bảng.
+function createUserActionButton(label, action, userId, className) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = className;
+  button.dataset.action = action;
+  button.dataset.userId = userId || '';
+  button.textContent = label;
+  return button;
 }
 // Tạo người dùng trên Firebase Authentication rồi lưu hồ sơ vào Firestore.
 async function createFirebaseUser(email, password, displayName, role, department) {
@@ -85,7 +102,7 @@ async function loadUsers() {
   if (!userTableBody) return;
 
   const loadToken = ++activeUsersLoadToken;
-  userTableBody.innerHTML = '<tr><td colspan="6" class="text-muted">Đang tải...</td></tr>';
+  renderUserTableStatus('Đang tải...');
   try {
     const users = await getAllUsersProfiles();
     if (loadToken !== activeUsersLoadToken) {
@@ -93,31 +110,36 @@ async function loadUsers() {
     }
 
     if (!users.length) {
-      userTableBody.innerHTML = '<tr><td colspan="6" class="text-muted">Chưa có tài khoản nào.</td></tr>';
+      renderUserTableStatus('Chưa có tài khoản nào.');
       return;
     }
 
-    userTableBody.innerHTML = users.map((user) => {
+    const rows = users.map((user) => {
       const isAdmin = user.role === 'admin';
-      const actionButtons = `<button class="btn btn-sm btn-outline-primary me-2" data-action="edit" data-user-id="${escapeHtml(user.id)}">Sửa</button>
-           <button class="btn btn-sm btn-outline-danger me-2" data-action="delete" data-user-id="${escapeHtml(user.id)}">Xóa</button>
-           <button class="btn btn-sm btn-outline-secondary" data-action="reset" data-user-id="${escapeHtml(user.id)}">Đặt lại mật khẩu</button>`;
+      const row = document.createElement('tr');
+      row.append(
+        createUserCell(user.email),
+        createUserCell(user.name),
+        createUserCell(user.password),
+        createUserCell(isAdmin ? 'Admin' : 'Staff'),
+        createUserCell(user.department || 'Chưa phân phòng')
+      );
 
-      return `
-        <tr>
-          <td>${escapeHtml(user.email || '-')}</td>
-          <td>${escapeHtml(user.name || '-')}</td>
-          <td>${escapeHtml(user.password || '-')}</td>
-          <td>${escapeHtml(isAdmin ? 'Admin' : 'Staff')}</td>
-          <td>${escapeHtml(user.department || 'Chưa phân phòng')}</td>
-          <td>${actionButtons}</td>
-        </tr>`;
-    }).join('');
+      const actionsCell = document.createElement('td');
+      actionsCell.append(
+        createUserActionButton('Sửa', 'edit', user.id, 'btn btn-sm btn-outline-primary me-2'),
+        createUserActionButton('Xóa', 'delete', user.id, 'btn btn-sm btn-outline-danger me-2'),
+        createUserActionButton('Đặt lại mật khẩu', 'reset', user.id, 'btn btn-sm btn-outline-secondary')
+      );
+      row.appendChild(actionsCell);
+      return row;
+    });
+    userTableBody.replaceChildren(...rows);
   } catch (error) {
     if (loadToken !== activeUsersLoadToken) {
       return;
     }
-    userTableBody.innerHTML = '<tr><td colspan="6" class="text-muted">Không thể tải danh sách tài khoản.</td></tr>';
+    renderUserTableStatus('Không thể tải danh sách tài khoản.');
     userActionStatus.textContent = error.message || 'Không thể tải dữ liệu.';
   }
 }
@@ -171,7 +193,16 @@ createUserForm?.addEventListener('submit', async (event) => {
     await createFirebaseUser(email, password, displayName, role, department);
     createUserStatus.textContent = 'Tạo tài khoản thành công.';
     createUserResult.classList.remove('d-none');
-    createUserResult.innerHTML = `Tài khoản <strong>${email}</strong> đã được tạo. Mật khẩu: <strong>${password}</strong>`;
+    const emailElement = document.createElement('strong');
+    emailElement.textContent = email;
+    const passwordElement = document.createElement('strong');
+    passwordElement.textContent = password;
+    createUserResult.replaceChildren(
+      'Tài khoản ',
+      emailElement,
+      ' đã được tạo. Mật khẩu: ',
+      passwordElement
+    );
     createUserForm.reset();
     createUserStatus.textContent = 'Tạo tài khoản thành công.';
     await loadUsers();
@@ -237,9 +268,14 @@ function renderProfile(user, profile) {
       ]
     : ['Nhập liệu dữ liệu', 'Chỉnh sửa dữ liệu'];
 
-  adminActions.innerHTML = actions
-    .map((action) => `<button class="btn btn-outline-secondary w-100 text-start">${action}</button>`)
-    .join('');
+  const actionButtons = actions.map((action) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn btn-outline-secondary w-100 text-start';
+    button.textContent = action;
+    return button;
+  });
+  adminActions.replaceChildren(...actionButtons);
 }
 
 userTableBody?.addEventListener('click', async (event) => {

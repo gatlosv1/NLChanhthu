@@ -6,7 +6,9 @@ export function showLoading() {
   const overlay = document.createElement('div');
   overlay.id = 'loadingOverlay';
   overlay.className = 'loading-overlay';
-  overlay.innerHTML = '<div class="spinner"></div>';
+  const spinner = document.createElement('div');
+  spinner.className = 'spinner';
+  overlay.appendChild(spinner);
   document.body.appendChild(overlay);
 }
 // Ẩn lớp phủ loading nếu lớp phủ đang được hiển thị.

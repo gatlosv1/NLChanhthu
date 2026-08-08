@@ -26,22 +26,48 @@ function renderList(key, items) {
   const container = lists[key];
   if (!container) return;
   if (!items.length) {
-    container.innerHTML = '<div class="text-muted">Chưa có mục nào.</div>';
+    const emptyMessage = document.createElement('div');
+    emptyMessage.className = 'text-muted';
+    emptyMessage.textContent = 'Chưa có mục nào.';
+    container.replaceChildren(emptyMessage);
     return;
   }
 
-  container.innerHTML = items.map((item, index) => `
-    <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
-      <div>
-        <div class="fw-semibold">${item.ma || '-'} - ${item.ten || '-'}</div>
-        <div class="small text-muted">#${index + 1}</div>
-      </div>
-      <div class="d-flex gap-2">
-        <button class="btn btn-outline-primary btn-sm" type="button" data-action="edit" data-key="${key}" data-index="${index}">Sửa</button>
-        <button class="btn btn-outline-danger btn-sm" type="button" data-action="delete" data-key="${key}" data-index="${index}">Xóa</button>
-      </div>
-    </div>
-  `).join('');
+  const rows = items.map((item, index) => {
+    const row = document.createElement('div');
+    row.className = 'list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2';
+
+    const details = document.createElement('div');
+    const name = document.createElement('div');
+    name.className = 'fw-semibold';
+    name.textContent = `${item.ma || '-'} - ${item.ten || '-'}`;
+    const position = document.createElement('div');
+    position.className = 'small text-muted';
+    position.textContent = `#${index + 1}`;
+    details.append(name, position);
+
+    const actions = document.createElement('div');
+    actions.className = 'd-flex gap-2';
+    const editButton = document.createElement('button');
+    editButton.className = 'btn btn-outline-primary btn-sm';
+    editButton.type = 'button';
+    editButton.dataset.action = 'edit';
+    editButton.dataset.key = key;
+    editButton.dataset.index = index;
+    editButton.textContent = 'Sửa';
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'btn btn-outline-danger btn-sm';
+    deleteButton.type = 'button';
+    deleteButton.dataset.action = 'delete';
+    deleteButton.dataset.key = key;
+    deleteButton.dataset.index = index;
+    deleteButton.textContent = 'Xóa';
+    actions.append(editButton, deleteButton);
+
+    row.append(details, actions);
+    return row;
+  });
+  container.replaceChildren(...rows);
 }
 // Hàm hiển thị toàn bộ danh sách.
 function renderAll() {
@@ -52,15 +78,23 @@ function renderAll() {
 // Hàm thiết lập quyền truy cập.
 function setAccess(isAdmin) {
   if (!isAdmin) {
-    document.body.innerHTML = `
-      <div class="min-vh-100 d-flex align-items-center justify-content-center bg-light">
-        <div class="text-center p-4">
-          <h2 class="h4 fw-bold mb-2">Không có quyền truy cập</h2>
-          <p class="text-muted mb-3">Chỉ admin mới được phép quản lý danh mục.</p>
-          <a href="./dashboard.html" class="btn btn-primary">Quay về Dashboard</a>
-        </div>
-      </div>
-    `;
+    const accessPage = document.createElement('div');
+    accessPage.className = 'min-vh-100 d-flex align-items-center justify-content-center bg-light';
+    const content = document.createElement('div');
+    content.className = 'text-center p-4';
+    const title = document.createElement('h2');
+    title.className = 'h4 fw-bold mb-2';
+    title.textContent = 'Không có quyền truy cập';
+    const message = document.createElement('p');
+    message.className = 'text-muted mb-3';
+    message.textContent = 'Chỉ admin mới được phép quản lý danh mục.';
+    const dashboardLink = document.createElement('a');
+    dashboardLink.href = './dashboard.html';
+    dashboardLink.className = 'btn btn-primary';
+    dashboardLink.textContent = 'Quay về Dashboard';
+    content.append(title, message, dashboardLink);
+    accessPage.appendChild(content);
+    document.body.replaceChildren(accessPage);
     return;
   }
 

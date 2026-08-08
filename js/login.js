@@ -76,7 +76,7 @@ if (form) {
   const email = emailInput.value.trim();
   const password = passwordInput.value;
   const rememberMe = document.getElementById('rememberMe').checked;
-  messageBox.innerHTML = '';
+  messageBox.replaceChildren();
 
   if (!validateFields(email, password)) {
     showToast('Vui lòng kiểm tra lại thông tin nhập.', 'error');

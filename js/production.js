@@ -166,7 +166,10 @@ function initTable() {
     });
   } catch (error) {
     console.error('[Production] Tabulator init failed', error);
-    tableEl.innerHTML = '<div class="text-muted p-3">Bảng dữ liệu không thể khởi tạo. Bạn vẫn có thể thêm dòng bằng form nhập nhanh.</div>';
+    const errorMessage = document.createElement('div');
+    errorMessage.className = 'text-muted p-3';
+    errorMessage.textContent = 'Bảng dữ liệu không thể khởi tạo. Bạn vẫn có thể thêm dòng bằng form nhập nhanh.';
+    tableEl.replaceChildren(errorMessage);
   }
 }
 
@@ -781,17 +784,25 @@ function renderCategorySelects() {
     ? getSettingOptions(settingsState, SETTING_KEYS.loaiSanPham)
     : [{ ma: 'RI', ten: 'RI' }, { ma: 'DO', ten: 'DO' }];
 
-  const buildOptions = (options, selectedValue = '') => options.map((item) => {
-    const value = item.ma;
-    const label = `${item.ma} - ${item.ten}`;
-    const isSelected = value === selectedValue;
-    return `<option value="${value}" ${isSelected ? 'selected' : ''}>${label}</option>`;
-  }).join('');
+  const renderOptions = (select, placeholder, options) => {
+    const selectedValue = select.value;
+    const placeholderOption = document.createElement('option');
+    placeholderOption.value = '';
+    placeholderOption.textContent = placeholder;
+    const optionElements = options.map((item) => {
+      const option = document.createElement('option');
+      option.value = item.ma;
+      option.textContent = `${item.ma} - ${item.ten}`;
+      option.selected = item.ma === selectedValue;
+      return option;
+    });
+    select.replaceChildren(placeholderOption, ...optionElements);
+  };
 
-  quickManufacturer.innerHTML = `<option value="">-- Chọn NCC --</option>${buildOptions(manufacturerOptions, quickManufacturer.value)}`;
-  quickRegion.innerHTML = `<option value="">-- Chọn vùng --</option>${buildOptions(regionOptions, quickRegion.value)}`;
-  quickMaterialKind.innerHTML = `<option value="">-- Chọn loại --</option>${buildOptions(materialKindOptions, quickMaterialKind.value)}`;
-  quickType.innerHTML = `<option value="">-- Chọn loại sản phẩm --</option>${buildOptions(typeOptions, quickType.value)}`;
+  renderOptions(quickManufacturer, '-- Chọn NCC --', manufacturerOptions);
+  renderOptions(quickRegion, '-- Chọn vùng --', regionOptions);
+  renderOptions(quickMaterialKind, '-- Chọn loại --', materialKindOptions);
+  renderOptions(quickType, '-- Chọn loại sản phẩm --', typeOptions);
 }
 
 function updateRealtimeClock() {
