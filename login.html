@@ -22,7 +22,7 @@
                 <p class="text-muted">Chỉ nhân viên được cấp tài khoản mới có thể truy cập.</p>
               </div>
 
-              <form id="loginForm" novalidate>
+              <form id="loginForm" method="post" novalidate>
                 <div class="mb-3">
                   <label for="email" class="form-label">Email</label>
                   <input id="email" name="email" type="email" class="form-control form-control-lg" placeholder="you@company.com" autocomplete="email" required />
@@ -56,6 +56,19 @@
       </div>
     </main>
 
+    <script>
+      if (window.location.protocol === 'file:') {
+        const form = document.getElementById('loginForm');
+        const messageBox = document.getElementById('messageBox');
+        form?.addEventListener('submit', (event) => {
+          event.preventDefault();
+          if (messageBox) {
+            messageBox.className = 'alert alert-warning mt-4';
+            messageBox.textContent = 'Không thể đăng nhập khi mở file trực tiếp. Hãy truy cập website HTTPS của hệ thống.';
+          }
+        });
+      }
+    </script>
     <script type="module" src="./js/login.js"></script>
   </body>
 </html>

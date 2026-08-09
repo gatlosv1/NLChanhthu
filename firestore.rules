@@ -11,7 +11,12 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && request.auth.token.admin == true;
+      return isSignedIn() && (
+        request.auth.token.admin == true || (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        )
+      );
     }
 
     match /users/{userId} {
@@ -59,6 +64,31 @@ service cloud.firestore {
     match /settings/{docId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isAdmin();
+    }
+
+    match /thanhpham/{productId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /printHistory/{historyId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /productCounters/{counterId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.nextSTT >= 0;
+      allow update: if isAdmin() || (
+        isSignedIn()
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.nextSTT >= resource.data.nextSTT
+      );
+      allow delete: if isAdmin();
     }
 
     match /{document=**} {
