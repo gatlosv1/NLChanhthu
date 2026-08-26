@@ -1,0 +1,12 @@
+#congTachMuiTable { min-height: 420px; }
+#congTachMuiTable .tabulator { min-width: 2200px; font-size: .86rem; }
+#congTachMuiTable .tabulator-header { background: #fff4cf; }
+#congTachMuiTable .tabulator-header .tabulator-col { background: #fff4cf; color: #172033; font-weight: 700; border-right: 1px solid #d8bf69; }
+#congTachMuiTable .tabulator-header .tabulator-col .tabulator-col-content { min-height: 58px; display: flex; align-items: center; justify-content: center; padding: 6px 4px; }
+#congTachMuiTable .tabulator-header .tabulator-col .tabulator-col-title { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.15; text-align: center; word-break: normal; }
+#congTachMuiTable .tabulator-header .tabulator-col:nth-child(2) { background: #cfe5be; }
+#congTachMuiTable .tabulator-header .tabulator-col:nth-child(n+4):nth-child(-n+6) { background: #12a9d1; color: #071b2a; }
+#congTachMuiTable .tabulator-header .tabulator-col:nth-child(n+11):nth-child(-n+11), #congTachMuiTable .tabulator-header .tabulator-col:nth-child(n+16):nth-child(-n+16), #congTachMuiTable .tabulator-header .tabulator-col:nth-child(n+21):nth-child(-n+21) { color: #df2020; }
+#congTachMuiTable .tabulator-cell[tabulator-field="productionDate"], #congTachMuiTable .tabulator-cell[tabulator-field="totalBtp"], #congTachMuiTable .tabulator-cell[tabulator-field="totalTime"], #congTachMuiTable .tabulator-cell[tabulator-field="totalProductivity"], #congTachMuiTable .tabulator-cell[tabulator-field="morningProductivity"], #congTachMuiTable .tabulator-cell[tabulator-field="afternoonProductivity"], #congTachMuiTable .tabulator-cell[tabulator-field="eveningProductivity"] { background: #f1f3f5; color: #64748b; }
+#catalogPanel { border-left: 4px solid #f3c74d !important; }
+@media (max-width: 991px) { #congTachMuiTable { overflow-x: auto; } }

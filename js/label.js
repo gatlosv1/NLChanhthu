@@ -256,6 +256,7 @@ const firebase = {
             let firebaseReady = false;
             let counterRef = null;
             const DEFAULT_DROPDOWNS = {
+                ngayDGEditable: true,
                 toSanXuat: ["Tèo", "Nguyên", "Ly", "Tuấn", "Lyka"],
                 nhaSX: ["009"],
                 loaiHang: [
@@ -292,6 +293,7 @@ const firebase = {
                     : fallback;
 
                 return {
+                    ngayDGEditable: data.ngayDGEditable !== false,
                     toSanXuat: useArrayOrDefault(data.toSanXuat, DEFAULT_DROPDOWNS.toSanXuat),
                     nhaSX: useArrayOrDefault(data.nhaSX, DEFAULT_DROPDOWNS.nhaSX),
                     loaiHang: useArrayOrDefault(data.loaiHang, DEFAULT_DROPDOWNS.loaiHang),
@@ -331,6 +333,16 @@ const firebase = {
                 populateDropdown('nhaSX', normalized.nhaSX);
                 populateDropdown('loaiHang', normalized.loaiHang);
                 populateDropdown('vungNguyenLieu', normalized.vungNguyenLieu);
+                applyNgayDGEditability();
+            }
+
+            /** Khóa hoặc mở quyền chỉnh sửa ô Ngày ĐG. */
+            function applyNgayDGEditability() {
+                const input = document.getElementById('ngayDG');
+                if (!input) return;
+                input.disabled = !currentDropdownSettings.ngayDGEditable;
+                input.classList.toggle('bg-gray-100', !currentDropdownSettings.ngayDGEditable);
+                input.classList.toggle('cursor-not-allowed', !currentDropdownSettings.ngayDGEditable);
             }
 
             /** Yêu cầu mật khẩu rồi mở khu vực quản lý danh mục ngay trên trang. */
@@ -350,6 +362,19 @@ const firebase = {
             function renderDropdownAdmin() {
                 const container = document.getElementById('dropdownAdminGroups');
                 container.replaceChildren();
+
+                const displaySection = document.createElement('section');
+                displaySection.className = 'border rounded-xl bg-white p-4 flex items-center justify-between gap-4';
+                displaySection.innerHTML = `
+                    <div>
+                        <h4 class="font-bold">Ngày ĐG</h4>
+                        <p class="text-sm text-gray-500 mt-1">Cho phép chỉnh sửa ngày đóng gói</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" class="sr-only peer" ${currentDropdownSettings.ngayDGEditable ? 'checked' : ''} onchange="toggleNgayDGEditability(this)">
+                        <span class="w-11 h-6 bg-gray-300 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-transform peer-checked:after:translate-x-5"></span>
+                    </label>`;
+                container.appendChild(displaySection);
 
                 DROPDOWN_GROUPS.forEach((group) => {
                     const section = document.createElement('section');
@@ -407,6 +432,27 @@ const firebase = {
                     section.appendChild(form);
                     container.appendChild(section);
                 });
+            }
+
+            /** Lưu lựa chọn khóa/mở chỉnh sửa Ngày ĐG và áp dụng ngay. */
+            async function toggleNgayDGEditability(checkbox) {
+                if (!requireAdmin()) {
+                    checkbox.checked = currentDropdownSettings.ngayDGEditable;
+                    return;
+                }
+
+                const previousValue = currentDropdownSettings.ngayDGEditable;
+                currentDropdownSettings.ngayDGEditable = checkbox.checked;
+                applyNgayDGEditability();
+
+                try {
+                    await saveDropdownSettings();
+                } catch (error) {
+                    currentDropdownSettings.ngayDGEditable = previousValue;
+                    checkbox.checked = previousValue;
+                    applyNgayDGEditability();
+                    alert('Không thể lưu tùy chọn Ngày ĐG: ' + error.message);
+                }
             }
 
             /** Lưu toàn bộ danh mục lên Firestore và áp dụng ngay vào biểu mẫu chính. */
@@ -516,6 +562,7 @@ const firebase = {
             let selectedHistoryIds = new Set();
             let packagingDateEditedByUser = false;
             let lastLoadedProductKey = '';
+            let lastObservedCounterDate = '';
             let productSttLoadTimer = null;
             let isPrinting = false;
 
@@ -612,6 +659,14 @@ const firebase = {
             /** Kiểm tra ngày đóng gói định kỳ để tự chuyển ngày khi cần. */
             function scheduleNgayDongGoiSync() {
                 syncNgayDongGoi();
+
+                const currentCounterDate = getVietnamDateKey();
+                if (currentCounterDate !== lastObservedCounterDate) {
+                    lastObservedCounterDate = currentCounterDate;
+                    lastLoadedProductKey = '';
+                    loadProductSTT(true);
+                }
+
                 window.setTimeout(scheduleNgayDongGoiSync, 1000);
             }
 
@@ -619,8 +674,7 @@ const firebase = {
             function getProductKey() {
                 const sku = (document.getElementById('sku').value || '').trim();
                 const tenTP = (document.getElementById('tenTP').value || '').trim();
-                const maBTP = (document.getElementById('maBTP').value || '').trim();
-                const raw = sku || `${tenTP || 'unknown'}_${maBTP || 'unknown'}`;
+                const raw = sku || tenTP || 'unknown';
                 return `p_${raw.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
             }
 
@@ -646,6 +700,8 @@ const firebase = {
                 }, 250);
             }
 
+            const FIRST_STT = 1;
+
             /** Tải STT tiếp theo của thành phẩm trong ngày từ Firestore. */
             async function loadProductSTT(force = false) {
                 if (isPrinting) return;
@@ -656,8 +712,7 @@ const firebase = {
                 try {
                     const doc = await db.collection("productCounters").doc(counterKey).get();
                     const saved = doc.exists ? doc.data() : null;
-                    const currentSttDau = toNonNegativeInt(document.getElementById('sttDau').value, 0);
-                    const nextStart = toNonNegativeInt(saved ? saved.nextSTT : null, currentSttDau);
+                    const nextStart = toPositiveInt(saved ? saved.nextSTT : null, FIRST_STT);
                     document.getElementById('sttDau').value = nextStart;
                     updateSttCuoi();
                     lastLoadedProductKey = counterKey;
@@ -905,8 +960,8 @@ const firebase = {
                     toSanXuat: document.getElementById('toSanXuat').value || 'Tèo',
                     quyCach: document.getElementById('quyCach').value || '20kg',
                     soLuong: parseInt(document.getElementById('soLuongTem').value) || 1,
-                    sttDau: toNonNegativeInt(document.getElementById('sttDau').value, 0),
-                    sttCuoi: toNonNegativeInt(document.getElementById('sttCuoi').value, 0),
+                    sttDau: toPositiveInt(document.getElementById('sttDau').value, FIRST_STT),
+                    sttCuoi: toPositiveInt(document.getElementById('sttCuoi').value, FIRST_STT),
                     productKey: getProductKey(),
                     counterDate: getVietnamDateKey(),
                     createdBy: currentUser.uid,
@@ -1033,7 +1088,7 @@ const firebase = {
 
                 updateSttCuoi();
 
-                const sttDau = toNonNegativeInt(document.getElementById('sttDau').value, 0);
+                const sttDau = toPositiveInt(document.getElementById('sttDau').value, FIRST_STT);
                 const count = toPositiveInt(document.getElementById('soLuongTem').value, 1);
                 const sttCuoi = sttDau + count - 1;
                 const labelSnapshot = getLabelSnapshotData();
@@ -1324,7 +1379,7 @@ const firebase = {
 
                 updateSttCuoi();
 
-                const sttDau = toNonNegativeInt(document.getElementById('sttDau').value, 0);
+                const sttDau = toPositiveInt(document.getElementById('sttDau').value, FIRST_STT);
                 const count = toPositiveInt(document.getElementById('soLuongTem').value, 1);
                 const sttCuoi = sttDau + count - 1;
                 const lot = (document.getElementById('maBTP').value || 'LOT').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -2002,7 +2057,7 @@ const firebase = {
             // ==================== TÍNH STT CUỐI ====================
             /** Tính STT cuối từ STT đầu và số lượng tem. */
             function updateSttCuoi() {
-                const sttDau = toNonNegativeInt(document.getElementById('sttDau').value, 0);
+                const sttDau = toPositiveInt(document.getElementById('sttDau').value, FIRST_STT);
                 const soLuong = parseInt(document.getElementById('soLuongTem').value) || 1;
                 document.getElementById('sttCuoi').value = sttDau + soLuong - 1;
             }
@@ -2010,12 +2065,12 @@ const firebase = {
             // ==================== RESET STT ====================
             /** Xác thực mật khẩu rồi đặt lại STT của thành phẩm hiện tại. */
             async function resetSTT() {
-                if (!requireAdmin() || !confirm("Reset STT về 0 cho mã này?")) return;
-                document.getElementById('sttDau').value = 0;
+                if (!requireAdmin() || !confirm("Reset STT về 1 cho mã này?")) return;
+                document.getElementById('sttDau').value = FIRST_STT;
                 document.getElementById('soLuongTem').value = 1;
-                await saveProductSTT(0, 0, 0);
+                await saveProductSTT(FIRST_STT, FIRST_STT, FIRST_STT);
                 updateSttCuoi();
-                alert("Đã reset STT cho mã này thành công!");
+                alert("Đã reset STT thành phẩm về 1 thành công!");
             }
 
             // ==================== CHUYỂN TAB ====================
@@ -2088,6 +2143,7 @@ const firebase = {
                 handleNhaSXInput,
                 handleRegionChange,
                 importExcel,
+                toggleNgayDGEditability,
                 openDropdownAdmin,
                 openLotModal,
                 openProductModal,

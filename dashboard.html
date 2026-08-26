@@ -20,6 +20,7 @@
           <a class="nav-link active" href="./dashboard.html">Dashboard</a>
           <a class="nav-link" href="./profile.html">Profile</a>
           <a class="nav-link" href="./label.html">In Nhãn</a>
+           <a class="nav-link" href="./cong-tach-mui.html">Công tách múi</a>
           <a class="nav-link admin-only" id="manageUsersMenu" href="#">Quản lý User</a>
           <a class="nav-link admin-only" href="./settings.html" data-admin-only-link>⚙ Quản lý danh mục</a>
           <a class="nav-link admin-only" href="#">Import Excel</a>
@@ -98,6 +99,13 @@
                       <a class="btn btn-success btn-sm mt-3" href="./label.html">Mở trang In Nhãn</a>
                     </div>
                   </div>
+                  <div class="col-md-6">
+                    <div class="p-3 border rounded-3 bg-light">
+                      <h3 class="h6 fw-semibold">Công tách múi</h3>
+                      <p class="small text-muted mb-0">Nhập và theo dõi sản lượng theo từng tổ và ca làm việc.</p>
+                      <a class="btn btn-warning btn-sm mt-3" href="./cong-tach-mui.html">Mở Công tách múi</a>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -144,6 +152,10 @@
                     <label class="form-label" for="createUserDepartment">Phòng ban</label>
                     <input id="createUserDepartment" type="text" class="form-control" placeholder="Kho" />
                   </div>
+                  <div class="col-md-4">
+                    <label class="form-label" for="createUserTeamId">Tổ được phân quyền</label>
+                    <input id="createUserTeamId" type="text" class="form-control" placeholder="ID tổ, ví dụ: dong-goi" />
+                  </div>
                   <div class="col-12">
                     <div class="d-flex gap-2 flex-wrap align-items-center">
                       <button type="submit" class="btn btn-primary">Tạo tài khoản</button>
@@ -176,12 +188,13 @@
                         <th>Mật khẩu</th>
                         <th>Vai trò</th>
                         <th>Phòng ban</th>
+                        <th>Tổ được phân quyền</th>
                         <th>Thao tác</th>
                       </tr>
                     </thead>
                     <tbody id="userTableBody">
                       <tr>
-                        <td colspan="6" class="text-muted">Đang tải...</td>
+                        <td colspan="7" class="text-muted">Đang tải...</td>
                       </tr>
                     </tbody>
                   </table>
@@ -207,6 +220,10 @@
                     <div class="col-md-4">
                       <label class="form-label" for="editUserDepartment">Phòng ban</label>
                       <input id="editUserDepartment" type="text" class="form-control" />
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label" for="editUserTeamId">Tổ được phân quyền</label>
+                      <input id="editUserTeamId" type="text" class="form-control" placeholder="ID tổ" />
                     </div>
                     <div class="col-md-4">
                       <label class="form-label" for="editUserPassword">Mật khẩu mới</label>

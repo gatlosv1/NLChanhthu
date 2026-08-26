@@ -78,7 +78,8 @@ const columns = [
   { title: 'kg BTP C', field: 'kgC', width: 120, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => canEditProductionRows(currentUser, currentRole) },
   { title: '% BTP C', field: 'percentC', width: 120, editor: false, formatter: percentFormatter, editable: false },
   { title: 'kg BTP C Không hạt', field: 'kgCNoSeed', width: 140, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => canEditProductionRows(currentUser, currentRole) },
-  { title: '% BTP C Không hạt', field: 'percentCNoSeed', width: 140, editor: false, formatter: percentFormatter, editable: false }
+  { title: '% BTP C Không hạt', field: 'percentCNoSeed', width: 140, editor: false, formatter: percentFormatter, editable: false },
+  { title: 'Ngày giờ', field: 'createdDateTime', width: 170, editor: false, editable: false }
 ];
 
 // Định dạng giá trị phần trăm để hiển thị trong bảng.
@@ -337,6 +338,7 @@ function mapDocToRow(docItem, index) {
     firestoreId: docItem.id,
     stt: index + 1,
     createdAt: rowData.createdAt || null,
+    createdDateTime: formatDateTimeForDisplay(rowData.createdAt),
     productionDate: rowData.productionDate || '',
     lot: rowData.lot || '',
     type: rowData.type || 'RI',
@@ -354,6 +356,13 @@ function mapDocToRow(docItem, index) {
     materialKind: rowData.materialKind ?? ''
   };
   return updatePercentages(row);
+}
+
+function formatDateTimeForDisplay(value) {
+  if (!value) return '';
+  const date = value?.toDate ? value.toDate() : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
 }
 
 function applyRowsToTable(rows) {
@@ -693,7 +702,7 @@ function escapeCsv(value) {
 // Xuất các dòng hiện tại của bảng ra file CSV.
 function exportToCsv() {
   const rows = table.getData();
-  const header = ['STT', 'Ngày sản xuất', 'Lot', 'Kho', 'RI/DO', 'kg BTP A', '% BTP A', 'kg BTP B', '% BTP B', 'kg BTP C', '% BTP C', 'kg BTP C Không hạt', '% BTP C Không hạt'];
+  const header = ['STT', 'Ngày sản xuất', 'Lot', 'Kho', 'RI/DO', 'kg BTP A', '% BTP A', 'kg BTP B', '% BTP B', 'kg BTP C', '% BTP C', 'kg BTP C Không hạt', '% BTP C Không hạt', 'Ngày giờ'];
   const lines = [header.join(',')];
 
   rows.forEach((row) => {
@@ -710,7 +719,8 @@ function exportToCsv() {
       row.kgC || '',
       row.percentC || '',
       row.kgCNoSeed || '',
-      row.percentCNoSeed || ''
+      row.percentCNoSeed || '',
+      row.createdDateTime || ''
     ];
     lines.push(values.map(escapeCsv).join(','));
   });

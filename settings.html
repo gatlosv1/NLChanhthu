@@ -38,6 +38,7 @@
               <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabVung" type="button">Vùng nguyên liệu</button></li>
               <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabLoaiNguyenLieu" type="button">Loại nguyên liệu</button></li>
               <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabLoaiSanPham" type="button">Loại sản phẩm</button></li>
+              <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabCongTachMui" type="button">Công tách múi</button></li>
             </ul>
             <div class="tab-content mt-3">
               <div class="tab-pane fade show active" id="tabNhaCungCap">
@@ -71,6 +72,18 @@
                   <div class="col-md-6"><input class="form-control" name="ten" placeholder="Tên" required /></div>
                   <div class="col-md-3"><button class="btn btn-primary w-100" type="submit">Thêm</button></div>
                 </form>
+              </div>
+              <div class="tab-pane fade" id="tabCongTachMui">
+                <div class="row g-4">
+                  <div class="col-lg-4"><h3 class="h6 fw-semibold">Tổ</h3><div id="congTachMuiTeamsList" class="list-group"></div><form id="congTachMuiTeamsForm" class="row g-2 mt-3"><div class="col-5"><input class="form-control" name="id" placeholder="ID duy nhất" required /></div><div class="col-7"><input class="form-control" name="name" placeholder="Tên tổ" required /></div><div class="col-12"><button class="btn btn-primary w-100" type="submit">Thêm tổ</button></div></form></div>
+                  <div class="col-lg-4"><h3 class="h6 fw-semibold">Công đoạn</h3><div id="congTachMuiProcessesList" class="list-group"></div><form id="congTachMuiProcessesForm" class="row g-2 mt-3"><div class="col-12"><input class="form-control" name="value" placeholder="Tên công đoạn" required /></div><div class="col-12"><button class="btn btn-primary w-100" type="submit">Thêm công đoạn</button></div></form></div>
+                  <div class="col-lg-4"><h3 class="h6 fw-semibold">Loại</h3><div id="congTachMuiTypesList" class="list-group"></div><form id="congTachMuiTypesForm" class="row g-2 mt-3"><div class="col-12"><input class="form-control" name="value" placeholder="Tên loại" required /></div><div class="col-12"><button class="btn btn-primary w-100" type="submit">Thêm loại</button></div></form></div>
+                </div>
+                <hr class="my-4" />
+                <div class="row g-4">
+                  <div class="col-lg-8"><h3 class="h6 fw-semibold">Ca làm việc</h3><div id="congTachMuiShiftsList" class="list-group"></div><form id="congTachMuiShiftsForm" class="row g-2 mt-3"><div class="col-md-4"><input class="form-control" name="id" placeholder="Mã ca, ví dụ: morning" required /></div><div class="col-md-5"><input class="form-control" name="name" placeholder="Tên ca, ví dụ: Ca sáng" required /></div><div class="col-md-3"><button class="btn btn-primary w-100" type="submit">Thêm ca</button></div></form></div>
+                  <div class="col-lg-4"><h3 class="h6 fw-semibold">Ngày hiện tại Việt Nam</h3><input id="congTachMuiRealtimeDate" class="form-control" type="text" readonly /><p class="small text-muted mt-2 mb-0">Ngày trên trang Công tách múi tự đồng bộ theo giờ Việt Nam.</p></div>
+                </div>
               </div>
             </div>
           </div>

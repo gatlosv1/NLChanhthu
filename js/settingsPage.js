@@ -3,6 +3,11 @@ import { getUserProfile } from './firestore.js';
 import { resolveInitialRole } from './roleUtils.js';
 import { ensureDefaultSettings, listenToSettings, saveSettingsDocument, SETTING_KEYS } from './settings.js';
 import { showToast } from './utils.js';
+import { db } from './firebase.js';
+import { doc, getDoc, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+
+const congTachMuiCatalogRef = doc(db, 'settings', 'congTachMuiCatalog');
+let congTachMuiCatalog = { teams: [], processes: [], types: [], shifts: [] };
 
 const forms = {
   [SETTING_KEYS.nhaCungCap]: document.getElementById('nhaCungCapForm'),
@@ -21,6 +26,64 @@ const lists = {
 let currentRole = 'staff';
 let settingsState = {};
 let stopSettingsListener = null;
+let stopCongTachMuiCatalogListener = null;
+
+function renderCongTachMuiCatalog() {
+  const teamsList = document.getElementById('congTachMuiTeamsList');
+  const processesList = document.getElementById('congTachMuiProcessesList');
+  const typesList = document.getElementById('congTachMuiTypesList');
+  const shiftsList = document.getElementById('congTachMuiShiftsList');
+  if (!teamsList) return;
+  const render = (container, values, formatter) => {
+    container.replaceChildren(...(values.length ? values.map((value) => { const item = document.createElement('div'); item.className = 'list-group-item'; item.textContent = formatter(value); return item; }) : [Object.assign(document.createElement('div'), { className: 'list-group-item text-muted', textContent: 'Chưa có mục nào.' })]));
+  };
+  render(teamsList, congTachMuiCatalog.teams, (team) => `${team.id} - ${team.name}`);
+  render(processesList, congTachMuiCatalog.processes, (value) => value);
+  render(typesList, congTachMuiCatalog.types, (value) => value);
+  render(shiftsList, congTachMuiCatalog.shifts, (shift) => `${shift.id} - ${shift.name}`);
+}
+
+async function saveCongTachMuiCatalog() {
+  await setDoc(congTachMuiCatalogRef, congTachMuiCatalog, { merge: true });
+}
+
+function setupCongTachMuiCatalog() {
+  if (stopCongTachMuiCatalogListener) stopCongTachMuiCatalogListener();
+  stopCongTachMuiCatalogListener = onSnapshot(congTachMuiCatalogRef, (snapshot) => {
+    if (snapshot.exists()) congTachMuiCatalog = { ...congTachMuiCatalog, ...snapshot.data() };
+    renderCongTachMuiCatalog();
+  });
+  document.getElementById('congTachMuiTeamsForm')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const team = { id: String(data.get('id')).trim(), name: String(data.get('name')).trim() };
+    if (congTachMuiCatalog.teams.some((item) => item.id === team.id)) { showToast('ID tổ đã tồn tại.', 'error'); return; }
+    congTachMuiCatalog.teams.push(team); await saveCongTachMuiCatalog(); event.currentTarget.reset(); showToast('Đã thêm tổ Công tách múi.', 'success');
+  });
+  [['congTachMuiProcessesForm', 'processes'], ['congTachMuiTypesForm', 'types']].forEach(([formId, key]) => document.getElementById(formId)?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const value = String(new FormData(event.currentTarget).get('value')).trim();
+    if (congTachMuiCatalog[key].includes(value)) { showToast('Mục này đã tồn tại.', 'error'); return; }
+    congTachMuiCatalog[key].push(value); await saveCongTachMuiCatalog(); event.currentTarget.reset(); showToast('Đã thêm mục Công tách múi.', 'success');
+  }));
+  document.getElementById('congTachMuiShiftsForm')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const shift = { id: String(data.get('id')).trim(), name: String(data.get('name')).trim() };
+    if (congTachMuiCatalog.shifts.some((item) => item.id === shift.id)) { showToast('Mã ca đã tồn tại.', 'error'); return; }
+    congTachMuiCatalog.shifts.push(shift); await saveCongTachMuiCatalog(); event.currentTarget.reset(); showToast('Đã thêm ca Công tách múi.', 'success');
+  });
+  getDoc(congTachMuiCatalogRef).then((snapshot) => { if (!snapshot.exists()) saveCongTachMuiCatalog(); });
+}
+
+function updateCongTachMuiRealtimeDate() {
+  const target = document.getElementById('congTachMuiRealtimeDate');
+  if (!target) return;
+  target.value = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', dateStyle: 'full' }).format(new Date());
+}
+
+updateCongTachMuiRealtimeDate();
+setInterval(updateCongTachMuiRealtimeDate, 1000);
 // Hàm hiển thị danh sách.
 function renderList(key, items) {
   const container = lists[key];
@@ -191,6 +254,7 @@ async function initialize() {
     const profile = await getUserProfile(user.uid);
     currentRole = resolveInitialRole(user.email, profile?.role);
     setAccess(currentRole === 'admin');
+    if (currentRole === 'admin') setupCongTachMuiCatalog();
 
     if (!user) {
       showToast('Vui lòng đăng nhập để dữ liệu được lưu vào Firebase.', 'info');

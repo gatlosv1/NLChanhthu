@@ -61,6 +61,19 @@ service cloud.firestore {
       allow delete: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
     }
 
+    match /congTachMui/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.teamId is string;
+      allow update: if isAdmin()
+        || (isSignedIn()
+          && resource.data.ownerId == request.auth.uid
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.teamId == resource.data.teamId);
+      allow delete: if isAdmin();
+    }
+
     match /settings/{docId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isAdmin();

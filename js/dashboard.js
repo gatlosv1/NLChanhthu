@@ -10,6 +10,7 @@ const currentUserName = document.getElementById('currentUserName');
 const currentUserEmail = document.getElementById('currentUserEmail');
 const currentUserRole = document.getElementById('currentUserRole');
 const currentUserDepartment = document.getElementById('currentUserDepartment');
+const editUserTeamId = document.getElementById('editUserTeamId');
 const avatarPreview = document.getElementById('avatarPreview');
 const adminActions = document.getElementById('adminActions');
 const manageUsersMenu = document.getElementById('manageUsersMenu');
@@ -44,7 +45,7 @@ function generatePassword(length = 12) {
 function renderUserTableStatus(message) {
   const row = document.createElement('tr');
   const cell = document.createElement('td');
-  cell.colSpan = 6;
+  cell.colSpan = 7;
   cell.className = 'text-muted';
   cell.textContent = message;
   row.appendChild(cell);
@@ -67,7 +68,7 @@ function createUserActionButton(label, action, userId, className) {
   return button;
 }
 // Tạo người dùng trên Firebase Authentication rồi lưu hồ sơ vào Firestore.
-async function createFirebaseUser(email, password, displayName, role, department) {
+async function createFirebaseUser(email, password, displayName, role, department, teamId) {
   const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`, {
     method: 'POST',
     headers: {
@@ -91,6 +92,7 @@ async function createFirebaseUser(email, password, displayName, role, department
     email,
     role,
     department: department || 'Chưa phân phòng',
+    teamId: teamId || '',
     avatar: '',
     createdAt: new Date().toISOString()
   });
@@ -122,7 +124,8 @@ async function loadUsers() {
         createUserCell(user.name),
         createUserCell(user.password),
         createUserCell(isAdmin ? 'Admin' : 'Staff'),
-        createUserCell(user.department || 'Chưa phân phòng')
+        createUserCell(user.department || 'Chưa phân phòng'),
+        createUserCell(user.teamId || 'Chưa phân tổ')
       );
 
       const actionsCell = document.createElement('td');
@@ -150,6 +153,7 @@ function showEditPanel(user) {
   editUserName.value = user.name || '';
   editUserRole.value = user.role || 'staff';
   editUserDepartment.value = user.department || '';
+  editUserTeamId.value = user.teamId || '';
   editUserPassword.value = '';
   userEditPanel.classList.remove('d-none');
 }
@@ -173,12 +177,14 @@ createUserForm?.addEventListener('submit', async (event) => {
   const nameInput = document.getElementById('createUserName');
   const roleInput = document.getElementById('createUserRole');
   const departmentInput = document.getElementById('createUserDepartment');
+  const teamIdInput = document.getElementById('createUserTeamId');
 
   const email = emailInput.value.trim();
   const password = passwordInput.value.trim() || generatePassword();
   const displayName = nameInput.value.trim();
   const role = roleInput.value;
   const department = departmentInput.value.trim();
+  const teamId = teamIdInput.value.trim();
 
   if (!email) {
     showToast('Vui lòng nhập email.', 'error');
@@ -190,7 +196,7 @@ createUserForm?.addEventListener('submit', async (event) => {
   createUserResult.textContent = '';
 
   try {
-    await createFirebaseUser(email, password, displayName, role, department);
+    await createFirebaseUser(email, password, displayName, role, department, teamId);
     createUserStatus.textContent = 'Tạo tài khoản thành công.';
     createUserResult.classList.remove('d-none');
     const emailElement = document.createElement('strong');
@@ -367,7 +373,8 @@ editUserForm?.addEventListener('submit', async (event) => {
     const updatePayload = {
       name: editUserName.value.trim(),
       role: editUserRole.value,
-      department: editUserDepartment.value.trim() || 'Chưa phân phòng'
+      department: editUserDepartment.value.trim() || 'Chưa phân phòng',
+      teamId: editUserTeamId.value.trim()
     };
 
     const newPassword = editUserPassword.value.trim();
