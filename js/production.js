@@ -6,6 +6,7 @@ import { db } from './firebase.js?v=20260804-8';
 import { getUserProfile } from './firestore.js';
 // Xác định vai trò admin/staff dựa trên email hoặc hồ sơ.
 import { resolveInitialRole } from './roleUtils.js';
+import { requirePageAccess } from './pageAccess.js';
 // Các hàm Firestore cần dùng: lấy dữ liệu, lưu dữ liệu, xóa dữ liệu.
 import {
   collection,
@@ -909,7 +910,8 @@ function bindSettingsSyncEvents() {
     currentUser = user;
     try {
       await waitForAuth();
-      const profile = await getUserProfile(user.uid);
+      const access = await requirePageAccess(user, 'production');
+      const profile = access.profile;
       currentRole = resolveInitialRole(user.email, profile?.role);
       updateRoleAccess();
       await loadProductionData();
@@ -922,7 +924,8 @@ function bindSettingsSyncEvents() {
   try {
     const authUser = await waitForAuth();
     currentUser = authUser;
-    const profile = await getUserProfile(authUser.uid);
+    const access = await requirePageAccess(authUser, 'production');
+    const profile = access.profile;
     currentRole = resolveInitialRole(authUser.email, profile?.role);
     updateRoleAccess();
     await loadProductionData();

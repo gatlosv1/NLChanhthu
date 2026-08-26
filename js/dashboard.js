@@ -4,6 +4,8 @@ import { auth } from './firebase.js';
 import { sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import { hideLoading, showLoading, showToast } from './utils.js';
 import { resolveInitialRole } from './roleUtils.js';
+import { db } from './firebase.js';
+import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
 const greeting = document.getElementById('dashboardGreeting');
 const currentUserName = document.getElementById('currentUserName');
@@ -28,10 +30,46 @@ const editUserPassword = document.getElementById('editUserPassword');
 const cancelEditBtn = document.getElementById('cancelEditBtn');
 const userActionStatus = document.getElementById('userActionStatus');
 const userManagementSection = document.getElementById('userManagementSection');
+const createUserTeamId = document.getElementById('createUserTeamId');
+const pagePermissionLabels = {
+  production: 'Nhập liệu sản xuất',
+  label: 'In nhãn',
+  congTachMui: 'Công tách múi'
+};
 
 const FIREBASE_API_KEY = 'AIzaSyAFQQ5yvXsA5B3etXDM_k0g6-HcEjDEpGo';
 let currentRole = 'staff';
 let activeUsersLoadToken = 0;
+let congTachMuiTeams = [];
+
+function getSelectedValues(select) {
+  return [...(select?.selectedOptions || [])].map((option) => option.value).filter(Boolean);
+}
+
+function setSelectedValues(select, values = []) {
+  if (!select) return;
+  const selected = new Set(Array.isArray(values) ? values : []);
+  [...select.options].forEach((option) => { option.selected = selected.has(option.value); });
+}
+
+function toggleTeamField(permissionSelect, teamField) {
+  const visible = getSelectedValues(permissionSelect).includes('congTachMui');
+  teamField?.classList.toggle('d-none', !visible);
+  if (!visible && teamField) teamField.value = '';
+}
+
+function formatPermissions(user) {
+  const permissions = Array.isArray(user.pagePermissions) ? user.pagePermissions : [];
+  return permissions.map((key) => pagePermissionLabels[key] || key).join(', ') || user.department || 'Chưa phân quyền';
+}
+
+function renderTeamOptions() {
+  [createUserTeamId, editUserTeamId].forEach((select) => {
+    if (!select) return;
+    select.replaceChildren(new Option('-- Chọn tổ --', ''));
+    congTachMuiTeams.forEach((team) => select.appendChild(new Option(`${team.id} - ${team.name}`, team.id)));
+  });
+}
 // Tạo mật khẩu ngẫu nhiên cho tài khoản mới khi cần.
 function generatePassword(length = 12) {
   const charset = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
@@ -91,7 +129,8 @@ async function createFirebaseUser(email, password, displayName, role, department
     name: displayName || email.split('@')[0],
     email,
     role,
-    department: department || 'Chưa phân phòng',
+    department: department.join(', ') || 'Chưa phân phòng',
+    pagePermissions: department,
     teamId: teamId || '',
     avatar: '',
     createdAt: new Date().toISOString()
@@ -124,7 +163,7 @@ async function loadUsers() {
         createUserCell(user.name),
         createUserCell(user.password),
         createUserCell(isAdmin ? 'Admin' : 'Staff'),
-        createUserCell(user.department || 'Chưa phân phòng'),
+        createUserCell(formatPermissions(user)),
         createUserCell(user.teamId || 'Chưa phân tổ')
       );
 
@@ -152,8 +191,9 @@ function showEditPanel(user) {
   editUserId.value = user.id;
   editUserName.value = user.name || '';
   editUserRole.value = user.role || 'staff';
-  editUserDepartment.value = user.department || '';
+  setSelectedValues(editUserDepartment, user.pagePermissions || []);
   editUserTeamId.value = user.teamId || '';
+  toggleTeamField(editUserDepartment, editUserTeamId);
   editUserPassword.value = '';
   userEditPanel.classList.remove('d-none');
 }
@@ -183,11 +223,15 @@ createUserForm?.addEventListener('submit', async (event) => {
   const password = passwordInput.value.trim() || generatePassword();
   const displayName = nameInput.value.trim();
   const role = roleInput.value;
-  const department = departmentInput.value.trim();
-  const teamId = teamIdInput.value.trim();
+  const department = getSelectedValues(departmentInput);
+  const teamId = teamIdInput.value;
 
-  if (!email) {
+  if (!email || !department.length) {
     showToast('Vui lòng nhập email.', 'error');
+    return;
+  }
+  if (department.includes('congTachMui') && !teamId) {
+    showToast('Vui lòng chọn tổ cho quyền Công tách múi.', 'error');
     return;
   }
 
@@ -220,6 +264,9 @@ createUserForm?.addEventListener('submit', async (event) => {
   }
 });
 
+document.getElementById('createUserDepartment')?.addEventListener('change', () => toggleTeamField(document.getElementById('createUserDepartment'), createUserTeamId));
+editUserDepartment?.addEventListener('change', () => toggleTeamField(editUserDepartment, editUserTeamId));
+
 watchAuthState(async (user) => {
   if (!user) {
     window.location.href = './login.html';
@@ -231,6 +278,15 @@ watchAuthState(async (user) => {
   try {
     const profile = await getUserProfile(user.uid);
     renderProfile(user, profile);
+    try {
+      const catalogSnapshot = await getDoc(doc(db, 'settings', 'congTachMuiCatalog'));
+      congTachMuiTeams = catalogSnapshot.exists() && Array.isArray(catalogSnapshot.data().teams)
+        ? catalogSnapshot.data().teams
+        : [];
+      renderTeamOptions();
+    } catch (error) {
+      console.warn('[Dashboard] Could not load cong tach mui teams', error);
+    }
     if (currentRole === 'admin') {
       userManagementSection?.classList.remove('d-none');
       await loadUsers();
@@ -373,8 +429,9 @@ editUserForm?.addEventListener('submit', async (event) => {
     const updatePayload = {
       name: editUserName.value.trim(),
       role: editUserRole.value,
-      department: editUserDepartment.value.trim() || 'Chưa phân phòng',
-      teamId: editUserTeamId.value.trim()
+      department: getSelectedValues(editUserDepartment).join(', ') || 'Chưa phân phòng',
+      pagePermissions: getSelectedValues(editUserDepartment),
+      teamId: editUserTeamId.value
     };
 
     const newPassword = editUserPassword.value.trim();

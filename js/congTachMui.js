@@ -2,6 +2,7 @@ import { waitForAuth, watchAuthState } from './auth.js';
 import { db } from './firebase.js';
 import { getUserProfile } from './firestore.js';
 import { resolveInitialRole } from './roleUtils.js';
+import { requirePageAccess } from './pageAccess.js';
 import { showToast } from './utils.js';
 import { collection, deleteDoc, doc, getDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
@@ -126,4 +127,4 @@ byId('deleteRowBtn').addEventListener('click', async () => {
 byId('refreshBtn').addEventListener('click', loadRows);
 activeShift.addEventListener('change', () => { manuallySelectedShift = true; });
 teamSelect.addEventListener('change', () => { byId('teamBadge').textContent = teamSelect.options[teamSelect.selectedIndex]?.text || 'Chưa chọn tổ'; loadRows(); });
-watchAuthState(async (user) => { if (!user) { window.location.href = './login.html'; return; } currentUser = user; currentProfile = await getUserProfile(user.uid) || {}; currentRole = resolveInitialRole(user.email, currentProfile.role); byId('deleteRowBtn').classList.toggle('d-none', currentRole !== 'admin'); await loadCatalog(); initTable(); loadRows(); refreshClock(); setInterval(refreshClock, 1000); });
+watchAuthState(async (user) => { if (!user) { window.location.href = './login.html'; return; } currentUser = user; const access = await requirePageAccess(user, 'congTachMui'); currentProfile = access.profile || {}; currentRole = access.role; byId('deleteRowBtn').classList.toggle('d-none', currentRole !== 'admin'); await loadCatalog(); initTable(); loadRows(); refreshClock(); setInterval(refreshClock, 1000); });

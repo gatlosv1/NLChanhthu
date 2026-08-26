@@ -2,6 +2,7 @@ import { db as firebaseDb } from './firebase.js';
 import { waitForAuth } from './auth.js';
 import { getUserProfile } from './firestore.js';
 import { resolveInitialRole } from './roleUtils.js';
+import { requirePageAccess } from './pageAccess.js';
 import { hideLoading, showLoading, showToast } from './utils.js';
 import {
     addDoc,
@@ -2095,8 +2096,9 @@ const firebase = {
                         return;
                     }
 
-                    const profile = await getUserProfile(currentUser.uid);
-                    currentRole = resolveInitialRole(currentUser.email, profile?.role);
+                    const access = await requirePageAccess(currentUser, 'label');
+                    const profile = access.profile;
+                    currentRole = access.role;
                     document.querySelectorAll('[data-admin-only]').forEach((element) => {
                         element.classList.toggle('hidden', currentRole !== 'admin');
                     });

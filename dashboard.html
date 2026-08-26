@@ -149,12 +149,16 @@
                     </select>
                   </div>
                   <div class="col-md-4">
-                    <label class="form-label" for="createUserDepartment">Phòng ban</label>
-                    <input id="createUserDepartment" type="text" class="form-control" placeholder="Kho" />
+                    <label class="form-label" for="createUserDepartment">Quyền truy cập trang</label>
+                    <select id="createUserDepartment" class="form-select" multiple size="3">
+                      <option value="production">Nhập liệu sản xuất</option>
+                      <option value="label">In nhãn</option>
+                      <option value="congTachMui">Công tách múi</option>
+                    </select>
                   </div>
                   <div class="col-md-4">
                     <label class="form-label" for="createUserTeamId">Tổ được phân quyền</label>
-                    <input id="createUserTeamId" type="text" class="form-control" placeholder="ID tổ, ví dụ: dong-goi" />
+                    <select id="createUserTeamId" class="form-select d-none"><option value="">-- Chọn tổ --</option></select>
                   </div>
                   <div class="col-12">
                     <div class="d-flex gap-2 flex-wrap align-items-center">
@@ -187,7 +191,7 @@
                         <th>Tên</th>
                         <th>Mật khẩu</th>
                         <th>Vai trò</th>
-                        <th>Phòng ban</th>
+                        <th>Quyền truy cập</th>
                         <th>Tổ được phân quyền</th>
                         <th>Thao tác</th>
                       </tr>
@@ -218,12 +222,16 @@
                       </select>
                     </div>
                     <div class="col-md-4">
-                      <label class="form-label" for="editUserDepartment">Phòng ban</label>
-                      <input id="editUserDepartment" type="text" class="form-control" />
+                      <label class="form-label" for="editUserDepartment">Quyền truy cập trang</label>
+                      <select id="editUserDepartment" class="form-select" multiple size="3">
+                        <option value="production">Nhập liệu sản xuất</option>
+                        <option value="label">In nhãn</option>
+                        <option value="congTachMui">Công tách múi</option>
+                      </select>
                     </div>
                     <div class="col-md-4">
                       <label class="form-label" for="editUserTeamId">Tổ được phân quyền</label>
-                      <input id="editUserTeamId" type="text" class="form-control" placeholder="ID tổ" />
+                      <select id="editUserTeamId" class="form-select d-none"><option value="">-- Chọn tổ --</option></select>
                     </div>
                     <div class="col-md-4">
                       <label class="form-label" for="editUserPassword">Mật khẩu mới</label>
