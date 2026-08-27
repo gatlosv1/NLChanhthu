@@ -17,7 +17,7 @@ const firebaseConfig = {
   storageBucket: 'quanlynlchanhthu.firebasestorage.app',
   messagingSenderId: '776184745772',
   appId: '1:776184745772:web:464fb620d55626daee6689',
-  databaseURL: 'https://quanlynlchanhthu-default-rtdb.firebaseio.com',
+  databaseURL: 'https://quanlynlchanhthu-default-rtdb.asia-southeast1.firebasedatabase.app',
   measurementId: 'G-M2FGGW25WL'
 };
 

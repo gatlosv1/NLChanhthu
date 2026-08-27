@@ -1,10 +1,10 @@
-import { getCurrentUser } from './auth.js';
+import { getCurrentUser, waitForAuth } from './auth.js';
 import { rtdb } from './firebase.js';
 import { push, ref, set } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 
 const MAX_DETAIL_LENGTH = 120;
-const VALID_ACTIONS = new Set(['add', 'edit', 'delete', 'login', 'logout', 'export', 'import', 'save']);
-const VALID_PAGES = new Set(['congTachMui', 'production', 'settings', 'auth']);
+const VALID_ACTIONS = new Set(['add', 'edit', 'delete', 'login', 'logout', 'export', 'import', 'save', 'load']);
+const VALID_PAGES = new Set(['congTachMui', 'production', 'settings', 'auth', 'dashboard', 'profile', 'history', 'label']);
 
 function vietnamDate(timestamp) {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -38,3 +38,22 @@ export function getVietnamDate(timestamp = Date.now()) {
   const parts = vietnamDate(timestamp);
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
+
+export function logPageLoad(page) {
+  return waitForAuth().then((user) => {
+    if (!user) return;
+    logActivity({ action: 'load', page, detail: 'Tải trang' });
+  }).catch(() => {});
+}
+
+const pageByPath = {
+  'dashboard.html': 'dashboard',
+  'production.html': 'production',
+  'cong-tach-mui.html': 'congTachMui',
+  'settings.html': 'settings',
+  'profile.html': 'profile',
+  'history.html': 'history',
+  'label.html': 'label'
+};
+const currentPage = pageByPath[window.location.pathname.split('/').pop()];
+if (currentPage) void logPageLoad(currentPage);

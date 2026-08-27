@@ -1,6 +1,6 @@
 import { getCurrentUser, watchAuthState } from './auth.js';
 import { rtdb, db } from './firebase.js';
-import { endAt, equalTo, get, limitToLast, onValue, orderByChild, orderByKey, query, ref, remove } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { endAt, equalTo, get, limitToLast, onChildAdded, orderByChild, orderByKey, query, ref, remove } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 import { getVietnamDate, logActivity } from './activityLog.js';
 import { getUserProfile } from './firestore.js';
@@ -21,7 +21,8 @@ let liveLogs = [];
 let stopLiveListener = null;
 let rolloverTimer = null;
 
-const actionLabel = { add: 'ADD', edit: 'EDIT', delete: 'DELETE', login: 'LOGIN', logout: 'LOGOUT', export: 'EXPORT', import: 'IMPORT', save: 'SAVE' };
+const actionLabel = { add: 'ADD', edit: 'EDIT', delete: 'DELETE', login: 'LOGIN', logout: 'LOGOUT', export: 'EXPORT', import: 'IMPORT', save: 'SAVE', load: 'LOAD' };
+const pageLabel = { dashboard: 'Dashboard', production: 'Production', congTachMui: 'Công tách múi', settings: 'Settings', profile: 'Profile', history: 'History', label: 'Label', auth: 'Auth' };
 
 function shiftDate(date, amount) { const result = new Date(`${date}T12:00:00`); result.setDate(result.getDate() + amount); return getVietnamDate(result.getTime()); }
 function formatTime(timestamp) { return new Date(timestamp).toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false }); }
@@ -31,7 +32,7 @@ function renderLogs() {
   body.replaceChildren(...(logs.length ? logs.map((item) => {
     const line = document.createElement('div');
     line.className = 'log-line';
-    [formatTime(item.t), item.n || item.u, item.p || '-', actionLabel[item.a] || item.a || '-', item.d || ''].forEach((value, index) => {
+    [formatTime(item.t), item.n || item.u, pageLabel[item.p] || item.p || '-', actionLabel[item.a] || item.a || '-', item.d || ''].forEach((value, index) => {
       const part = document.createElement('span');
       part.className = ['log-time', 'log-user', 'log-page', 'log-action', 'log-detail'][index];
       part.textContent = value;
@@ -50,8 +51,10 @@ function watchCurrentDay(date) {
   currentDate.textContent = date;
   const dayRef = ref(rtdb, `logs/${date}`);
   const liveQuery = currentRole === 'admin' ? query(dayRef, orderByChild('t'), limitToLast(MAX_VISIBLE_LOGS)) : query(dayRef, orderByChild('u'), equalTo(getCurrentUser()?.uid || ''), limitToLast(MAX_VISIBLE_LOGS));
-  stopLiveListener = onValue(liveQuery, (snapshot) => {
-    liveLogs = Object.values(snapshot.val() || {});
+  liveLogs = [];
+  stopLiveListener = onChildAdded(liveQuery, (snapshot) => {
+    liveLogs.push(snapshot.val());
+    liveLogs = visibleLogList();
     renderLogs();
   }, () => { status.textContent = 'OFFLINE / lỗi kết nối'; });
 }
