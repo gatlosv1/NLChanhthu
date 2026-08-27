@@ -1,7 +1,11 @@
-#congTachMuiTable { min-height: 420px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-#congTachMuiTable.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-#congTachMuiTable .tabulator { min-width: 2200px; font-size: .82rem; }
-#congTachMuiTable .tabulator-tableholder { overflow-x: auto; }
+#congTachMuiTable { min-height: 420px; overflow-x: scroll; -webkit-overflow-scrolling: touch; scrollbar-gutter: stable; }
+#congTachMuiTable.table-scroll { overflow-x: scroll; -webkit-overflow-scrolling: touch; scrollbar-gutter: stable; }
+#congTachMuiTable .tabulator { min-width: 2200px; width: max-content; max-width: none; font-size: .82rem; }
+#congTachMuiTable .tabulator-tableholder { overflow-x: visible; }
+#congTachMuiTable::-webkit-scrollbar { height: 14px; }
+#congTachMuiTable::-webkit-scrollbar-track { background: #e9edf2; border-radius: 7px; }
+#congTachMuiTable::-webkit-scrollbar-thumb { background: #8b98a8; border-radius: 7px; border: 3px solid #e9edf2; }
+#congTachMuiTable::-webkit-scrollbar-thumb:hover { background: #64748b; }
 #congTachMuiTable .tabulator-header { background: #fff4cf; }
 #congTachMuiTable .tabulator-header .tabulator-col { background: #fff4cf; color: #172033; font-weight: 700; border-right: 1px solid #d8bf69; }
 #congTachMuiTable .tabulator-header .tabulator-col .tabulator-col-content { min-height: 58px; display: flex; align-items: center; justify-content: center; padding: 6px 4px; }
