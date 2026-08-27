@@ -63,24 +63,34 @@ let settingsState = {};
 let stopSettingsListener = null;
 
 // Cấu hình các cột hiển thị trong bảng Tabulator.
+const readonlyColumn = (title, field, width, options = {}) => ({ title, field, width, ...options });
 const columns = [
-  { title: 'STT', field: 'stt', width: 70, frozen: true, editor: false, editable: false, formatter: (cell) => {
+  readonlyColumn('STT', 'stt', 55, { frozen: true, editor: false, editable: false, formatter: (cell) => {
     const value = cell.getValue();
     return value === null || value === undefined || value === '' ? '' : value;
-  } },
-  { title: 'Ngày sản xuất', field: 'productionDate', width: 140, editor: 'date', editorParams: { format: 'dd/MM/yyyy' }, sorter: 'date', validator: ['required'], editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'input', headerFilterPlaceholder: 'Lọc ngày', headerFilterLiveFilter: true },
-  { title: 'Lot', field: 'lot', width: 180, editor: 'input', validator: ['required'], editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'input', headerFilterPlaceholder: 'Lọc lot', headerFilterLiveFilter: true },
-  { title: 'Kho', field: 'warehouse', width: 140, editor: 'input', editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'input', headerFilterPlaceholder: 'Lọc kho', headerFilterLiveFilter: true },
-  { title: 'RI/DO', field: 'type', width: 100, editor: 'select', editorParams: { values: [] }, validator: ['required'], editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'select', headerFilterParams: { values: [] }, headerFilterPlaceholder: 'Lọc' },
-  { title: 'kg BTP A', field: 'kgA', width: 120, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => canEditProductionRows(currentUser, currentRole) },
-  { title: '% BTP A', field: 'percentA', width: 120, editor: false, formatter: percentFormatter, editable: false },
-  { title: 'kg BTP B', field: 'kgB', width: 120, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => canEditProductionRows(currentUser, currentRole) },
-  { title: '% BTP B', field: 'percentB', width: 120, editor: false, formatter: percentFormatter, editable: false },
-  { title: 'kg BTP C', field: 'kgC', width: 120, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => canEditProductionRows(currentUser, currentRole) },
-  { title: '% BTP C', field: 'percentC', width: 120, editor: false, formatter: percentFormatter, editable: false },
-  { title: 'kg BTP C Không hạt', field: 'kgCNoSeed', width: 140, editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => canEditProductionRows(currentUser, currentRole) },
-  { title: '% BTP C Không hạt', field: 'percentCNoSeed', width: 140, editor: false, formatter: percentFormatter, editable: false },
-  { title: 'Ngày giờ', field: 'createdDateTime', width: 170, editor: false, editable: false }
+  } }),
+  readonlyColumn('Ngày sản xuất', 'productionDate', 110, { frozen: true, editor: 'date', editorParams: { format: 'dd/MM/yyyy' }, sorter: 'date', validator: ['required'], editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'input', headerFilterPlaceholder: 'Lọc ngày', headerFilterLiveFilter: true }),
+  readonlyColumn('Lot', 'lot', 160, { frozen: true, editor: 'input', validator: ['required'], editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'input', headerFilterPlaceholder: 'Lọc lot', headerFilterLiveFilter: true }),
+  readonlyColumn('Kho', 'warehouse', 100, { editor: 'input', editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'input', headerFilterPlaceholder: 'Lọc kho', headerFilterLiveFilter: true }),
+  readonlyColumn('RI/DO', 'type', 75, { editor: 'select', editorParams: { values: [] }, validator: ['required'], editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'select', headerFilterParams: { values: [] }, headerFilterPlaceholder: 'Lọc' }),
+  readonlyColumn('kg', 'kgA', 85, { editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => canEditProductionRows(currentUser, currentRole) }),
+  readonlyColumn('%', 'percentA', 75, { editor: false, formatter: percentFormatter, editable: false }),
+  readonlyColumn('kg', 'kgB', 85, { editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => canEditProductionRows(currentUser, currentRole) }),
+  readonlyColumn('%', 'percentB', 75, { editor: false, formatter: percentFormatter, editable: false }),
+  readonlyColumn('kg', 'kgC', 85, { editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => canEditProductionRows(currentUser, currentRole) }),
+  readonlyColumn('%', 'percentC', 75, { editor: false, formatter: percentFormatter, editable: false }),
+  readonlyColumn('kg', 'kgCNoSeed', 85, { editor: 'number', editorParams: { min: 0, step: 0.01 }, editable: () => canEditProductionRows(currentUser, currentRole) }),
+  readonlyColumn('%', 'percentCNoSeed', 75, { editor: false, formatter: percentFormatter, editable: false }),
+  readonlyColumn('Ngày giờ', 'createdDateTime', 145, { editor: false, editable: false })
+];
+const groupedColumns = [
+  columns[0],
+  { title: 'Thông tin sản xuất', columns: columns.slice(1, 5) },
+  { title: 'BTP A', columns: columns.slice(5, 7) },
+  { title: 'BTP B', columns: columns.slice(7, 9) },
+  { title: 'BTP C', columns: columns.slice(9, 11) },
+  { title: 'BTP C không hạt', columns: columns.slice(11, 13) },
+  columns[13]
 ];
 
 // Định dạng giá trị phần trăm để hiển thị trong bảng.
@@ -89,7 +99,7 @@ function percentFormatter(cell) {
   if (value === null || value === undefined || value === '') return '';
   const numeric = Number(value);
   if (Number.isNaN(numeric)) return value;
-  return `${numeric}%`;
+  return `${numeric.toFixed(2)}%`;
 }
 
 // Khởi tạo bảng Tabulator và gắn các sự kiện cho bảng.
@@ -109,8 +119,8 @@ function initTable() {
   try {
     table = new Tabulator(tableEl, {
       data: [],
-      columns,
-      layout: 'fitDataFill',
+      columns: groupedColumns,
+      layout: 'fitData',
       movableColumns: true,
       resizableRows: true,
       selectable: 1,

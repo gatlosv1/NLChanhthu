@@ -48,13 +48,14 @@ function vietnamNow() {
 function dateValue(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
 function number(value) { const result = Number(value); return Number.isFinite(result) ? result : 0; }
 function productivity(btp, time) { return time > 0 ? (btp / time).toFixed(2) : ''; }
+function productivityFormatter(cell) { const value = cell.getValue(); return value === '' || value === null || value === undefined ? '' : number(value).toFixed(2); }
 function shiftInfo(date) { const minutes = date.getHours() * 60 + date.getMinutes(); if (minutes >= 420 && minutes < 750) return ['Ca sáng', 'morning']; if (minutes >= 750 && minutes < 1050) return ['Ca chiều', 'afternoon']; if (minutes >= 1080 || minutes < 30) return ['Ca tối', 'evening']; return ['Ngoài ca', 'morning']; }
 function calculate(row) {
   const shiftRows = ['morning', 'afternoon', 'evening'];
   shiftRows.forEach((shift) => { row[`${shift}Time`] = number(row[`${shift}People`]) * number(row[`${shift}Hours`]); row[`${shift}Productivity`] = productivity(number(row[`${shift}Btp`]), number(row[`${shift}Time`])); });
   row.totalBtp = shiftRows.reduce((sum, shift) => sum + number(row[`${shift}Btp`]), 0);
   row.totalTime = shiftRows.reduce((sum, shift) => sum + number(row[`${shift}Time`]), 0);
-  row.totalProductivity = row.totalTime > 0 ? row.totalBtp / row.totalTime : 0;
+  row.totalProductivity = row.totalTime > 0 ? Number((row.totalBtp / row.totalTime).toFixed(2)) : 0;
   return row;
 }
 function processDisplay(row) {
@@ -66,9 +67,20 @@ function processDisplay(row) {
 function emptyRow() { const shift = activeShift.value || shiftInfo(vietnamNow())[1]; const row = { id: `${currentUser.uid}-${Date.now()}`, stt: table.getDataCount() + 1, productionDate: productionDate.value, processOne: processOne.value, processTwo: processTwo.value, itemType: itemType.value, note: note.value.trim(), morningBtp: '', morningPeople: '', morningHours: '', afternoonBtp: '', afternoonPeople: '', afternoonHours: '', eveningBtp: '', eveningPeople: '', eveningHours: '', activeShift: shift }; row[`${shift}Btp`] = shiftBtp.value || ''; row[`${shift}People`] = shiftPeople.value || ''; row[`${shift}Hours`] = shiftHours.value || ''; return calculate(row); }
 function renderOptions(select, values, placeholder) { select.replaceChildren(new Option(placeholder, '')); values.forEach((value) => select.appendChild(new Option(value.name || value, value.id || value))); }
 function renderCatalog() { renderOptions(teamSelect, catalog.teams, '-- Chọn tổ --'); renderOptions(processOne, catalog.processes, '-- Chọn công đoạn --'); renderOptions(processTwo, catalog.processes, '-- Chọn công đoạn --'); renderOptions(itemType, catalog.types, '-- Chọn loại --'); const allowedTeam = currentRole === 'admin' ? '' : currentProfile.teamId || ''; if (allowedTeam) teamSelect.value = allowedTeam; teamSelect.disabled = currentRole !== 'admin'; const list = byId('catalogList'); if (list) list.textContent = `Tổ: ${catalog.teams.map((team) => `${team.id} - ${team.name}`).join(', ')} | Công đoạn: ${catalog.processes.join(', ')} | Loại: ${catalog.types.join(', ')}`; byId('teamBadge').textContent = teamSelect.options[teamSelect.selectedIndex]?.text || 'Chưa chọn tổ'; }
-function initTable() { const columns = fields.map((field, index) => ({ title: labels[index], field, width: field === 'processDisplay' ? 190 : 105, frozen: index < 3, editor: ['morningBtp', 'morningPeople', 'morningHours', 'afternoonBtp', 'afternoonPeople', 'afternoonHours', 'eveningBtp', 'eveningPeople', 'eveningHours'].includes(field) ? 'number' : false, editable: () => currentRole === 'admin' || Boolean(currentUser), formatter: (cell) => { const value = cell.getValue(); return typeof value === 'number' && field.toLowerCase().includes('productivity') ? value : value ?? ''; } }));
-  columns.forEach((column) => { if (['stt', 'processDisplay', 'productionDate', 'totalBtp', 'totalTime', 'totalProductivity', 'morningTime', 'morningProductivity', 'afternoonTime', 'afternoonProductivity', 'eveningTime', 'eveningProductivity'].includes(column.field)) column.editable = false; });
-  table = new Tabulator('#congTachMuiTable', { data: [], columns, layout: 'fitDataFill', movableColumns: true, selectable: 1, clipboard: true, history: true, rowHeight: 38, renderComplete: updateSummary });
+function initTable() {
+  const editableFields = ['morningBtp', 'morningPeople', 'morningHours', 'afternoonBtp', 'afternoonPeople', 'afternoonHours', 'eveningBtp', 'eveningPeople', 'eveningHours'];
+  const readonlyFields = ['stt', 'processDisplay', 'productionDate', 'totalBtp', 'totalTime', 'totalProductivity', 'morningTime', 'morningProductivity', 'afternoonTime', 'afternoonProductivity', 'eveningTime', 'eveningProductivity'];
+  const column = (field, title, width, options = {}) => ({ title, field, width, ...options, editor: editableFields.includes(field) ? 'number' : false, editable: readonlyFields.includes(field) ? false : () => currentRole === 'admin' || Boolean(currentUser), formatter: field.toLowerCase().includes('productivity') ? productivityFormatter : undefined });
+  const columns = [
+    column('stt', 'STT', 60, { frozen: true }),
+    column('processDisplay', 'Công đoạn', 180, { frozen: true }),
+    column('productionDate', 'Ngày tháng', 95, { frozen: true }),
+    { title: 'Tổng', columns: [column('totalBtp', 'BTP', 90), column('totalTime', 'Thời gian', 90), column('totalProductivity', 'Năng suất', 90)] },
+    { title: 'Ca sáng', columns: [column('morningBtp', 'BTP', 90), column('morningPeople', 'Số người', 90), column('morningHours', 'Số giờ', 90), column('morningTime', 'Thời gian', 90), column('morningProductivity', 'Năng suất', 90)] },
+    { title: 'Ca chiều', columns: [column('afternoonBtp', 'BTP', 90), column('afternoonPeople', 'Số người', 90), column('afternoonHours', 'Số giờ', 90), column('afternoonTime', 'Thời gian', 90), column('afternoonProductivity', 'Năng suất', 90)] },
+    { title: 'Ca tối', columns: [column('eveningBtp', 'BTP', 90), column('eveningPeople', 'Số người', 90), column('eveningHours', 'Số giờ', 90), column('eveningTime', 'Thời gian', 90), column('eveningProductivity', 'Năng suất', 90)] }
+  ];
+  table = new Tabulator('#congTachMuiTable', { data: [], columns, layout: 'fitData', movableColumns: true, selectable: 1, clipboard: true, history: true, rowHeight: 38, renderComplete: updateSummary });
   table.on('cellEdited', (cell) => { const row = cell.getRow().getData(); calculate(row); cell.getRow().update(row); updateSummary(); });
 }
 function applyRows(rows) { table.setData(rows.map((row, index) => calculate({ ...row, stt: index + 1, processDisplay: processDisplay(row) }))); updateSummary(); }
@@ -102,6 +114,7 @@ async function addOfficialRow() {
       createdAt: existingRow?.createdAt || serverTimestamp(),
       updatedAt: serverTimestamp()
     }, { merge: true });
+
     showToast(existingRow ? 'Đã cập nhật ca vào dòng hiện tại.' : 'Đã thêm dòng chính thức.', 'success');
   } catch (error) {
     showToast(error.message || 'Không thể lưu dòng dữ liệu.', 'error');
