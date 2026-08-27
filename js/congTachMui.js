@@ -21,6 +21,7 @@ const activeShift = byId('activeShift');
 const shiftPeople = byId('shiftPeople');
 const shiftHours = byId('shiftHours');
 const shiftBtp = byId('shiftBtp');
+const exportBtn = byId('exportBtn');
 let table;
 let currentUser;
 let currentRole = 'staff';
@@ -47,15 +48,15 @@ function vietnamNow() {
 }
 function dateValue(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
 function number(value) { const result = Number(value); return Number.isFinite(result) ? result : 0; }
-function productivity(btp, time) { return time > 0 ? (btp / time).toFixed(2) : ''; }
-function productivityFormatter(cell) { const value = cell.getValue(); return value === '' || value === null || value === undefined ? '' : number(value).toFixed(2); }
+function productivity(btp, time) { return time > 0 ? Number((btp / time).toFixed(2)) : 0; }
+function productivityFormatter(cell) { return number(cell.getValue()).toFixed(2); }
 function shiftInfo(date) { const minutes = date.getHours() * 60 + date.getMinutes(); if (minutes >= 420 && minutes < 750) return ['Ca sáng', 'morning']; if (minutes >= 750 && minutes < 1050) return ['Ca chiều', 'afternoon']; if (minutes >= 1080 || minutes < 30) return ['Ca tối', 'evening']; return ['Ngoài ca', 'morning']; }
 function calculate(row) {
   const shiftRows = ['morning', 'afternoon', 'evening'];
   shiftRows.forEach((shift) => { row[`${shift}Time`] = number(row[`${shift}People`]) * number(row[`${shift}Hours`]); row[`${shift}Productivity`] = productivity(number(row[`${shift}Btp`]), number(row[`${shift}Time`])); });
   row.totalBtp = shiftRows.reduce((sum, shift) => sum + number(row[`${shift}Btp`]), 0);
   row.totalTime = shiftRows.reduce((sum, shift) => sum + number(row[`${shift}Time`]), 0);
-  row.totalProductivity = row.totalTime > 0 ? Number((row.totalBtp / row.totalTime).toFixed(2)) : 0;
+  row.totalProductivity = productivity(row.totalBtp, row.totalTime);
   return row;
 }
 function processDisplay(row) {
@@ -121,8 +122,43 @@ async function addOfficialRow() {
   }
 }
 function updateSummary() { const rows = table ? table.getData() : []; byId('totalBtp').textContent = rows.reduce((sum, row) => sum + number(row.totalBtp), 0).toFixed(2); byId('totalTime').textContent = rows.reduce((sum, row) => sum + number(row.totalTime), 0).toFixed(2); const time = rows.reduce((sum, row) => sum + number(row.totalTime), 0); byId('totalProductivity').textContent = productivity(number(byId('totalBtp').textContent), time) || '0'; byId('draftRows').textContent = rows.length; }
+function exportExcel() {
+  if (!window.XLSX) { showToast('Không thể tải thư viện Excel.', 'error'); return; }
+  const rows = table ? table.getData() : [];
+  const worksheet = XLSX.utils.aoa_to_sheet([labels]);
+  const formulaFields = new Set(['totalBtp', 'totalTime', 'totalProductivity', 'morningTime', 'morningProductivity', 'afternoonTime', 'afternoonProductivity', 'eveningTime', 'eveningProductivity']);
+  const formulas = {
+    totalBtp: (row) => `=G${row}+L${row}+Q${row}`,
+    totalTime: (row) => `=J${row}+O${row}+T${row}`,
+    totalProductivity: (row) => `=IFERROR(D${row}/E${row},0)`,
+    morningTime: (row) => `=H${row}*I${row}`,
+    morningProductivity: (row) => `=IFERROR(G${row}/J${row},0)`,
+    afternoonTime: (row) => `=M${row}*N${row}`,
+    afternoonProductivity: (row) => `=IFERROR(L${row}/O${row},0)`,
+    eveningTime: (row) => `=R${row}*S${row}`,
+    eveningProductivity: (row) => `=IFERROR(Q${row}/T${row},0)`
+  };
+  rows.forEach((sourceRow, index) => {
+    const excelRow = index + 2;
+    const row = calculate({ ...sourceRow });
+    fields.forEach((field, fieldIndex) => {
+      const address = XLSX.utils.encode_cell({ r: excelRow - 1, c: fieldIndex });
+      if (formulaFields.has(field)) {
+        worksheet[address] = { t: 'n', f: formulas[field](excelRow), v: number(row[field]) };
+      } else {
+        const value = row[field] ?? '';
+        worksheet[address] = typeof value === 'number' ? { t: 'n', v: value } : { t: 's', v: String(value) };
+      }
+    });
+  });
+  worksheet['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: fields.length - 1 } });
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'đóng gói 2');
+  XLSX.writeFile(workbook, `cong-tach-mui-${dateValue(vietnamNow())}.xlsx`);
+}
 function refreshClock() { const now = vietnamNow(); const [shiftLabel, shift] = shiftInfo(now); const realtimeText = now.toLocaleString('vi-VN'); const clock = byId('realtimeClock'); const topClock = byId('topRealtimeClock'); if (clock) clock.textContent = realtimeText; if (topClock) topClock.textContent = realtimeText; productionDate.value = dateValue(now); if (!manuallySelectedShift) activeShift.value = shift; shiftBtp.setAttribute('placeholder', `BTP ${shiftLabel}`); shiftPeople.setAttribute('placeholder', `Số người ${shiftLabel}`); shiftHours.setAttribute('placeholder', `Số giờ ${shiftLabel}`); }
 byId('addRowBtn').addEventListener('click', addOfficialRow);
+exportBtn?.addEventListener('click', exportExcel);
 byId('deleteRowBtn').addEventListener('click', async () => {
   if (currentRole !== 'admin') { showToast('Chỉ admin mới được xóa dòng.', 'info'); return; }
   const selectedRows = table.getSelectedRows();

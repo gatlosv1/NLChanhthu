@@ -26,7 +26,7 @@
       <main class="flex-grow-1 bg-light p-3 p-lg-4">
         <header class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3 mb-4">
           <div><p class="text-muted mb-1">Trang nhập liệu theo tổ</p><h1 class="h3 fw-bold mb-0">Công tách múi</h1></div>
-          <div class="toolbar-actions"><span id="topRealtimeClock" class="small text-muted">--</span><span class="badge text-bg-light border" id="teamBadge">Đang tải tổ...</span><button class="btn btn-outline-secondary btn-sm" id="refreshBtn">Refresh</button></div>
+          <div class="toolbar-actions"><span id="topRealtimeClock" class="small text-muted">--</span><span class="badge text-bg-light border" id="teamBadge">Đang tải tổ...</span><button class="btn btn-outline-secondary btn-sm" id="refreshBtn">Refresh</button><button class="btn btn-outline-success btn-sm" id="exportBtn">Xuất Excel</button></div>
         </header>
         <section class="card border-0 shadow-sm rounded-4 mb-3 compact-form">
           <div class="card-body p-3 p-lg-4">
@@ -50,6 +50,7 @@
       </main>
     </div>
     <script src="https://unpkg.com/tabulator-tables@5.5.4/dist/js/tabulator.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script type="module" src="./js/congTachMui.js"></script>
     <script type="module" src="./js/logout.js"></script>
   </body>
