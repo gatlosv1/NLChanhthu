@@ -4,7 +4,7 @@ import { getUserProfile } from './firestore.js';
 import { resolveInitialRole } from './roleUtils.js';
 import { requirePageAccess } from './pageAccess.js';
 import { showToast } from './utils.js';
-import { collection, deleteDoc, doc, getDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
 const COLLECTION = 'congTachMui';
 const CATALOG_REF = doc(db, 'settings', 'congTachMuiCatalog');
@@ -122,39 +122,80 @@ async function addOfficialRow() {
   }
 }
 function updateSummary() { const rows = table ? table.getData() : []; byId('totalBtp').textContent = rows.reduce((sum, row) => sum + number(row.totalBtp), 0).toFixed(2); byId('totalTime').textContent = rows.reduce((sum, row) => sum + number(row.totalTime), 0).toFixed(2); const time = rows.reduce((sum, row) => sum + number(row.totalTime), 0); byId('totalProductivity').textContent = productivity(number(byId('totalBtp').textContent), time) || '0'; byId('draftRows').textContent = rows.length; }
-function exportExcel() {
-  if (!window.XLSX) { showToast('Không thể tải thư viện Excel.', 'error'); return; }
-  const rows = table ? table.getData() : [];
-  const worksheet = XLSX.utils.aoa_to_sheet([labels]);
-  const formulaFields = new Set(['totalBtp', 'totalTime', 'totalProductivity', 'morningTime', 'morningProductivity', 'afternoonTime', 'afternoonProductivity', 'eveningTime', 'eveningProductivity']);
+function excelNumber(value) {
+  const result = Number(value);
+  return Number.isFinite(result) ? result : 0;
+}
+function safeSheetName(name, usedNames) {
+  const baseName = String(name || 'Chưa phân loại').replace(/[\\/?*\[\]:]/g, ' ').trim().slice(0, 31) || 'Chưa phân loại';
+  let sheetName = baseName;
+  let suffix = 2;
+  while (usedNames.has(sheetName)) {
+    const suffixText = ` (${suffix})`;
+    sheetName = `${baseName.slice(0, 31 - suffixText.length)}${suffixText}`;
+    suffix += 1;
+  }
+  usedNames.add(sheetName);
+  return sheetName;
+}
+function exportRowFormula(field, row) {
   const formulas = {
-    totalBtp: (row) => `=G${row}+L${row}+Q${row}`,
-    totalTime: (row) => `=J${row}+O${row}+T${row}`,
-    totalProductivity: (row) => `=IFERROR(D${row}/E${row},0)`,
-    morningTime: (row) => `=H${row}*I${row}`,
-    morningProductivity: (row) => `=IFERROR(G${row}/J${row},0)`,
-    afternoonTime: (row) => `=M${row}*N${row}`,
-    afternoonProductivity: (row) => `=IFERROR(L${row}/O${row},0)`,
-    eveningTime: (row) => `=R${row}*S${row}`,
-    eveningProductivity: (row) => `=IFERROR(Q${row}/T${row},0)`
+    totalBtp: `=G${row}+L${row}+Q${row}`,
+    totalTime: `=J${row}+O${row}+T${row}`,
+    totalProductivity: `=IFERROR(D${row}/E${row},0)`,
+    morningTime: `=H${row}*I${row}`,
+    morningProductivity: `=IFERROR(G${row}/J${row},0)`,
+    afternoonTime: `=M${row}*N${row}`,
+    afternoonProductivity: `=IFERROR(L${row}/O${row},0)`,
+    eveningTime: `=R${row}*S${row}`,
+    eveningProductivity: `=IFERROR(Q${row}/T${row},0)`
   };
-  rows.forEach((sourceRow, index) => {
-    const excelRow = index + 2;
-    const row = calculate({ ...sourceRow });
-    fields.forEach((field, fieldIndex) => {
-      const address = XLSX.utils.encode_cell({ r: excelRow - 1, c: fieldIndex });
-      if (formulaFields.has(field)) {
-        worksheet[address] = { t: 'n', f: formulas[field](excelRow), v: number(row[field]) };
-      } else {
-        const value = row[field] ?? '';
-        worksheet[address] = typeof value === 'number' ? { t: 'n', v: value } : { t: 's', v: String(value) };
-      }
+  return formulas[field];
+}
+async function exportExcel() {
+  if (!window.XLSX) { showToast('Không thể tải thư viện Excel.', 'error'); return; }
+  try {
+    const snapshot = await getDocs(collection(db, COLLECTION));
+    const rowsByTeam = new Map();
+    snapshot.docs.forEach((item) => {
+      const row = { id: item.id, ...item.data() };
+      const teamId = row.teamId || 'unknown';
+      if (!rowsByTeam.has(teamId)) rowsByTeam.set(teamId, []);
+      rowsByTeam.get(teamId).push(row);
     });
-  });
-  worksheet['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: fields.length - 1 } });
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'đóng gói 2');
-  XLSX.writeFile(workbook, `cong-tach-mui-${dateValue(vietnamNow())}.xlsx`);
+    if (!rowsByTeam.size) { showToast('Không có dữ liệu để xuất Excel.', 'info'); return; }
+
+    const groupHeaders = ['STT', 'Công đoạn', 'Ngày tháng', 'Tổng', 'Tổng', 'Tổng', 'Ca sáng', 'Ca sáng', 'Ca sáng', 'Ca sáng', 'Ca sáng', 'Ca chiều', 'Ca chiều', 'Ca chiều', 'Ca chiều', 'Ca chiều', 'Ca tối', 'Ca tối', 'Ca tối', 'Ca tối', 'Ca tối'];
+    const detailHeaders = ['', '', '', 'BTP', 'Thời gian', 'Năng suất', 'BTP', 'Số người', 'Số giờ', 'Thời gian', 'Năng suất', 'BTP', 'Số người', 'Số giờ', 'Thời gian', 'Năng suất', 'BTP', 'Số người', 'Số giờ', 'Thời gian', 'Năng suất'];
+    const formulaFields = new Set(['totalBtp', 'totalTime', 'totalProductivity', 'morningTime', 'morningProductivity', 'afternoonTime', 'afternoonProductivity', 'eveningTime', 'eveningProductivity']);
+    const teamNames = new Map((catalog.teams || []).map((team) => [team.id, team.name || team.id]));
+    const workbook = XLSX.utils.book_new();
+    workbook.Workbook = { CalcPr: { calcMode: 'auto', fullCalcOnLoad: true, forceFullCalc: true } };
+    const usedSheetNames = new Set();
+
+    rowsByTeam.forEach((teamRows, teamId) => {
+      teamRows.sort((left, right) => String(left.productionDate || '').localeCompare(String(right.productionDate || '')));
+      const worksheet = XLSX.utils.aoa_to_sheet([groupHeaders, detailHeaders]);
+      teamRows.forEach((sourceRow, index) => {
+        const excelRow = index + 3;
+        const row = calculate({ ...sourceRow });
+        fields.forEach((field, fieldIndex) => {
+          const address = XLSX.utils.encode_cell({ r: excelRow - 1, c: fieldIndex });
+          if (formulaFields.has(field)) {
+            worksheet[address] = { t: 'n', f: exportRowFormula(field, excelRow), v: excelNumber(row[field]) };
+          } else {
+            const value = row[field] ?? '';
+            worksheet[address] = typeof value === 'number' ? { t: 'n', v: value } : { t: 's', v: String(value) };
+          }
+        });
+      });
+      worksheet['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: teamRows.length + 1, c: fields.length - 1 } });
+      XLSX.utils.book_append_sheet(workbook, worksheet, safeSheetName(teamNames.get(teamId) || teamId, usedSheetNames));
+    });
+    XLSX.writeFile(workbook, `cong-tach-mui-${dateValue(vietnamNow())}.xlsx`);
+  } catch (error) {
+    showToast(error.message || 'Không thể xuất dữ liệu Excel.', 'error');
+  }
 }
 function refreshClock() { const now = vietnamNow(); const [shiftLabel, shift] = shiftInfo(now); const realtimeText = now.toLocaleString('vi-VN'); const clock = byId('realtimeClock'); const topClock = byId('topRealtimeClock'); if (clock) clock.textContent = realtimeText; if (topClock) topClock.textContent = realtimeText; productionDate.value = dateValue(now); if (!manuallySelectedShift) activeShift.value = shift; shiftBtp.setAttribute('placeholder', `BTP ${shiftLabel}`); shiftPeople.setAttribute('placeholder', `Số người ${shiftLabel}`); shiftHours.setAttribute('placeholder', `Số giờ ${shiftLabel}`); }
 byId('addRowBtn').addEventListener('click', addOfficialRow);
