@@ -104,6 +104,10 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /activityLogArchive/{archiveDate} {
+      allow read, write: if isAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
