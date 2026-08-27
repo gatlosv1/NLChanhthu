@@ -3,6 +3,7 @@ import { getAnalytics } from 'https://www.gstatic.com/firebasejs/10.13.0/firebas
 import { getAuth } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 import { getStorage } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js';
+import { getDatabase } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 // Cấu hình ứng dụng web Firebase.
 const defaultAuthDomain = 'quanlynlchanhthu.firebaseapp.com';
 const currentHostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
@@ -16,6 +17,7 @@ const firebaseConfig = {
   storageBucket: 'quanlynlchanhthu.firebasestorage.app',
   messagingSenderId: '776184745772',
   appId: '1:776184745772:web:464fb620d55626daee6689',
+  databaseURL: 'https://quanlynlchanhthu-default-rtdb.firebaseio.com',
   measurementId: 'G-M2FGGW25WL'
 };
 
@@ -24,6 +26,7 @@ let analytics = null;
 let auth;
 let db;
 let storage;
+let rtdb;
 
 try {
   app = getApps().length ? getApp() : initializeApp(firebaseConfig);
@@ -31,15 +34,17 @@ try {
   auth = getAuth(app);
   db = getFirestore(app);
   storage = getStorage(app);
+  rtdb = getDatabase(app);
 } catch (error) {
   console.warn('Firebase initialization warning:', error);
   app = getApps()[0] || null;
   auth = app ? getAuth(app) : null;
   db = app ? getFirestore(app) : null;
   storage = app ? getStorage(app) : null;
+  rtdb = app ? getDatabase(app) : null;
 }
 
-export { app, analytics, auth, db, storage };
+export { app, analytics, auth, db, storage, rtdb };
 export default app;
 
 

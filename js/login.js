@@ -2,6 +2,7 @@
 import { ensureUserDocument } from './userService.js';
 import { hideLoading, showLoading, showToast } from './utils.js';
 import { isAdminLikeEmail } from './roleUtils.js';
+import { logActivity } from './activityLog.js';
 
 const form = document.getElementById('loginForm');
 const emailInput = document.getElementById('email');
@@ -87,6 +88,7 @@ if (form) {
   try {
     const credential = await loginWithEmailPassword(email, password, rememberMe);
     await ensureUserDocument();
+    logActivity({ action: 'login', page: 'auth', detail: 'Đăng nhập bằng email' });
     showToast(`Đăng nhập thành công. Chào ${credential.user.email}`, 'success');
     window.location.href = './dashboard.html';
   } catch (error) {
@@ -94,6 +96,7 @@ if (form) {
       try {
         const credential = await signUpWithEmailPassword(email, password);
         await ensureUserDocument();
+        logActivity({ action: 'login', page: 'auth', detail: 'Tạo tài khoản admin và đăng nhập' });
         showToast(`Tạo tài khoản admin thành công. Chào ${credential.user.email}`, 'success');
         window.location.href = './dashboard.html';
         return;

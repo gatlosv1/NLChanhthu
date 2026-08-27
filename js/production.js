@@ -24,6 +24,7 @@ import { hideLoading, showLoading, showToast } from './utils.js?v=20260804-8';
 import { ensureDefaultSettings, getSettingOptions, listenToSettings, SETTING_KEYS } from './settings.js';
 import { canDeleteProductionRows, canEditProductionRows } from './productionPermissions.js';
 import { buildProductionPayload, canPersistProductionRow, normalizeProductionRowForPersistence } from './productionDataUtils.mjs?v=20260804-8';
+import { logActivity } from './activityLog.js';
 
 // Lấy các phần tử DOM từ HTML để code có thể thao tác với form, bảng và nút bấm.
 const tableEl = document.getElementById('productionTable');
@@ -166,10 +167,11 @@ function initTable() {
 
     table.on('cellEdited', (cell) => {
       const field = cell.getField();
-      if (['kgA', 'kgB', 'kgC'].includes(field)) {
+      if (['kgA', 'kgB', 'kgC', 'kgCNoSeed'].includes(field)) {
         const rowData = cell.getRow().getData();
         updatePercentages(rowData);
         cell.getRow().update(rowData);
+        logActivity({ action: 'edit', page: 'production', detail: `Sửa ${field} của lot ${rowData.lot || '-'}` });
       }
     });
 
@@ -503,6 +505,7 @@ async function addNewRow() {
   data = reindexRows([...data, newRow]);
   table.setData(data);
   updateSummary();
+  logActivity({ action: 'delete', page: 'production', detail: `Xóa ${selected.length} dòng sản xuất` });
 }
 
 // Tạo một dòng dữ liệu từ form nhập nhanh và lưu lại.
@@ -569,6 +572,7 @@ async function addQuickEntry() {
   quickMaterialKind.value = '';
   updateSummary();
   autoSave();
+  logActivity({ action: 'add', page: 'production', detail: `Thêm lot ${newRow.lot || '-'}` });
 }
 
 // Ẩn/hiện nút xóa dựa trên vai trò hiện tại của người dùng.
@@ -673,6 +677,7 @@ async function saveAllRows() {
     await Promise.all(deletePromises);
 
     showToast('Đã lưu dữ liệu thành công.', 'success');
+    logActivity({ action: 'save', page: 'production', detail: `Lưu ${rows.length} dòng sản xuất` });
   } catch (error) {
     showToast(error.message || 'Không thể lưu dữ liệu.', 'error');
   } finally {
@@ -744,6 +749,7 @@ function exportToCsv() {
   anchor.click();
   URL.revokeObjectURL(url);
   showToast('Đã xuất CSV.', 'success');
+  logActivity({ action: 'export', page: 'production', detail: `Xuất ${rows.length} dòng CSV` });
 }
 
 // Nhập dữ liệu từ file CSV vào bảng.
@@ -786,6 +792,7 @@ async function importFromCsv() {
     table.setData(dataRows);
     updateSummary();
     showToast('Đã nhập dữ liệu từ CSV.', 'success');
+    logActivity({ action: 'import', page: 'production', detail: `Nhập ${dataRows.length} dòng CSV` });
   };
   input.click();
 }

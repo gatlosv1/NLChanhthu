@@ -5,6 +5,7 @@ import { ensureDefaultSettings, listenToSettings, saveSettingsDocument, SETTING_
 import { showToast } from './utils.js';
 import { db } from './firebase.js';
 import { doc, getDoc, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+import { logActivity } from './activityLog.js';
 
 const congTachMuiCatalogRef = doc(db, 'settings', 'congTachMuiCatalog');
 let congTachMuiCatalog = { teams: [], processes: [], types: [], shifts: [] };
@@ -45,6 +46,7 @@ function renderCongTachMuiCatalog() {
 
 async function saveCongTachMuiCatalog() {
   await setDoc(congTachMuiCatalogRef, congTachMuiCatalog, { merge: true });
+  logActivity({ action: 'save', page: 'settings', detail: 'Cập nhật danh mục Công tách múi' });
 }
 
 function setupCongTachMuiCatalog() {
@@ -187,6 +189,7 @@ async function handleSubmit(key, event) {
     return;
   }
   form.reset();
+  logActivity({ action: 'save', page: 'settings', detail: `Thêm mục danh mục ${key}` });
   showToast('Đã thêm mục mới.', 'success');
 }
 // Hàm xử lý xóa mục.
@@ -203,6 +206,7 @@ async function handleDelete(key, index) {
     return;
   }
   showToast('Đã xóa mục.', 'success');
+  logActivity({ action: 'delete', page: 'settings', detail: `Xóa mục danh mục ${key}` });
 }
 // Hàm xử lý chỉnh sửa mục.
 async function handleEdit(key, index) {
@@ -223,6 +227,7 @@ async function handleEdit(key, index) {
     return;
   }
   showToast('Đã cập nhật mục.', 'success');
+  logActivity({ action: 'edit', page: 'settings', detail: `Sửa mục danh mục ${key}` });
 }
 // Hàm khởi tạo.
 async function initialize() {

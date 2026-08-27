@@ -4,6 +4,7 @@ import { getUserProfile } from './firestore.js';
 import { resolveInitialRole } from './roleUtils.js';
 import { requirePageAccess } from './pageAccess.js';
 import { showToast } from './utils.js';
+import { logActivity } from './activityLog.js';
 import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
 const COLLECTION = 'congTachMui';
@@ -116,6 +117,7 @@ async function addOfficialRow() {
       updatedAt: serverTimestamp()
     }, { merge: true });
 
+    logActivity({ action: existingRow ? 'edit' : 'add', page: 'congTachMui', detail: `${existingRow ? 'Cập nhật' : 'Thêm'} dòng ${row.processDisplay || processDisplay(row)}, BTP=${row[`${shift}Btp`] || 0}` });
     showToast(existingRow ? 'Đã cập nhật ca vào dòng hiện tại.' : 'Đã thêm dòng chính thức.', 'success');
   } catch (error) {
     showToast(error.message || 'Không thể lưu dòng dữ liệu.', 'error');
@@ -140,8 +142,8 @@ function safeSheetName(name, usedNames) {
 }
 function exportRowFormula(field, row) {
   const formulas = {
-    totalBtp: `=G${row}+L${row}+Q${row}`,
-    totalTime: `=J${row}+O${row}+T${row}`,
+    totalBtp: `=IFERROR(G${row}+L${row}+Q${row},0)`,
+    totalTime: `=IFERROR(J${row}+O${row}+T${row},0)`,
     totalProductivity: `=IFERROR(D${row}/E${row},0)`,
     morningTime: `=H${row}*I${row}`,
     morningProductivity: `=IFERROR(G${row}/J${row},0)`,
@@ -152,9 +154,63 @@ function exportRowFormula(field, row) {
   };
   return formulas[field];
 }
+function cloneExcelValue(value) {
+  if (value === undefined || value === null) return value;
+  if (typeof value !== 'object') return value;
+  if (value instanceof Date) return new Date(value.getTime());
+  if (Array.isArray(value)) return value.map(cloneExcelValue);
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, cloneExcelValue(item)]));
+}
+function copyTemplateSheet(sourceSheet, targetSheet) {
+  sourceSheet.eachRow({ includeEmpty: true }, (sourceRow, rowNumber) => {
+    const targetRow = targetSheet.getRow(rowNumber);
+    targetRow.height = sourceRow.height;
+    targetRow.hidden = sourceRow.hidden;
+    sourceRow.eachCell({ includeEmpty: true }, (sourceCell, columnNumber) => {
+      const targetCell = targetRow.getCell(columnNumber);
+      targetCell.value = cloneExcelValue(sourceCell.value);
+      targetCell.style = cloneExcelValue(sourceCell.style);
+      targetCell.numFmt = sourceCell.numFmt;
+      targetCell.protection = cloneExcelValue(sourceCell.protection);
+    });
+  });
+  sourceSheet.columns.forEach((sourceColumn, index) => {
+    const targetColumn = targetSheet.getColumn(index + 1);
+    targetColumn.width = sourceColumn.width;
+    targetColumn.hidden = sourceColumn.hidden;
+    targetColumn.outlineLevel = sourceColumn.outlineLevel;
+  });
+  sourceSheet.model.merges.forEach((merge) => targetSheet.mergeCells(merge));
+  targetSheet.views = cloneExcelValue(sourceSheet.views);
+  targetSheet.properties = cloneExcelValue(sourceSheet.properties);
+  targetSheet.pageSetup = cloneExcelValue(sourceSheet.pageSetup);
+  targetSheet.headerFooter = cloneExcelValue(sourceSheet.headerFooter);
+}
+function setExcelCell(targetSheet, address, value) {
+  targetSheet.getCell(address).value = value === '' || value === null || value === undefined ? null : value;
+}
+function setExcelFormula(targetSheet, address, formula, result) {
+  const cell = targetSheet.getCell(address);
+  cell.value = { formula: formula.slice(1), result: excelNumber(result) };
+  cell.numFmt = '0.00';
+}
 async function exportExcel() {
-  if (!window.XLSX) { showToast('Không thể tải thư viện Excel.', 'error'); return; }
+  if (!window.ExcelJS) { showToast('Không thể tải thư viện Excel.', 'error'); return; }
+  if (exportBtn) exportBtn.disabled = true;
   try {
+    const templatePaths = ['./excel/Cong-Tach-Mui-Mau.xlsx', './exel/Cong-Tach-Mui-Mau.xlsx'];
+    let response;
+    for (const templatePath of templatePaths) {
+      const candidate = await fetch(templatePath);
+      if (candidate.ok) { response = candidate; break; }
+    }
+    if (!response) throw new Error('Không tìm thấy file mẫu Excel tại ./excel/Cong-Tach-Mui-Mau.xlsx.');
+    const templateBuffer = await response.arrayBuffer();
+    const templateWorkbook = new ExcelJS.Workbook();
+    await templateWorkbook.xlsx.load(templateBuffer);
+    const templateSheet = templateWorkbook.getWorksheet('đóng gói (tên tổ)') || templateWorkbook.worksheets[0];
+    if (!templateSheet) throw new Error('File mẫu Excel chưa có worksheet.');
+
     const snapshot = await getDocs(collection(db, COLLECTION));
     const rowsByTeam = new Map();
     snapshot.docs.forEach((item) => {
@@ -163,38 +219,50 @@ async function exportExcel() {
       if (!rowsByTeam.has(teamId)) rowsByTeam.set(teamId, []);
       rowsByTeam.get(teamId).push(row);
     });
-    if (!rowsByTeam.size) { showToast('Không có dữ liệu để xuất Excel.', 'info'); return; }
-
-    const groupHeaders = ['STT', 'Công đoạn', 'Ngày tháng', 'Tổng', 'Tổng', 'Tổng', 'Ca sáng', 'Ca sáng', 'Ca sáng', 'Ca sáng', 'Ca sáng', 'Ca chiều', 'Ca chiều', 'Ca chiều', 'Ca chiều', 'Ca chiều', 'Ca tối', 'Ca tối', 'Ca tối', 'Ca tối', 'Ca tối'];
-    const detailHeaders = ['', '', '', 'BTP', 'Thời gian', 'Năng suất', 'BTP', 'Số người', 'Số giờ', 'Thời gian', 'Năng suất', 'BTP', 'Số người', 'Số giờ', 'Thời gian', 'Năng suất', 'BTP', 'Số người', 'Số giờ', 'Thời gian', 'Năng suất'];
+    const teams = [...(catalog.teams || [])];
+    const knownTeamIds = new Set(teams.map((team) => team.id));
+    rowsByTeam.forEach((teamRows, teamId) => {
+      if (!knownTeamIds.has(teamId)) teams.push({ id: teamId, name: teamId });
+    });
+    if (!teams.length) { showToast('Catalog chưa có tổ để tạo worksheet.', 'info'); return; }
     const formulaFields = new Set(['totalBtp', 'totalTime', 'totalProductivity', 'morningTime', 'morningProductivity', 'afternoonTime', 'afternoonProductivity', 'eveningTime', 'eveningProductivity']);
     const teamNames = new Map((catalog.teams || []).map((team) => [team.id, team.name || team.id]));
-    const workbook = XLSX.utils.book_new();
-    workbook.Workbook = { CalcPr: { calcMode: 'auto', fullCalcOnLoad: true, forceFullCalc: true } };
+    const workbook = new ExcelJS.Workbook();
+    workbook.calcProperties = { calcMode: 'auto', fullCalcOnLoad: true, forceFullCalc: true };
     const usedSheetNames = new Set();
-
-    rowsByTeam.forEach((teamRows, teamId) => {
+    teams.forEach((team) => {
+      const teamId = team.id;
+      const teamRows = rowsByTeam.get(teamId) || [];
       teamRows.sort((left, right) => String(left.productionDate || '').localeCompare(String(right.productionDate || '')));
-      const worksheet = XLSX.utils.aoa_to_sheet([groupHeaders, detailHeaders]);
+      const worksheet = workbook.addWorksheet(safeSheetName(team.name || teamNames.get(teamId) || teamId, usedSheetNames));
+      copyTemplateSheet(templateSheet, worksheet);
       teamRows.forEach((sourceRow, index) => {
         const excelRow = index + 3;
         const row = calculate({ ...sourceRow });
         fields.forEach((field, fieldIndex) => {
-          const address = XLSX.utils.encode_cell({ r: excelRow - 1, c: fieldIndex });
+          const column = String.fromCharCode(65 + fieldIndex);
+          const address = `${column}${excelRow}`;
           if (formulaFields.has(field)) {
-            worksheet[address] = { t: 'n', f: exportRowFormula(field, excelRow), v: excelNumber(row[field]) };
+            setExcelFormula(worksheet, address, exportRowFormula(field, excelRow), row[field]);
           } else {
             const value = row[field] ?? '';
-            worksheet[address] = typeof value === 'number' ? { t: 'n', v: value } : { t: 's', v: String(value) };
+            setExcelCell(worksheet, address, typeof value === 'number' ? excelNumber(value) : String(value));
           }
         });
       });
-      worksheet['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: teamRows.length + 1, c: fields.length - 1 } });
-      XLSX.utils.book_append_sheet(workbook, worksheet, safeSheetName(teamNames.get(teamId) || teamId, usedSheetNames));
     });
-    XLSX.writeFile(workbook, `cong-tach-mui-${dateValue(vietnamNow())}.xlsx`);
+    const output = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([output], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `cong-tach-mui-${dateValue(vietnamNow())}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    logActivity({ action: 'export', page: 'congTachMui', detail: `Xuất Excel ${teams.length} sheet` });
   } catch (error) {
     showToast(error.message || 'Không thể xuất dữ liệu Excel.', 'error');
+  } finally {
+    if (exportBtn) exportBtn.disabled = false;
   }
 }
 function refreshClock() { const now = vietnamNow(); const [shiftLabel, shift] = shiftInfo(now); const realtimeText = now.toLocaleString('vi-VN'); const clock = byId('realtimeClock'); const topClock = byId('topRealtimeClock'); if (clock) clock.textContent = realtimeText; if (topClock) topClock.textContent = realtimeText; productionDate.value = dateValue(now); if (!manuallySelectedShift) activeShift.value = shift; shiftBtp.setAttribute('placeholder', `BTP ${shiftLabel}`); shiftPeople.setAttribute('placeholder', `Số người ${shiftLabel}`); shiftHours.setAttribute('placeholder', `Số giờ ${shiftLabel}`); }
@@ -209,6 +277,7 @@ byId('deleteRowBtn').addEventListener('click', async () => {
       const rowId = row.getData().id;
       return rowId ? deleteDoc(doc(db, COLLECTION, rowId)) : null;
     }));
+    logActivity({ action: 'delete', page: 'congTachMui', detail: `Xóa ${selectedRows.length} dòng Công tách múi` });
     showToast('Đã xóa dòng khỏi Firebase.', 'success');
   } catch (error) {
     showToast(error.message || 'Không thể xóa dòng khỏi Firebase.', 'error');
