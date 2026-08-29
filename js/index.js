@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ['login.html', './login.html'],
     ['dashboard.html', './dashboard.html'],
     ['production.html', './production.html'],
+    ['report.html', './report.html'],
     ['profile.html', './profile.html'],
     ['settings.html', './settings.html']
   ]);

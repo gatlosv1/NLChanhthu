@@ -33,6 +33,8 @@ const userManagementSection = document.getElementById('userManagementSection');
 const createUserTeamId = document.getElementById('createUserTeamId');
 const pagePermissionLabels = {
   production: 'Nhập liệu sản xuất',
+  nhapLieuSanXuat: 'Năng suất sản xuất',
+  report: 'Báo cáo',
   label: 'In nhãn',
   congTachMui: 'Công tách múi'
 };

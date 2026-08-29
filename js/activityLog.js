@@ -4,7 +4,7 @@ import { push, ref, set } from 'https://www.gstatic.com/firebasejs/10.13.0/fireb
 
 const MAX_DETAIL_LENGTH = 120;
 const VALID_ACTIONS = new Set(['add', 'edit', 'delete', 'login', 'logout', 'export', 'import', 'save', 'load']);
-const VALID_PAGES = new Set(['congTachMui', 'production', 'settings', 'auth', 'dashboard', 'profile', 'history', 'label']);
+const VALID_PAGES = new Set(['congTachMui', 'production', 'nhapLieuSanXuat', 'report', 'settings', 'auth', 'dashboard', 'profile', 'history', 'label']);
 
 function vietnamDate(timestamp) {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -49,6 +49,8 @@ export function logPageLoad(page) {
 const pageByPath = {
   'dashboard.html': 'dashboard',
   'production.html': 'production',
+  'nhap-lieu-san-xuat.html': 'nhapLieuSanXuat',
+  'report.html': 'report',
   'cong-tach-mui.html': 'congTachMui',
   'settings.html': 'settings',
   'profile.html': 'profile',

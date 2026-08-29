@@ -74,6 +74,17 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /nhapLieuSanXuat/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAdmin()
+        || (isSignedIn()
+          && resource.data.ownerId == request.auth.uid
+          && request.resource.data.ownerId == resource.data.ownerId);
+      allow delete: if isAdmin();
+    }
+
     match /settings/{docId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isAdmin();

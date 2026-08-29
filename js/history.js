@@ -22,7 +22,7 @@ let stopLiveListener = null;
 let rolloverTimer = null;
 
 const actionLabel = { add: 'ADD', edit: 'EDIT', delete: 'DELETE', login: 'LOGIN', logout: 'LOGOUT', export: 'EXPORT', import: 'IMPORT', save: 'SAVE', load: 'LOAD' };
-const pageLabel = { dashboard: 'Dashboard', production: 'Production', congTachMui: 'Công tách múi', settings: 'Settings', profile: 'Profile', history: 'History', label: 'Label', auth: 'Auth' };
+const pageLabel = { dashboard: 'Dashboard', production: 'Nhập liệu sản xuất', nhapLieuSanXuat: 'Năng suất sản xuất', report: 'Báo cáo', congTachMui: 'Công tách múi', settings: 'Settings', profile: 'Profile', history: 'History', label: 'Label', auth: 'Auth' };
 
 function shiftDate(date, amount) { const result = new Date(`${date}T12:00:00`); result.setDate(result.getDate() + amount); return getVietnamDate(result.getTime()); }
 function formatTime(timestamp) { return new Date(timestamp).toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false }); }

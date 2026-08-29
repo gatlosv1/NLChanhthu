@@ -7,13 +7,15 @@ import { showToast } from './utils.js';
 import { logActivity } from './activityLog.js';
 import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
-const COLLECTION = 'congTachMui';
-const CATALOG_REF = doc(db, 'settings', 'congTachMuiCatalog');
+const COLLECTION = 'nhapLieuSanXuat';
+const CATALOG_REF = doc(db, 'settings', 'nhapLieuSanXuatCatalog');
 const fields = ['stt', 'processDisplay', 'productionDate', 'totalBtp', 'totalTime', 'totalProductivity', 'morningBtp', 'morningPeople', 'morningHours', 'morningTime', 'morningProductivity', 'afternoonBtp', 'afternoonPeople', 'afternoonHours', 'afternoonTime', 'afternoonProductivity', 'eveningBtp', 'eveningPeople', 'eveningHours', 'eveningTime', 'eveningProductivity'];
-const labels = ['STT', 'Ghi chú', 'Ngày tháng', 'Tổng BTP', 'Tổng Thời gian', 'Tổng Năng suất', 'Ca sáng BTP', 'Ca sáng Số người', 'Ca sáng Số giờ', 'Ca sáng Thời gian', 'Ca sáng Năng suất', 'Ca chiều BTP', 'Ca chiều Số người', 'Ca chiều Số giờ', 'Ca chiều Thời gian', 'Ca chiều Năng suất', 'Ca tối BTP', 'Ca tối Số người', 'Ca tối Số giờ', 'Ca tối Thời gian', 'Ca tối Năng suất'];
+const labels = ['STT', 'Công đoạn', 'Ngày tháng', 'Tổng BTP', 'Tổng Thời gian', 'Tổng Năng suất', 'Ca sáng BTP', 'Ca sáng Số người', 'Ca sáng Số giờ', 'Ca sáng Thời gian', 'Ca sáng Năng suất', 'Ca chiều BTP', 'Ca chiều Số người', 'Ca chiều Số giờ', 'Ca chiều Thời gian', 'Ca chiều Năng suất', 'Ca tối BTP', 'Ca tối Số người', 'Ca tối Số giờ', 'Ca tối Thời gian', 'Ca tối Năng suất'];
 const byId = (id) => document.getElementById(id);
 const productionDate = byId('productionDate');
-const teamSelect = byId('teamSelect');
+const processOne = byId('processOne');
+const processTwo = byId('processTwo');
+const itemType = byId('itemType');
 const note = byId('note');
 const activeShift = byId('activeShift');
 const shiftPeople = byId('shiftPeople');
@@ -24,7 +26,7 @@ let table;
 let currentUser;
 let currentRole = 'staff';
 let currentProfile = {};
-let catalog = { teams: [{ id: 'dong-goi', name: 'Tổ Đóng gói' }] };
+let catalog = { processes: ['Đóng gói 1'], types: ['IQF'] };
 let stopRows;
 let manuallySelectedShift = false;
 
@@ -57,37 +59,43 @@ function calculate(row) {
   row.totalProductivity = productivity(row.totalBtp, row.totalTime);
   return row;
 }
-function processDisplay(row) { return row.note || ''; }
-function emptyRow() { const shift = activeShift.value || shiftInfo(vietnamNow())[1]; const row = { id: `${currentUser.uid}-${Date.now()}`, stt: table.getDataCount() + 1, productionDate: productionDate.value, note: note.value.trim(), morningBtp: '', morningPeople: '', morningHours: '', afternoonBtp: '', afternoonPeople: '', afternoonHours: '', eveningBtp: '', eveningPeople: '', eveningHours: '', activeShift: shift }; row[`${shift}Btp`] = shiftBtp.value || ''; row[`${shift}People`] = shiftPeople.value || ''; row[`${shift}Hours`] = shiftHours.value || ''; return calculate(row); }
+function processDisplay(row) {
+  const firstProcess = [row.itemType, row.processOne].filter(Boolean).join(' ');
+  const processParts = [firstProcess, row.processTwo].filter(Boolean);
+  const display = processParts.join(' + ');
+  return row.note ? `${display} (${row.note})` : display;
+}
+function emptyRow() { const shift = activeShift.value || shiftInfo(vietnamNow())[1]; const row = { id: `${currentUser.uid}-${Date.now()}`, stt: table.getDataCount() + 1, productionDate: productionDate.value, processOne: processOne.value, processTwo: processTwo.value, itemType: itemType.value, note: note.value.trim(), morningBtp: '', morningPeople: '', morningHours: '', afternoonBtp: '', afternoonPeople: '', afternoonHours: '', eveningBtp: '', eveningPeople: '', eveningHours: '', activeShift: shift }; row[`${shift}Btp`] = shiftBtp.value || ''; row[`${shift}People`] = shiftPeople.value || ''; row[`${shift}Hours`] = shiftHours.value || ''; return calculate(row); }
 function renderOptions(select, values, placeholder) { select.replaceChildren(new Option(placeholder, '')); values.forEach((value) => select.appendChild(new Option(value.name || value, value.id || value))); }
-function renderCatalog() { renderOptions(teamSelect, catalog.teams, '-- Chọn tổ --'); const allowedTeam = currentRole === 'admin' ? '' : currentProfile.teamId || ''; if (allowedTeam) teamSelect.value = allowedTeam; teamSelect.disabled = currentRole !== 'admin'; const list = byId('catalogList'); if (list) list.textContent = `Tổ: ${catalog.teams.map((team) => `${team.id} - ${team.name}`).join(', ')}`; byId('teamBadge').textContent = teamSelect.options[teamSelect.selectedIndex]?.text || 'Chưa chọn tổ'; }
+function renderCatalog() { renderOptions(processOne, catalog.processes, '-- Chọn công đoạn --'); renderOptions(processTwo, catalog.processes, '-- Chọn công đoạn --'); renderOptions(itemType, catalog.types, '-- Chọn loại --'); }
 function initTable() {
   const editableFields = ['morningBtp', 'morningPeople', 'morningHours', 'afternoonBtp', 'afternoonPeople', 'afternoonHours', 'eveningBtp', 'eveningPeople', 'eveningHours'];
   const readonlyFields = ['stt', 'processDisplay', 'productionDate', 'totalBtp', 'totalTime', 'totalProductivity', 'morningTime', 'morningProductivity', 'afternoonTime', 'afternoonProductivity', 'eveningTime', 'eveningProductivity'];
   const column = (field, title, width, options = {}) => ({ title, field, width, ...options, editor: editableFields.includes(field) ? 'number' : false, editable: readonlyFields.includes(field) ? false : () => currentRole === 'admin' || Boolean(currentUser), formatter: field.toLowerCase().includes('productivity') ? productivityFormatter : undefined });
   const columns = [
     column('stt', 'STT', 60),
-    column('processDisplay', 'Ghi chú', 180),
+    column('processDisplay', 'Công đoạn', 180),
     column('productionDate', 'Ngày tháng', 95),
     { title: 'Tổng', columns: [column('totalBtp', 'BTP', 90), column('totalTime', 'Thời gian', 90), column('totalProductivity', 'Năng suất', 90)] },
     { title: 'Ca sáng', columns: [column('morningBtp', 'BTP', 90), column('morningPeople', 'Số người', 90), column('morningHours', 'Số giờ', 90), column('morningTime', 'Thời gian', 90), column('morningProductivity', 'Năng suất', 90)] },
     { title: 'Ca chiều', columns: [column('afternoonBtp', 'BTP', 90), column('afternoonPeople', 'Số người', 90), column('afternoonHours', 'Số giờ', 90), column('afternoonTime', 'Thời gian', 90), column('afternoonProductivity', 'Năng suất', 90)] },
     { title: 'Ca tối', columns: [column('eveningBtp', 'BTP', 90), column('eveningPeople', 'Số người', 90), column('eveningHours', 'Số giờ', 90), column('eveningTime', 'Thời gian', 90), column('eveningProductivity', 'Năng suất', 90)] }
   ];
-  table = new Tabulator('#congTachMuiTable', { data: [], columns, layout: 'fitData', movableColumns: true, selectable: 1, clipboard: true, history: true, rowHeight: 38, renderComplete: updateSummary });
+  table = new Tabulator('#nhapLieuSanXuatTable', { data: [], columns, layout: 'fitData', movableColumns: true, selectable: 1, clipboard: true, history: true, rowHeight: 38, renderComplete: updateSummary });
   table.on('cellEdited', (cell) => { const row = cell.getRow().getData(); calculate(row); cell.getRow().update(row); updateSummary(); });
 }
 function applyRows(rows) { table.setData(rows.map((row, index) => calculate({ ...row, stt: index + 1, processDisplay: processDisplay(row) }))); updateSummary(); }
-function loadRows() { if (stopRows) stopRows(); const selectedTeam = teamSelect.value; const rowsRef = query(collection(db, COLLECTION), orderBy('createdAt', 'asc')); stopRows = onSnapshot(rowsRef, (snapshot) => { const rows = snapshot.docs.map((item) => ({ id: item.id, ...item.data() })).filter((row) => row.teamId === selectedTeam || currentRole === 'admin' && (!selectedTeam || row.teamId === selectedTeam)); applyRows(rows); }, (error) => showToast(error.message || 'Không thể tải dữ liệu Công tách múi.', 'error')); }
+function loadRows() { if (stopRows) stopRows(); const rowsRef = query(collection(db, COLLECTION), orderBy('createdAt', 'asc')); stopRows = onSnapshot(rowsRef, (snapshot) => { const rows = snapshot.docs.map((item) => ({ id: item.id, ...item.data() })); applyRows(rows); }, (error) => showToast(error.message || 'Không thể tải dữ liệu Nhập liệu sản xuất.', 'error')); }
 async function loadCatalog() { const snapshot = await getDoc(CATALOG_REF); if (snapshot.exists()) catalog = { ...catalog, ...snapshot.data() }; renderCatalog(); }
 async function addOfficialRow() {
   if (!productionDate.value) { showToast('Vui lòng chọn ngày tháng.', 'info'); return; }
   if (!activeShift.value) { showToast('Vui lòng chọn ca.', 'info'); return; }
-  const selectedTeam = teamSelect.value;
-  if (!selectedTeam) { showToast('Vui lòng chọn tổ.', 'info'); return; }
+  if (!processOne.value) { showToast('Vui lòng chọn công đoạn.', 'info'); return; }
 
   const existingRow = table.getData().find((row) => row.productionDate === productionDate.value
-    && row.teamId === selectedTeam);
+    && row.processOne === processOne.value
+    && row.processTwo === processTwo.value
+    && row.itemType === itemType.value);
   const row = existingRow ? { ...existingRow } : emptyRow();
   const shift = activeShift.value || shiftInfo(vietnamNow())[1];
   row.activeShift = shift;
@@ -99,14 +107,13 @@ async function addOfficialRow() {
   try {
     await setDoc(doc(db, COLLECTION, row.id), {
       ...row,
-      teamId: selectedTeam,
       ownerId: currentUser.uid,
       processDisplay: processDisplay(row),
       createdAt: existingRow?.createdAt || serverTimestamp(),
       updatedAt: serverTimestamp()
     }, { merge: true });
 
-    logActivity({ action: existingRow ? 'edit' : 'add', page: 'congTachMui', detail: `${existingRow ? 'Cập nhật' : 'Thêm'} dòng ${row.processDisplay || processDisplay(row)}, BTP=${row[`${shift}Btp`] || 0}` });
+    logActivity({ action: existingRow ? 'edit' : 'add', page: 'nhapLieuSanXuat', detail: `${existingRow ? 'Cập nhật' : 'Thêm'} dòng ${row.processDisplay || processDisplay(row)}, BTP=${row[`${shift}Btp`] || 0}` });
     showToast(existingRow ? 'Đã cập nhật ca vào dòng hiện tại.' : 'Đã thêm dòng chính thức.', 'success');
   } catch (error) {
     showToast(error.message || 'Không thể lưu dòng dữ liệu.', 'error');
@@ -143,38 +150,6 @@ function exportRowFormula(field, row) {
   };
   return formulas[field];
 }
-function cloneExcelValue(value) {
-  if (value === undefined || value === null) return value;
-  if (typeof value !== 'object') return value;
-  if (value instanceof Date) return new Date(value.getTime());
-  if (Array.isArray(value)) return value.map(cloneExcelValue);
-  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, cloneExcelValue(item)]));
-}
-function copyTemplateSheet(sourceSheet, targetSheet) {
-  sourceSheet.eachRow({ includeEmpty: true }, (sourceRow, rowNumber) => {
-    const targetRow = targetSheet.getRow(rowNumber);
-    targetRow.height = sourceRow.height;
-    targetRow.hidden = sourceRow.hidden;
-    sourceRow.eachCell({ includeEmpty: true }, (sourceCell, columnNumber) => {
-      const targetCell = targetRow.getCell(columnNumber);
-      targetCell.value = cloneExcelValue(sourceCell.value);
-      targetCell.style = cloneExcelValue(sourceCell.style);
-      targetCell.numFmt = sourceCell.numFmt;
-      targetCell.protection = cloneExcelValue(sourceCell.protection);
-    });
-  });
-  sourceSheet.columns.forEach((sourceColumn, index) => {
-    const targetColumn = targetSheet.getColumn(index + 1);
-    targetColumn.width = sourceColumn.width;
-    targetColumn.hidden = sourceColumn.hidden;
-    targetColumn.outlineLevel = sourceColumn.outlineLevel;
-  });
-  sourceSheet.model.merges.forEach((merge) => targetSheet.mergeCells(merge));
-  targetSheet.views = cloneExcelValue(sourceSheet.views);
-  targetSheet.properties = cloneExcelValue(sourceSheet.properties);
-  targetSheet.pageSetup = cloneExcelValue(sourceSheet.pageSetup);
-  targetSheet.headerFooter = cloneExcelValue(sourceSheet.headerFooter);
-}
 function setExcelCell(targetSheet, address, value) {
   targetSheet.getCell(address).value = value === '' || value === null || value === undefined ? null : value;
 }
@@ -187,45 +162,28 @@ async function exportExcel() {
   if (!window.ExcelJS) { showToast('Không thể tải thư viện Excel.', 'error'); return; }
   if (exportBtn) exportBtn.disabled = true;
   try {
-    const templatePaths = ['./excel/Cong-Tach-Mui-Mau.xlsx', './exel/Cong-Tach-Mui-Mau.xlsx'];
-    let response;
-    for (const templatePath of templatePaths) {
-      const candidate = await fetch(templatePath);
-      if (candidate.ok) { response = candidate; break; }
-    }
-    if (!response) throw new Error('Không tìm thấy file mẫu Excel tại ./excel/Cong-Tach-Mui-Mau.xlsx.');
-    const templateBuffer = await response.arrayBuffer();
-    const templateWorkbook = new ExcelJS.Workbook();
-    await templateWorkbook.xlsx.load(templateBuffer);
-    const templateSheet = templateWorkbook.getWorksheet('đóng gói (tên tổ)') || templateWorkbook.worksheets[0];
-    if (!templateSheet) throw new Error('File mẫu Excel chưa có worksheet.');
-
     const snapshot = await getDocs(collection(db, COLLECTION));
-    const rowsByTeam = new Map();
+    const rowsByProcess = new Map();
     snapshot.docs.forEach((item) => {
       const row = { id: item.id, ...item.data() };
-      const teamId = row.teamId || 'unknown';
-      if (!rowsByTeam.has(teamId)) rowsByTeam.set(teamId, []);
-      rowsByTeam.get(teamId).push(row);
+      const processKey = row.processOne || 'Chưa phân loại';
+      if (!rowsByProcess.has(processKey)) rowsByProcess.set(processKey, []);
+      rowsByProcess.get(processKey).push(row);
     });
-    const teams = [...(catalog.teams || [])];
-    const knownTeamIds = new Set(teams.map((team) => team.id));
-    rowsByTeam.forEach((teamRows, teamId) => {
-      if (!knownTeamIds.has(teamId)) teams.push({ id: teamId, name: teamId });
-    });
-    if (!teams.length) { showToast('Catalog chưa có tổ để tạo worksheet.', 'info'); return; }
+    const processNames = [...(catalog.processes || [])];
+    rowsByProcess.forEach((_rows, processKey) => { if (!processNames.includes(processKey)) processNames.push(processKey); });
+    if (!processNames.length) { showToast('Chưa có công đoạn để tạo worksheet.', 'info'); return; }
     const formulaFields = new Set(['totalBtp', 'totalTime', 'totalProductivity', 'morningTime', 'morningProductivity', 'afternoonTime', 'afternoonProductivity', 'eveningTime', 'eveningProductivity']);
-    const teamNames = new Map((catalog.teams || []).map((team) => [team.id, team.name || team.id]));
     const workbook = new ExcelJS.Workbook();
     workbook.calcProperties = { calcMode: 'auto', fullCalcOnLoad: true, forceFullCalc: true };
     const usedSheetNames = new Set();
-    teams.forEach((team) => {
-      const teamId = team.id;
-      const teamRows = rowsByTeam.get(teamId) || [];
-      teamRows.sort((left, right) => String(left.productionDate || '').localeCompare(String(right.productionDate || '')));
-      const worksheet = workbook.addWorksheet(safeSheetName(team.name || teamNames.get(teamId) || teamId, usedSheetNames));
-      copyTemplateSheet(templateSheet, worksheet);
-      teamRows.forEach((sourceRow, index) => {
+    processNames.forEach((processName) => {
+      const processRows = rowsByProcess.get(processName) || [];
+      processRows.sort((left, right) => String(left.productionDate || '').localeCompare(String(right.productionDate || '')));
+      const worksheet = workbook.addWorksheet(safeSheetName(processName, usedSheetNames));
+      labels.forEach((label, index) => { worksheet.getCell(`${String.fromCharCode(65 + index)}2`).value = label; });
+      worksheet.getRow(2).font = { bold: true };
+      processRows.forEach((sourceRow, index) => {
         const excelRow = index + 3;
         const row = calculate({ ...sourceRow });
         fields.forEach((field, fieldIndex) => {
@@ -244,10 +202,10 @@ async function exportExcel() {
     const blob = new Blob([output], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `cong-tach-mui-${dateValue(vietnamNow())}.xlsx`;
+    link.download = `nhap-lieu-san-xuat-${dateValue(vietnamNow())}.xlsx`;
     link.click();
     URL.revokeObjectURL(link.href);
-    logActivity({ action: 'export', page: 'congTachMui', detail: `Xuất Excel ${teams.length} sheet` });
+    logActivity({ action: 'export', page: 'nhapLieuSanXuat', detail: `Xuất Excel ${processNames.length} sheet` });
   } catch (error) {
     showToast(error.message || 'Không thể xuất dữ liệu Excel.', 'error');
   } finally {
@@ -266,7 +224,7 @@ byId('deleteRowBtn').addEventListener('click', async () => {
       const rowId = row.getData().id;
       return rowId ? deleteDoc(doc(db, COLLECTION, rowId)) : null;
     }));
-    logActivity({ action: 'delete', page: 'congTachMui', detail: `Xóa ${selectedRows.length} dòng Công tách múi` });
+    logActivity({ action: 'delete', page: 'nhapLieuSanXuat', detail: `Xóa ${selectedRows.length} dòng Nhập liệu sản xuất` });
     showToast('Đã xóa dòng khỏi Firebase.', 'success');
   } catch (error) {
     showToast(error.message || 'Không thể xóa dòng khỏi Firebase.', 'error');
@@ -274,5 +232,4 @@ byId('deleteRowBtn').addEventListener('click', async () => {
 });
 byId('refreshBtn').addEventListener('click', loadRows);
 activeShift.addEventListener('change', () => { manuallySelectedShift = true; });
-teamSelect.addEventListener('change', () => { byId('teamBadge').textContent = teamSelect.options[teamSelect.selectedIndex]?.text || 'Chưa chọn tổ'; loadRows(); });
-watchAuthState(async (user) => { if (!user) { window.location.href = './login.html'; return; } currentUser = user; const access = await requirePageAccess(user, 'congTachMui'); currentProfile = access.profile || {}; currentRole = access.role; byId('deleteRowBtn').classList.toggle('d-none', currentRole !== 'admin'); await loadCatalog(); initTable(); loadRows(); refreshClock(); setInterval(refreshClock, 1000); });
+watchAuthState(async (user) => { if (!user) { window.location.href = './login.html'; return; } currentUser = user; const access = await requirePageAccess(user, 'nhapLieuSanXuat'); currentProfile = access.profile || {}; currentRole = access.role; byId('deleteRowBtn').classList.toggle('d-none', currentRole !== 'admin'); await loadCatalog(); initTable(); loadRows(); refreshClock(); setInterval(refreshClock, 1000); });

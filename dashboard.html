@@ -20,7 +20,10 @@
           <a class="nav-link active" href="./dashboard.html">Dashboard</a>
           <a class="nav-link" href="./profile.html">Profile</a>
           <a class="nav-link" href="./label.html">In Nhãn</a>
-           <a class="nav-link" href="./cong-tach-mui.html">Công tách múi</a>
+          <a class="nav-link" href="./production.html">Nhập liệu sản xuất</a>
+          <a class="nav-link" href="./nhap-lieu-san-xuat.html">Năng suất sản xuất</a>
+          <a class="nav-link" href="./report.html">Báo cáo</a>
+          <a class="nav-link" href="./cong-tach-mui.html">Công tách múi</a>
           <a class="nav-link admin-only" id="manageUsersMenu" href="#">Quản lý User</a>
           <a class="nav-link admin-only" href="./settings.html" data-admin-only-link>⚙ Quản lý danh mục</a>
           <a class="nav-link admin-only" href="#">Import Excel</a>
@@ -150,8 +153,10 @@
                   </div>
                   <div class="col-md-4">
                     <label class="form-label" for="createUserDepartment">Quyền truy cập trang</label>
-                    <select id="createUserDepartment" class="form-select" multiple size="3">
+                    <select id="createUserDepartment" class="form-select" multiple size="5">
                       <option value="production">Nhập liệu sản xuất</option>
+                      <option value="nhapLieuSanXuat">Năng suất sản xuất</option>
+                      <option value="report">Báo cáo</option>
                       <option value="label">In nhãn</option>
                       <option value="congTachMui">Công tách múi</option>
                     </select>
@@ -223,8 +228,10 @@
                     </div>
                     <div class="col-md-4">
                       <label class="form-label" for="editUserDepartment">Quyền truy cập trang</label>
-                      <select id="editUserDepartment" class="form-select" multiple size="3">
+                      <select id="editUserDepartment" class="form-select" multiple size="5">
                         <option value="production">Nhập liệu sản xuất</option>
+                        <option value="nhapLieuSanXuat">Năng suất sản xuất</option>
+                        <option value="report">Báo cáo</option>
                         <option value="label">In nhãn</option>
                         <option value="congTachMui">Công tách múi</option>
                       </select>

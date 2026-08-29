@@ -1,0 +1,24 @@
+.dashboard-page .d-flex > main,
+.dashboard-page main.flex-grow-1 {
+	min-width: 0 !important;
+	max-width: 100%;
+	overflow-x: hidden;
+}
+
+.table-card { width: 100%; max-width: 100%; overflow: visible; }
+#nhapLieuSanXuatTable { display: block; width: 100%; max-width: 100%; min-width: 0; min-height: 0; overflow: hidden !important; }
+#nhapLieuSanXuatTable.table-scroll { overflow: hidden !important; }
+#nhapLieuSanXuatTable .tabulator { width: 2200px !important; min-width: 2200px !important; max-width: none !important; font-size: .82rem; }
+#nhapLieuSanXuatTable .tabulator-tableholder { width: 100%; max-width: 100%; height: auto !important; max-height: none !important; overflow-x: scroll !important; overflow-y: hidden !important; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; scrollbar-gutter: stable; }
+#nhapLieuSanXuatTable::-webkit-scrollbar, #nhapLieuSanXuatTable .tabulator-tableholder::-webkit-scrollbar { height: 12px; }
+#nhapLieuSanXuatTable::-webkit-scrollbar-track, #nhapLieuSanXuatTable .tabulator-tableholder::-webkit-scrollbar-track { background: #e9edf2; border-radius: 6px; }
+#nhapLieuSanXuatTable::-webkit-scrollbar-thumb, #nhapLieuSanXuatTable .tabulator-tableholder::-webkit-scrollbar-thumb { background: #8b98a8; border-radius: 6px; }
+#nhapLieuSanXuatTable .tabulator-header { background: #d7ecff; }
+#nhapLieuSanXuatTable .tabulator-header .tabulator-col { background: #d7ecff; color: #172033; font-weight: 700; border-right: 1px solid #9cc7e8; }
+#nhapLieuSanXuatTable .tabulator-header .tabulator-col .tabulator-col-content { min-height: 58px; display: flex; align-items: center; justify-content: center; padding: 6px 4px; }
+#nhapLieuSanXuatTable .tabulator-header .tabulator-col .tabulator-col-title { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.15; text-align: center; word-break: normal; }
+#nhapLieuSanXuatTable .tabulator-header .tabulator-col:nth-child(2) { background: #cfe5be; }
+#nhapLieuSanXuatTable .tabulator-header .tabulator-col:nth-child(n+3):nth-child(-n+5) { background: #12a9d1; color: #071b2a; }
+#nhapLieuSanXuatTable .tabulator-header .tabulator-col:nth-child(n+10):nth-child(-n+10), #nhapLieuSanXuatTable .tabulator-header .tabulator-col:nth-child(n+15):nth-child(-n+15), #nhapLieuSanXuatTable .tabulator-header .tabulator-col:nth-child(n+20):nth-child(-n+20) { color: #df2020; }
+#nhapLieuSanXuatTable .tabulator-cell[tabulator-field="productionDate"], #nhapLieuSanXuatTable .tabulator-cell[tabulator-field="totalBtp"], #nhapLieuSanXuatTable .tabulator-cell[tabulator-field="totalTime"], #nhapLieuSanXuatTable .tabulator-cell[tabulator-field="totalProductivity"], #nhapLieuSanXuatTable .tabulator-cell[tabulator-field="morningProductivity"], #nhapLieuSanXuatTable .tabulator-cell[tabulator-field="afternoonProductivity"], #nhapLieuSanXuatTable .tabulator-cell[tabulator-field="eveningProductivity"] { background: #f1f3f5; color: #64748b; }
+@media (max-width: 991px) { #nhapLieuSanXuatTable { overflow-x: auto; } }

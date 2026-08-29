@@ -9,6 +9,8 @@ import { logActivity } from './activityLog.js';
 
 const congTachMuiCatalogRef = doc(db, 'settings', 'congTachMuiCatalog');
 let congTachMuiCatalog = { teams: [], processes: [], types: [], shifts: [] };
+const nhapLieuSanXuatCatalogRef = doc(db, 'settings', 'nhapLieuSanXuatCatalog');
+let nhapLieuSanXuatCatalog = { processes: [], types: [] };
 
 const forms = {
   [SETTING_KEYS.nhaCungCap]: document.getElementById('nhaCungCapForm'),
@@ -28,6 +30,7 @@ let currentRole = 'staff';
 let settingsState = {};
 let stopSettingsListener = null;
 let stopCongTachMuiCatalogListener = null;
+let stopNhapLieuSanXuatCatalogListener = null;
 
 function renderCongTachMuiCatalog() {
   const teamsList = document.getElementById('congTachMuiTeamsList');
@@ -86,6 +89,37 @@ function updateCongTachMuiRealtimeDate() {
 
 updateCongTachMuiRealtimeDate();
 setInterval(updateCongTachMuiRealtimeDate, 1000);
+
+function renderNhapLieuSanXuatCatalog() {
+  const processesList = document.getElementById('nhapLieuSanXuatProcessesList');
+  const typesList = document.getElementById('nhapLieuSanXuatTypesList');
+  if (!processesList) return;
+  const render = (container, values, formatter) => {
+    container.replaceChildren(...(values.length ? values.map((value) => { const item = document.createElement('div'); item.className = 'list-group-item'; item.textContent = formatter(value); return item; }) : [Object.assign(document.createElement('div'), { className: 'list-group-item text-muted', textContent: 'Chưa có mục nào.' })]));
+  };
+  render(processesList, nhapLieuSanXuatCatalog.processes, (value) => value);
+  render(typesList, nhapLieuSanXuatCatalog.types, (value) => value);
+}
+
+async function saveNhapLieuSanXuatCatalog() {
+  await setDoc(nhapLieuSanXuatCatalogRef, nhapLieuSanXuatCatalog, { merge: true });
+  logActivity({ action: 'save', page: 'settings', detail: 'Cập nhật danh mục Nhập liệu sản xuất' });
+}
+
+function setupNhapLieuSanXuatCatalog() {
+  if (stopNhapLieuSanXuatCatalogListener) stopNhapLieuSanXuatCatalogListener();
+  stopNhapLieuSanXuatCatalogListener = onSnapshot(nhapLieuSanXuatCatalogRef, (snapshot) => {
+    if (snapshot.exists()) nhapLieuSanXuatCatalog = { ...nhapLieuSanXuatCatalog, ...snapshot.data() };
+    renderNhapLieuSanXuatCatalog();
+  });
+  [['nhapLieuSanXuatProcessesForm', 'processes'], ['nhapLieuSanXuatTypesForm', 'types']].forEach(([formId, key]) => document.getElementById(formId)?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const value = String(new FormData(event.currentTarget).get('value')).trim();
+    if (nhapLieuSanXuatCatalog[key].includes(value)) { showToast('Mục này đã tồn tại.', 'error'); return; }
+    nhapLieuSanXuatCatalog[key].push(value); await saveNhapLieuSanXuatCatalog(); event.currentTarget.reset(); showToast('Đã thêm mục Nhập liệu sản xuất.', 'success');
+  }));
+  getDoc(nhapLieuSanXuatCatalogRef).then((snapshot) => { if (!snapshot.exists()) saveNhapLieuSanXuatCatalog(); });
+}
 // Hàm hiển thị danh sách.
 function renderList(key, items) {
   const container = lists[key];
@@ -260,6 +294,7 @@ async function initialize() {
     currentRole = resolveInitialRole(user.email, profile?.role);
     setAccess(currentRole === 'admin');
     if (currentRole === 'admin') setupCongTachMuiCatalog();
+    if (currentRole === 'admin') setupNhapLieuSanXuatCatalog();
 
     if (!user) {
       showToast('Vui lòng đăng nhập để dữ liệu được lưu vào Firebase.', 'info');
