@@ -15,9 +15,18 @@
           <div class="d-flex align-items-center gap-3"><span id="historyStatus" class="history-status">Đang kết nối...</span><button class="btn btn-sm btn-outline-light" id="exportHistoryBtn">Tải CSV</button><button class="btn btn-sm btn-outline-danger d-none" id="cleanupHistoryBtn">Xóa log cũ</button><a class="btn btn-sm btn-outline-secondary" href="./dashboard.html">Dashboard</a></div>
         </header>
         <div id="oldLogsBanner" class="alert alert-warning d-none py-2" role="alert">Có log cũ hơn 7 ngày. Hãy tải về rồi xóa để tiết kiệm dung lượng. <button class="btn btn-sm btn-warning ms-2" id="exportOldHistoryBtn">Tải log cũ</button></div>
-        <section class="log-panel">
-          <div class="log-panel-header px-3 py-2 border-bottom">LIVE STREAM // logs/<span id="currentDate">----</span></div>
-          <div id="historyBody" class="log-stream" role="log" aria-live="polite"><div class="text-secondary p-3">Đang chờ log...</div></div>
+        <section class="history-grid">
+          <div class="log-panel log-panel--primary">
+            <div class="log-panel-header px-3 py-2 border-bottom">LIVE STREAM // logs/<span id="currentDate">----</span></div>
+            <div id="historyBody" class="log-stream" role="log" aria-live="polite"><div class="text-secondary p-3">Đang chờ log...</div></div>
+          </div>
+
+          <aside class="log-panel log-panel--detail">
+            <div class="log-panel-header px-3 py-2 border-bottom">DETAIL // selected event</div>
+            <div id="historyDetail" class="history-detail">
+              <div class="empty-detail">Chọn một dòng log ở bên trái để xem chi tiết thay đổi.</div>
+            </div>
+          </aside>
         </section>
       </main>
     </div>

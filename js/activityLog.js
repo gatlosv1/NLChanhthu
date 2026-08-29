@@ -13,7 +13,7 @@ function vietnamDate(timestamp) {
   return Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]));
 }
 
-export function logActivity({ action, page, detail = '' }) {
+export function logActivity({ action, page, detail = '', changes = null }) {
   const user = getCurrentUser();
   if (!user || !rtdb || !VALID_ACTIONS.has(action) || !VALID_PAGES.has(page)) return;
 
@@ -28,7 +28,8 @@ export function logActivity({ action, page, detail = '' }) {
     n: String(user.displayName || user.email || 'Người dùng').slice(0, 80),
     a: action,
     p: page,
-    d: description
+    d: description,
+    c: changes && typeof changes === 'object' && Object.keys(changes).length ? changes : null
   };
 
   void set(logRef, payload).catch(() => {});

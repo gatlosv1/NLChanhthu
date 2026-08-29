@@ -49,7 +49,7 @@ function renderCongTachMuiCatalog() {
 
 async function saveCongTachMuiCatalog() {
   await setDoc(congTachMuiCatalogRef, congTachMuiCatalog, { merge: true });
-  logActivity({ action: 'save', page: 'settings', detail: 'Cập nhật danh mục Công tách múi' });
+  logActivity({ action: 'save', page: 'settings', detail: 'Cập nhật danh mục Năng xuất tách múi' });
 }
 
 function setupCongTachMuiCatalog() {
@@ -63,20 +63,20 @@ function setupCongTachMuiCatalog() {
     const data = new FormData(event.currentTarget);
     const team = { id: String(data.get('id')).trim(), name: String(data.get('name')).trim() };
     if (congTachMuiCatalog.teams.some((item) => item.id === team.id)) { showToast('ID tổ đã tồn tại.', 'error'); return; }
-    congTachMuiCatalog.teams.push(team); await saveCongTachMuiCatalog(); event.currentTarget.reset(); showToast('Đã thêm tổ Công tách múi.', 'success');
+    congTachMuiCatalog.teams.push(team); await saveCongTachMuiCatalog(); event.currentTarget.reset(); showToast('Đã thêm tổ Năng xuất tách múi.', 'success');
   });
   [['congTachMuiProcessesForm', 'processes'], ['congTachMuiTypesForm', 'types']].forEach(([formId, key]) => document.getElementById(formId)?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const value = String(new FormData(event.currentTarget).get('value')).trim();
     if (congTachMuiCatalog[key].includes(value)) { showToast('Mục này đã tồn tại.', 'error'); return; }
-    congTachMuiCatalog[key].push(value); await saveCongTachMuiCatalog(); event.currentTarget.reset(); showToast('Đã thêm mục Công tách múi.', 'success');
+    congTachMuiCatalog[key].push(value); await saveCongTachMuiCatalog(); event.currentTarget.reset(); showToast('Đã thêm mục Năng xuất tách múi.', 'success');
   }));
   document.getElementById('congTachMuiShiftsForm')?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const shift = { id: String(data.get('id')).trim(), name: String(data.get('name')).trim() };
     if (congTachMuiCatalog.shifts.some((item) => item.id === shift.id)) { showToast('Mã ca đã tồn tại.', 'error'); return; }
-    congTachMuiCatalog.shifts.push(shift); await saveCongTachMuiCatalog(); event.currentTarget.reset(); showToast('Đã thêm ca Công tách múi.', 'success');
+    congTachMuiCatalog.shifts.push(shift); await saveCongTachMuiCatalog(); event.currentTarget.reset(); showToast('Đã thêm ca Năng xuất tách múi.', 'success');
   });
   getDoc(congTachMuiCatalogRef).then((snapshot) => { if (!snapshot.exists()) saveCongTachMuiCatalog(); });
 }
@@ -103,7 +103,7 @@ function renderNhapLieuSanXuatCatalog() {
 
 async function saveNhapLieuSanXuatCatalog() {
   await setDoc(nhapLieuSanXuatCatalogRef, nhapLieuSanXuatCatalog, { merge: true });
-  logActivity({ action: 'save', page: 'settings', detail: 'Cập nhật danh mục Nhập liệu sản xuất' });
+  logActivity({ action: 'save', page: 'settings', detail: 'Cập nhật danh mục Năng suất sản xuất' });
 }
 
 function setupNhapLieuSanXuatCatalog() {
@@ -116,7 +116,7 @@ function setupNhapLieuSanXuatCatalog() {
     event.preventDefault();
     const value = String(new FormData(event.currentTarget).get('value')).trim();
     if (nhapLieuSanXuatCatalog[key].includes(value)) { showToast('Mục này đã tồn tại.', 'error'); return; }
-    nhapLieuSanXuatCatalog[key].push(value); await saveNhapLieuSanXuatCatalog(); event.currentTarget.reset(); showToast('Đã thêm mục Nhập liệu sản xuất.', 'success');
+    nhapLieuSanXuatCatalog[key].push(value); await saveNhapLieuSanXuatCatalog(); event.currentTarget.reset(); showToast('Đã thêm mục Năng suất sản xuất.', 'success');
   }));
   getDoc(nhapLieuSanXuatCatalogRef).then((snapshot) => { if (!snapshot.exists()) saveNhapLieuSanXuatCatalog(); });
 }

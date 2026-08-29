@@ -13,17 +13,17 @@
       <aside class="sidebar bg-dark text-white p-4">
         <div class="mb-4">
           <h2 class="h5 fw-bold">Production Data</h2>
-          <p class="text-secondary small mb-0">Quản lý nhập liệu sản xuất</p>
+          <p class="text-secondary small mb-0">Quản lý sản xuất</p>
         </div>
 
         <nav class="nav flex-column gap-2">
           <a class="nav-link active" href="./dashboard.html">Dashboard</a>
-          <a class="nav-link" href="./profile.html">Profile</a>
-          <a class="nav-link" href="./label.html">In Nhãn</a>
-          <a class="nav-link" href="./production.html">Nhập liệu sản xuất</a>
-          <a class="nav-link" href="./nhap-lieu-san-xuat.html">Năng suất sản xuất</a>
-          <a class="nav-link" href="./report.html">Báo cáo</a>
-          <a class="nav-link" href="./cong-tach-mui.html">Công tách múi</a>
+          <a class="nav-link" href="./profile.html" data-page="profile">Profile</a>
+          <a class="nav-link" href="./label.html" data-page="label">In Nhãn</a>
+          <a class="nav-link" href="./production.html" data-page="production">Phần trăm BTP</a>
+          <a class="nav-link" href="./nhap-lieu-san-xuat.html" data-page="nhapLieuSanXuat">Năng suất sản xuất</a>
+          <a class="nav-link" href="./report.html" data-page="report">Báo cáo</a>
+          <a class="nav-link" href="./cong-tach-mui.html" data-page="congTachMui">Năng xuất tách múi</a>
           <a class="nav-link admin-only" id="manageUsersMenu" href="#">Quản lý User</a>
           <a class="nav-link admin-only" href="./settings.html" data-admin-only-link>⚙ Quản lý danh mục</a>
           <a class="nav-link admin-only" href="#">Import Excel</a>
@@ -84,29 +84,30 @@
                 <div class="row g-3 mt-2">
                   <div class="col-md-6">
                     <div class="p-3 border rounded-3 bg-light">
-                      <h3 class="h6 fw-semibold">Nhập liệu</h3>
-                      <p class="small text-muted mb-0">Ghi nhận số lượng, lỗi và tiến độ sản xuất.</p>
-                      <a class="btn btn-primary btn-sm mt-3" href="./production.html">Chuyển sang nhập liệu</a>
+                      <h3 class="h6 fw-semibold">Phần trăm BTP</h3>
+                      <p class="small text-muted mb-0">Ghi nhận số lượng, lỗi và tiến độ sản xuất theo tỷ lệ BTP.</p>
+                      <a class="btn btn-primary btn-sm mt-3" href="./production.html">Chuyển sang Phần trăm BTP</a>
                     </div>
                   </div>
                   <div class="col-md-6">
                     <div class="p-3 border rounded-3 bg-light">
-                      <h3 class="h6 fw-semibold">Chỉnh sửa</h3>
-                      <p class="small text-muted mb-0">Cập nhật dữ liệu cho các lô hàng và thông tin cá nhân.</p>
+                      <h3 class="h6 fw-semibold">Năng suất sản xuất</h3>
+                      <p class="small text-muted mb-0">Theo dõi BTP, thời gian và năng suất theo công đoạn.</p>
+                      <a class="btn btn-info btn-sm mt-3" href="./nhap-lieu-san-xuat.html">Mở Năng suất sản xuất</a>
                     </div>
                   </div>
                   <div class="col-md-6">
                     <div class="p-3 border rounded-3 bg-light">
-                      <h3 class="h6 fw-semibold">In nhãn thành phẩm</h3>
-                      <p class="small text-muted mb-0">In nhãn 90 × 60 mm và xem báo cáo sản lượng.</p>
-                      <a class="btn btn-success btn-sm mt-3" href="./label.html">Mở trang In Nhãn</a>
+                      <h3 class="h6 fw-semibold">Báo cáo</h3>
+                      <p class="small text-muted mb-0">Theo dõi xu hướng, KPI và biểu đồ tổng quan vận hành.</p>
+                      <a class="btn btn-success btn-sm mt-3" href="./report.html">Mở Báo cáo</a>
                     </div>
                   </div>
                   <div class="col-md-6">
                     <div class="p-3 border rounded-3 bg-light">
-                      <h3 class="h6 fw-semibold">Công tách múi</h3>
+                      <h3 class="h6 fw-semibold">Năng xuất tách múi</h3>
                       <p class="small text-muted mb-0">Nhập và theo dõi sản lượng theo từng tổ và ca làm việc.</p>
-                      <a class="btn btn-warning btn-sm mt-3" href="./cong-tach-mui.html">Mở Công tách múi</a>
+                      <a class="btn btn-warning btn-sm mt-3" href="./cong-tach-mui.html">Mở Năng xuất tách múi</a>
                     </div>
                   </div>
                 </div>
@@ -151,15 +152,40 @@
                       <option value="admin">Admin</option>
                     </select>
                   </div>
-                  <div class="col-md-4">
-                    <label class="form-label" for="createUserDepartment">Quyền truy cập trang</label>
-                    <select id="createUserDepartment" class="form-select" multiple size="5">
-                      <option value="production">Nhập liệu sản xuất</option>
-                      <option value="nhapLieuSanXuat">Năng suất sản xuất</option>
-                      <option value="report">Báo cáo</option>
-                      <option value="label">In nhãn</option>
-                      <option value="congTachMui">Công tách múi</option>
-                    </select>
+                  <div class="col-md-8">
+                    <label class="form-label">Quyền truy cập trang</label>
+                    <div class="row g-2">
+                      <div class="col-md-4">
+                        <select id="createUserPermissionOne" class="form-select page-access-select">
+                          <option value="">-- Chưa phân quyền --</option>
+                          <option value="production">Phần trăm BTP</option>
+                          <option value="nhapLieuSanXuat">Năng suất sản xuất</option>
+                          <option value="report">Báo cáo</option>
+                          <option value="label">In nhãn</option>
+                          <option value="congTachMui">Năng xuất tách múi</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4">
+                        <select id="createUserPermissionTwo" class="form-select page-access-select">
+                          <option value="">-- Chưa phân quyền --</option>
+                          <option value="production">Phần trăm BTP</option>
+                          <option value="nhapLieuSanXuat">Năng suất sản xuất</option>
+                          <option value="report">Báo cáo</option>
+                          <option value="label">In nhãn</option>
+                          <option value="congTachMui">Năng xuất tách múi</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4">
+                        <select id="createUserPermissionThree" class="form-select page-access-select">
+                          <option value="">-- Chưa phân quyền --</option>
+                          <option value="production">Phần trăm BTP</option>
+                          <option value="nhapLieuSanXuat">Năng suất sản xuất</option>
+                          <option value="report">Báo cáo</option>
+                          <option value="label">In nhãn</option>
+                          <option value="congTachMui">Năng xuất tách múi</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
                   <div class="col-md-4">
                     <label class="form-label" for="createUserTeamId">Tổ được phân quyền</label>
@@ -226,15 +252,40 @@
                         <option value="admin">Admin</option>
                       </select>
                     </div>
-                    <div class="col-md-4">
-                      <label class="form-label" for="editUserDepartment">Quyền truy cập trang</label>
-                      <select id="editUserDepartment" class="form-select" multiple size="5">
-                        <option value="production">Nhập liệu sản xuất</option>
-                        <option value="nhapLieuSanXuat">Năng suất sản xuất</option>
-                        <option value="report">Báo cáo</option>
-                        <option value="label">In nhãn</option>
-                        <option value="congTachMui">Công tách múi</option>
-                      </select>
+                    <div class="col-md-8">
+                      <label class="form-label">Quyền truy cập trang</label>
+                      <div class="row g-2">
+                        <div class="col-md-4">
+                          <select id="editUserPermissionOne" class="form-select page-access-select">
+                            <option value="">-- Chưa phân quyền --</option>
+                            <option value="production">Phần trăm BTP</option>
+                            <option value="nhapLieuSanXuat">Năng suất sản xuất</option>
+                            <option value="report">Báo cáo</option>
+                            <option value="label">In nhãn</option>
+                            <option value="congTachMui">Năng xuất tách múi</option>
+                          </select>
+                        </div>
+                        <div class="col-md-4">
+                          <select id="editUserPermissionTwo" class="form-select page-access-select">
+                            <option value="">-- Chưa phân quyền --</option>
+                            <option value="production">Phần trăm BTP</option>
+                            <option value="nhapLieuSanXuat">Năng suất sản xuất</option>
+                            <option value="report">Báo cáo</option>
+                            <option value="label">In nhãn</option>
+                            <option value="congTachMui">Năng xuất tách múi</option>
+                          </select>
+                        </div>
+                        <div class="col-md-4">
+                          <select id="editUserPermissionThree" class="form-select page-access-select">
+                            <option value="">-- Chưa phân quyền --</option>
+                            <option value="production">Phần trăm BTP</option>
+                            <option value="nhapLieuSanXuat">Năng suất sản xuất</option>
+                            <option value="report">Báo cáo</option>
+                            <option value="label">In nhãn</option>
+                            <option value="congTachMui">Năng xuất tách múi</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
                     <div class="col-md-4">
                       <label class="form-label" for="editUserTeamId">Tổ được phân quyền</label>

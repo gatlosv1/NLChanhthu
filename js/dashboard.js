@@ -25,18 +25,17 @@ const editUserForm = document.getElementById('editUserForm');
 const editUserId = document.getElementById('editUserId');
 const editUserName = document.getElementById('editUserName');
 const editUserRole = document.getElementById('editUserRole');
-const editUserDepartment = document.getElementById('editUserDepartment');
 const editUserPassword = document.getElementById('editUserPassword');
 const cancelEditBtn = document.getElementById('cancelEditBtn');
 const userActionStatus = document.getElementById('userActionStatus');
 const userManagementSection = document.getElementById('userManagementSection');
 const createUserTeamId = document.getElementById('createUserTeamId');
 const pagePermissionLabels = {
-  production: 'Nhập liệu sản xuất',
+  production: 'Phần trăm BTP',
   nhapLieuSanXuat: 'Năng suất sản xuất',
   report: 'Báo cáo',
   label: 'In nhãn',
-  congTachMui: 'Công tách múi'
+  congTachMui: 'Năng xuất tách múi'
 };
 
 const FIREBASE_API_KEY = 'AIzaSyAFQQ5yvXsA5B3etXDM_k0g6-HcEjDEpGo';
@@ -45,17 +44,28 @@ let activeUsersLoadToken = 0;
 let congTachMuiTeams = [];
 
 function getSelectedValues(select) {
-  return [...(select?.selectedOptions || [])].map((option) => option.value).filter(Boolean);
+  if (!select) return [];
+  return select.value ? [select.value] : [];
 }
 
-function setSelectedValues(select, values = []) {
-  if (!select) return;
-  const selected = new Set(Array.isArray(values) ? values : []);
-  [...select.options].forEach((option) => { option.selected = selected.has(option.value); });
+function getAllPagePermissions() {
+  const selects = document.querySelectorAll('.page-access-select');
+  return [...selects].map((select) => select.value).filter(Boolean);
 }
 
-function toggleTeamField(permissionSelect, teamField) {
-  const visible = getSelectedValues(permissionSelect).includes('congTachMui');
+function applyPermissionValuesToSelectors(selectors, values = []) {
+  const permissionValues = Array.isArray(values) ? values : [];
+  selectors.forEach((selector, index) => {
+    const select = document.getElementById(selector);
+    if (!select) return;
+    const value = permissionValues[index] || '';
+    select.value = value;
+  });
+}
+
+function toggleTeamField(teamField, contextSelector = '.page-access-select') {
+  const selections = Array.from(document.querySelectorAll(contextSelector)).map((select) => select.value).filter(Boolean);
+  const visible = selections.includes('congTachMui');
   teamField?.classList.toggle('d-none', !visible);
   if (!visible && teamField) teamField.value = '';
 }
@@ -190,12 +200,18 @@ async function loadUsers() {
 // Hiển thị panel chỉnh sửa thông tin người dùng.
 function showEditPanel(user) {
   if (!userEditPanel || !editUserForm) return;
+  const permissionValues = Array.isArray(user.pagePermissions) ? user.pagePermissions : [];
   editUserId.value = user.id;
   editUserName.value = user.name || '';
   editUserRole.value = user.role || 'staff';
-  setSelectedValues(editUserDepartment, user.pagePermissions || []);
+  const permissionSelectors = ['editUserPermissionOne', 'editUserPermissionTwo', 'editUserPermissionThree'];
+  permissionSelectors.forEach((selector, index) => {
+    const select = document.getElementById(selector);
+    if (!select) return;
+    select.value = permissionValues[index] || '';
+  });
   editUserTeamId.value = user.teamId || '';
-  toggleTeamField(editUserDepartment, editUserTeamId);
+  toggleTeamField(editUserTeamId, '.page-access-select');
   editUserPassword.value = '';
   userEditPanel.classList.remove('d-none');
 }
@@ -218,22 +234,29 @@ createUserForm?.addEventListener('submit', async (event) => {
   const passwordInput = document.getElementById('createUserPassword');
   const nameInput = document.getElementById('createUserName');
   const roleInput = document.getElementById('createUserRole');
-  const departmentInput = document.getElementById('createUserDepartment');
   const teamIdInput = document.getElementById('createUserTeamId');
 
   const email = emailInput.value.trim();
   const password = passwordInput.value.trim() || generatePassword();
   const displayName = nameInput.value.trim();
   const role = roleInput.value;
-  const department = getSelectedValues(departmentInput);
+  const department = getAllPagePermissions();
   const teamId = teamIdInput.value;
 
-  if (!email || !department.length) {
+  if (!email) {
     showToast('Vui lòng nhập email.', 'error');
     return;
   }
+  if (!department.length) {
+    showToast('Vui lòng chọn ít nhất 1 quyền truy cập trang.', 'error');
+    return;
+  }
+  if (new Set(department).size !== department.length) {
+    showToast('Các quyền truy cập trang không được trùng nhau.', 'error');
+    return;
+  }
   if (department.includes('congTachMui') && !teamId) {
-    showToast('Vui lòng chọn tổ cho quyền Công tách múi.', 'error');
+    showToast('Vui lòng chọn tổ cho quyền Năng xuất tách múi.', 'error');
     return;
   }
 
@@ -266,8 +289,16 @@ createUserForm?.addEventListener('submit', async (event) => {
   }
 });
 
-document.getElementById('createUserDepartment')?.addEventListener('change', () => toggleTeamField(document.getElementById('createUserDepartment'), createUserTeamId));
-editUserDepartment?.addEventListener('change', () => toggleTeamField(editUserDepartment, editUserTeamId));
+document.querySelectorAll('.page-access-select').forEach((select) => {
+  select.addEventListener('change', () => {
+    const values = getAllPagePermissions();
+    if (new Set(values).size !== values.length) {
+      showToast('Mỗi quyền truy cập chỉ được chọn một lần.', 'error');
+    }
+    toggleTeamField(createUserTeamId, '.page-access-select');
+    toggleTeamField(editUserTeamId, '.page-access-select');
+  });
+});
 
 watchAuthState(async (user) => {
   if (!user) {
@@ -316,11 +347,23 @@ function renderProfile(user, profile) {
   avatarPreview.textContent = name.charAt(0).toUpperCase();
 
   const isAdmin = role === 'admin';
+  const permissions = Array.isArray(profile?.pagePermissions) ? profile.pagePermissions : [];
+  const navLinks = document.querySelectorAll('[data-page]');
+  navLinks.forEach((item) => {
+    const pageKey = item.dataset.page;
+    const hasAccess = isAdmin || permissions.includes(pageKey);
+    item.classList.toggle('d-none', !hasAccess);
+  });
+
   const adminMenuItems = document.querySelectorAll('.admin-only');
   adminMenuItems.forEach((item) => {
     item.classList.toggle('is-hidden', !isAdmin);
   });
   manageUsersMenu?.classList.toggle('is-hidden', !isAdmin);
+
+  if (!isAdmin && !permissions.includes(window.location.pathname.split('/').pop().replace(/\.html$/, '') || 'dashboard')) {
+    window.location.href = './dashboard.html';
+  }
 
   const actions = isAdmin
     ? [
@@ -428,11 +471,25 @@ editUserForm?.addEventListener('submit', async (event) => {
   }
 
   try {
+    const permissions = getAllPagePermissions();
+    if (!permissions.length) {
+      showToast('Vui lòng chọn ít nhất 1 quyền truy cập trang.', 'error');
+      return;
+    }
+    if (new Set(permissions).size !== permissions.length) {
+      showToast('Các quyền truy cập trang không được trùng nhau.', 'error');
+      return;
+    }
+    if (permissions.includes('congTachMui') && !editUserTeamId.value) {
+      showToast('Vui lòng chọn tổ cho quyền Năng xuất tách múi.', 'error');
+      return;
+    }
+
     const updatePayload = {
       name: editUserName.value.trim(),
       role: editUserRole.value,
-      department: getSelectedValues(editUserDepartment).join(', ') || 'Chưa phân phòng',
-      pagePermissions: getSelectedValues(editUserDepartment),
+      department: permissions.join(', ') || 'Chưa phân phòng',
+      pagePermissions: permissions,
       teamId: editUserTeamId.value
     };
 

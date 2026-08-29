@@ -169,9 +169,17 @@ function initTable() {
       const field = cell.getField();
       if (['kgA', 'kgB', 'kgC', 'kgCNoSeed'].includes(field)) {
         const rowData = cell.getRow().getData();
+        const beforeValue = cell.getOldValue();
         updatePercentages(rowData);
         cell.getRow().update(rowData);
-        logActivity({ action: 'edit', page: 'production', detail: `Sửa ${field} của lot ${rowData.lot || '-'}` });
+        logActivity({
+          action: 'edit',
+          page: 'production',
+          detail: `Sửa ${field} của lot ${rowData.lot || '-'}`,
+          changes: {
+            [field]: { before: beforeValue, after: rowData[field] }
+          }
+        });
       }
     });
 

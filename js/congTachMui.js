@@ -78,7 +78,7 @@ function initTable() {
   table.on('cellEdited', (cell) => { const row = cell.getRow().getData(); calculate(row); cell.getRow().update(row); updateSummary(); });
 }
 function applyRows(rows) { table.setData(rows.map((row, index) => calculate({ ...row, stt: index + 1, processDisplay: processDisplay(row) }))); updateSummary(); }
-function loadRows() { if (stopRows) stopRows(); const selectedTeam = teamSelect.value; const rowsRef = query(collection(db, COLLECTION), orderBy('createdAt', 'asc')); stopRows = onSnapshot(rowsRef, (snapshot) => { const rows = snapshot.docs.map((item) => ({ id: item.id, ...item.data() })).filter((row) => row.teamId === selectedTeam || currentRole === 'admin' && (!selectedTeam || row.teamId === selectedTeam)); applyRows(rows); }, (error) => showToast(error.message || 'Không thể tải dữ liệu Công tách múi.', 'error')); }
+function loadRows() { if (stopRows) stopRows(); const selectedTeam = teamSelect.value; const rowsRef = query(collection(db, COLLECTION), orderBy('createdAt', 'asc')); stopRows = onSnapshot(rowsRef, (snapshot) => { const rows = snapshot.docs.map((item) => ({ id: item.id, ...item.data() })).filter((row) => row.teamId === selectedTeam || currentRole === 'admin' && (!selectedTeam || row.teamId === selectedTeam)); applyRows(rows); }, (error) => showToast(error.message || 'Không thể tải dữ liệu Năng xuất tách múi.', 'error')); }
 async function loadCatalog() { const snapshot = await getDoc(CATALOG_REF); if (snapshot.exists()) catalog = { ...catalog, ...snapshot.data() }; renderCatalog(); }
 async function addOfficialRow() {
   if (!productionDate.value) { showToast('Vui lòng chọn ngày tháng.', 'info'); return; }
@@ -96,6 +96,10 @@ async function addOfficialRow() {
   row[`${shift}Hours`] = shiftHours.value || row[`${shift}Hours`] || '';
   calculate(row);
 
+  const changeMap = existingRow ? Object.fromEntries(
+    Object.entries(row).filter(([key, value]) => key !== 'updatedAt' && key !== 'createdAt' && String(existingRow[key] ?? '') !== String(value ?? '')).map(([key, value]) => [key, { before: existingRow[key], after: value }])
+  ) : null;
+
   try {
     await setDoc(doc(db, COLLECTION, row.id), {
       ...row,
@@ -106,7 +110,12 @@ async function addOfficialRow() {
       updatedAt: serverTimestamp()
     }, { merge: true });
 
-    logActivity({ action: existingRow ? 'edit' : 'add', page: 'congTachMui', detail: `${existingRow ? 'Cập nhật' : 'Thêm'} dòng ${row.processDisplay || processDisplay(row)}, BTP=${row[`${shift}Btp`] || 0}` });
+    logActivity({
+      action: existingRow ? 'edit' : 'add',
+      page: 'congTachMui',
+      detail: `${existingRow ? 'Cập nhật' : 'Thêm'} dòng ${row.processDisplay || processDisplay(row)}, BTP=${row[`${shift}Btp`] || 0}`,
+      changes: existingRow ? changeMap : null
+    });
     showToast(existingRow ? 'Đã cập nhật ca vào dòng hiện tại.' : 'Đã thêm dòng chính thức.', 'success');
   } catch (error) {
     showToast(error.message || 'Không thể lưu dòng dữ liệu.', 'error');
@@ -266,7 +275,7 @@ byId('deleteRowBtn').addEventListener('click', async () => {
       const rowId = row.getData().id;
       return rowId ? deleteDoc(doc(db, COLLECTION, rowId)) : null;
     }));
-    logActivity({ action: 'delete', page: 'congTachMui', detail: `Xóa ${selectedRows.length} dòng Công tách múi` });
+    logActivity({ action: 'delete', page: 'congTachMui', detail: `Xóa ${selectedRows.length} dòng Năng xuất tách múi` });
     showToast('Đã xóa dòng khỏi Firebase.', 'success');
   } catch (error) {
     showToast(error.message || 'Không thể xóa dòng khỏi Firebase.', 'error');
