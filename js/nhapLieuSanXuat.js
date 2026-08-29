@@ -9,6 +9,7 @@ import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, orderBy
 
 const COLLECTION = 'nhapLieuSanXuat';
 const CATALOG_REF = doc(db, 'settings', 'nhapLieuSanXuatCatalog');
+const CONG_TACH_MUI_CATALOG_REF = doc(db, 'settings', 'congTachMuiCatalog');
 const fields = ['stt', 'processDisplay', 'productionDate', 'totalBtp', 'totalTime', 'totalProductivity', 'morningBtp', 'morningPeople', 'morningHours', 'morningTime', 'morningProductivity', 'afternoonBtp', 'afternoonPeople', 'afternoonHours', 'afternoonTime', 'afternoonProductivity', 'eveningBtp', 'eveningPeople', 'eveningHours', 'eveningTime', 'eveningProductivity'];
 const labels = ['STT', 'Công đoạn', 'Ngày tháng', 'Tổng BTP', 'Tổng Thời gian', 'Tổng Năng suất', 'Ca sáng BTP', 'Ca sáng Số người', 'Ca sáng Số giờ', 'Ca sáng Thời gian', 'Ca sáng Năng suất', 'Ca chiều BTP', 'Ca chiều Số người', 'Ca chiều Số giờ', 'Ca chiều Thời gian', 'Ca chiều Năng suất', 'Ca tối BTP', 'Ca tối Số người', 'Ca tối Số giờ', 'Ca tối Thời gian', 'Ca tối Năng suất'];
 const byId = (id) => document.getElementById(id);
@@ -27,6 +28,7 @@ let currentUser;
 let currentRole = 'staff';
 let currentProfile = {};
 let catalog = { processes: ['Đóng gói 1'], types: ['IQF'] };
+let congTachMuiProcesses = [];
 let stopRows;
 let manuallySelectedShift = false;
 
@@ -66,7 +68,14 @@ function processDisplay(row) {
   return row.note ? `${display} (${row.note})` : display;
 }
 function emptyRow() { const shift = activeShift.value || shiftInfo(vietnamNow())[1]; const row = { id: `${currentUser.uid}-${Date.now()}`, stt: table.getDataCount() + 1, productionDate: productionDate.value, processOne: processOne.value, processTwo: processTwo.value, itemType: itemType.value, note: note.value.trim(), morningBtp: '', morningPeople: '', morningHours: '', afternoonBtp: '', afternoonPeople: '', afternoonHours: '', eveningBtp: '', eveningPeople: '', eveningHours: '', activeShift: shift }; row[`${shift}Btp`] = shiftBtp.value || ''; row[`${shift}People`] = shiftPeople.value || ''; row[`${shift}Hours`] = shiftHours.value || ''; return calculate(row); }
-function renderOptions(select, values, placeholder) { select.replaceChildren(new Option(placeholder, '')); values.forEach((value) => select.appendChild(new Option(value.name || value, value.id || value))); }
+function renderOptions(select, values, placeholder) {
+  const allowedValues = (Array.isArray(values) ? values : []).filter((value) => {
+    const itemValue = value?.name || value;
+    return !congTachMuiProcesses.includes(itemValue);
+  });
+  select.replaceChildren(new Option(placeholder, ''));
+  allowedValues.forEach((value) => select.appendChild(new Option(value.name || value, value.id || value)));
+}
 function renderCatalog() { renderOptions(processOne, catalog.processes, '-- Chọn công đoạn --'); renderOptions(processTwo, catalog.processes, '-- Chọn công đoạn --'); renderOptions(itemType, catalog.types, '-- Chọn loại --'); }
 function initTable() {
   const editableFields = ['morningBtp', 'morningPeople', 'morningHours', 'afternoonBtp', 'afternoonPeople', 'afternoonHours', 'eveningBtp', 'eveningPeople', 'eveningHours'];
@@ -86,11 +95,25 @@ function initTable() {
 }
 function applyRows(rows) { table.setData(rows.map((row, index) => calculate({ ...row, stt: index + 1, processDisplay: processDisplay(row) }))); updateSummary(); }
 function loadRows() { if (stopRows) stopRows(); const rowsRef = query(collection(db, COLLECTION), orderBy('createdAt', 'asc')); stopRows = onSnapshot(rowsRef, (snapshot) => { const rows = snapshot.docs.map((item) => ({ id: item.id, ...item.data() })); applyRows(rows); }, (error) => showToast(error.message || 'Không thể tải dữ liệu Năng suất sản xuất.', 'error')); }
-async function loadCatalog() { const snapshot = await getDoc(CATALOG_REF); if (snapshot.exists()) catalog = { ...catalog, ...snapshot.data() }; renderCatalog(); }
+async function loadCatalog() {
+  const snapshot = await getDoc(CATALOG_REF);
+  const congTachMuiSnapshot = await getDoc(CONG_TACH_MUI_CATALOG_REF);
+  if (snapshot.exists()) catalog = { ...catalog, ...snapshot.data() };
+  if (congTachMuiSnapshot.exists() && Array.isArray(congTachMuiSnapshot.data().processes)) {
+    congTachMuiProcesses = congTachMuiSnapshot.data().processes;
+  } else {
+    congTachMuiProcesses = [];
+  }
+  renderCatalog();
+}
 async function addOfficialRow() {
   if (!productionDate.value) { showToast('Vui lòng chọn ngày tháng.', 'info'); return; }
   if (!activeShift.value) { showToast('Vui lòng chọn ca.', 'info'); return; }
   if (!processOne.value) { showToast('Vui lòng chọn công đoạn.', 'info'); return; }
+  if (congTachMuiProcesses.includes(processOne.value) || congTachMuiProcesses.includes(processTwo.value)) {
+    showToast('Công đoạn tách múi không được nhập ở đây. Vui lòng nhập trên trang Năng xuất tách múi.', 'error');
+    return;
+  }
 
   const existingRow = table.getData().find((row) => row.productionDate === productionDate.value
     && row.processOne === processOne.value

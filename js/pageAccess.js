@@ -1,16 +1,23 @@
 import { getUserProfile } from './firestore.js';
 import { resolveInitialRole } from './roleUtils.js';
 
+let permissionWarningShown = false;
+
 export function showPermissionWarning({
   title = 'Missing or insufficient permissions.',
   buttonText = 'Back to dashboard',
   redirectTo = './dashboard.html'
 } = {}) {
+  if (permissionWarningShown) return;
+
   const wrapper = document.querySelector('main');
   if (!wrapper) return;
 
   const existing = wrapper.querySelector('.permission-warning-panel');
-  if (existing) existing.remove();
+  if (existing) {
+    permissionWarningShown = true;
+    return;
+  }
 
   const panel = document.createElement('div');
   panel.className = 'permission-warning-panel';
@@ -24,6 +31,7 @@ export function showPermissionWarning({
   });
 
   wrapper.insertBefore(panel, wrapper.firstChild);
+  permissionWarningShown = true;
 }
 
 export async function requirePageAccess(user, pageKey) {
