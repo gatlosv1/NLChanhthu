@@ -101,6 +101,42 @@ a {
 .toast-error { background: #fef2f2; border: 1px solid #fecaca; }
 .toast-info { background: #eff6ff; border: 1px solid #bfdbfe; }
 
+.permission-warning-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: min(100%, 420px);
+  margin-left: auto;
+  margin-bottom: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid #e6b2bc;
+  border-radius: 0.9rem;
+  background: #fbe7eb;
+  box-shadow: 0 8px 22px rgba(31, 41, 55, 0.05);
+}
+
+.permission-warning-title {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #2d2d2d;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+}
+
+.permission-warning-button {
+  border: 1px solid #a9d7b9;
+  background: #f1fff5;
+  color: #1b5f2f;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

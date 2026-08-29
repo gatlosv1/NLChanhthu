@@ -37,6 +37,7 @@ const pagePermissionLabels = {
   label: 'In nhãn',
   congTachMui: 'Năng xuất tách múi'
 };
+const ALL_PAGE_PERMISSIONS = ['production', 'nhapLieuSanXuat', 'report', 'label', 'congTachMui'];
 
 const FIREBASE_API_KEY = 'AIzaSyAFQQ5yvXsA5B3etXDM_k0g6-HcEjDEpGo';
 let currentRole = 'staff';
@@ -71,8 +72,25 @@ function toggleTeamField(teamField, contextSelector = '.page-access-select') {
 }
 
 function formatPermissions(user) {
-  const permissions = Array.isArray(user.pagePermissions) ? user.pagePermissions : [];
+  const permissions = Array.isArray(user.pagePermissions) && user.pagePermissions.length
+    ? user.pagePermissions
+    : (user.role === 'admin' ? ALL_PAGE_PERMISSIONS : []);
   return permissions.map((key) => pagePermissionLabels[key] || key).join(', ') || user.department || 'Chưa phân quyền';
+}
+
+function applyAdminPermissions(roleValue, selectors = ['createUserPermissionOne', 'createUserPermissionTwo', 'createUserPermissionThree']) {
+  const isAdmin = roleValue === 'admin';
+  selectors.forEach((selector, index) => {
+    const element = document.getElementById(selector);
+    if (!element) return;
+    if (isAdmin) {
+      element.value = ALL_PAGE_PERMISSIONS[index] || '';
+      return;
+    }
+    if (!element.value) {
+      element.value = '';
+    }
+  });
 }
 
 function renderTeamOptions() {
@@ -200,15 +218,18 @@ async function loadUsers() {
 // Hiển thị panel chỉnh sửa thông tin người dùng.
 function showEditPanel(user) {
   if (!userEditPanel || !editUserForm) return;
-  const permissionValues = Array.isArray(user.pagePermissions) ? user.pagePermissions : [];
+  const permissionValues = Array.isArray(user.pagePermissions) && user.pagePermissions.length
+    ? user.pagePermissions
+    : (user.role === 'admin' ? ALL_PAGE_PERMISSIONS : []);
   editUserId.value = user.id;
   editUserName.value = user.name || '';
   editUserRole.value = user.role || 'staff';
   const permissionSelectors = ['editUserPermissionOne', 'editUserPermissionTwo', 'editUserPermissionThree'];
+  applyAdminPermissions(editUserRole.value, permissionSelectors);
   permissionSelectors.forEach((selector, index) => {
     const select = document.getElementById(selector);
     if (!select) return;
-    select.value = permissionValues[index] || '';
+    select.value = permissionValues[index] || ALL_PAGE_PERMISSIONS[index] || '';
   });
   editUserTeamId.value = user.teamId || '';
   toggleTeamField(editUserTeamId, '.page-access-select');
@@ -240,22 +261,22 @@ createUserForm?.addEventListener('submit', async (event) => {
   const password = passwordInput.value.trim() || generatePassword();
   const displayName = nameInput.value.trim();
   const role = roleInput.value;
-  const department = getAllPagePermissions();
+  const department = role === 'admin' ? [...ALL_PAGE_PERMISSIONS] : getAllPagePermissions();
   const teamId = teamIdInput.value;
 
   if (!email) {
     showToast('Vui lòng nhập email.', 'error');
     return;
   }
-  if (!department.length) {
+  if (role !== 'admin' && !department.length) {
     showToast('Vui lòng chọn ít nhất 1 quyền truy cập trang.', 'error');
     return;
   }
-  if (new Set(department).size !== department.length) {
+  if (role !== 'admin' && new Set(department).size !== department.length) {
     showToast('Các quyền truy cập trang không được trùng nhau.', 'error');
     return;
   }
-  if (department.includes('congTachMui') && !teamId) {
+  if (role !== 'admin' && department.includes('congTachMui') && !teamId) {
     showToast('Vui lòng chọn tổ cho quyền Năng xuất tách múi.', 'error');
     return;
   }
@@ -299,6 +320,31 @@ document.querySelectorAll('.page-access-select').forEach((select) => {
     toggleTeamField(editUserTeamId, '.page-access-select');
   });
 });
+
+const createUserRole = document.getElementById('createUserRole');
+if (createUserRole) {
+  createUserRole.addEventListener('change', () => {
+    applyAdminPermissions(createUserRole.value, ['createUserPermissionOne', 'createUserPermissionTwo', 'createUserPermissionThree']);
+    if (createUserRole.value === 'admin') {
+      createUserTeamId.value = '';
+      createUserTeamId.classList.add('d-none');
+    } else {
+      toggleTeamField(createUserTeamId, '.page-access-select');
+    }
+  });
+}
+
+if (editUserRole) {
+  editUserRole.addEventListener('change', () => {
+    applyAdminPermissions(editUserRole.value, ['editUserPermissionOne', 'editUserPermissionTwo', 'editUserPermissionThree']);
+    if (editUserRole.value === 'admin') {
+      editUserTeamId.value = '';
+      editUserTeamId.classList.add('d-none');
+    } else {
+      toggleTeamField(editUserTeamId, '.page-access-select');
+    }
+  });
+}
 
 watchAuthState(async (user) => {
   if (!user) {
@@ -471,16 +517,16 @@ editUserForm?.addEventListener('submit', async (event) => {
   }
 
   try {
-    const permissions = getAllPagePermissions();
-    if (!permissions.length) {
+    const permissions = editUserRole.value === 'admin' ? [...ALL_PAGE_PERMISSIONS] : getAllPagePermissions();
+    if (editUserRole.value !== 'admin' && !permissions.length) {
       showToast('Vui lòng chọn ít nhất 1 quyền truy cập trang.', 'error');
       return;
     }
-    if (new Set(permissions).size !== permissions.length) {
+    if (editUserRole.value !== 'admin' && new Set(permissions).size !== permissions.length) {
       showToast('Các quyền truy cập trang không được trùng nhau.', 'error');
       return;
     }
-    if (permissions.includes('congTachMui') && !editUserTeamId.value) {
+    if (editUserRole.value !== 'admin' && permissions.includes('congTachMui') && !editUserTeamId.value) {
       showToast('Vui lòng chọn tổ cho quyền Năng xuất tách múi.', 'error');
       return;
     }
@@ -490,7 +536,7 @@ editUserForm?.addEventListener('submit', async (event) => {
       role: editUserRole.value,
       department: permissions.join(', ') || 'Chưa phân phòng',
       pagePermissions: permissions,
-      teamId: editUserTeamId.value
+      teamId: editUserRole.value === 'admin' ? '' : editUserTeamId.value
     };
 
     const newPassword = editUserPassword.value.trim();
