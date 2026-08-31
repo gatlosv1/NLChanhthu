@@ -407,6 +407,12 @@ function renderProfile(user, profile) {
   });
   manageUsersMenu?.classList.toggle('is-hidden', !isAdmin);
 
+  document.querySelectorAll('[data-page-access]').forEach((card) => {
+    const pageKey = card.dataset.pageAccess;
+    const shouldShow = isAdmin || permissions.includes(pageKey);
+    card.classList.toggle('d-none', !shouldShow);
+  });
+
   const currentPage = window.location.pathname.split('/').pop().replace(/\.html$/, '') || 'dashboard';
   const isDashboardPage = currentPage === 'dashboard';
 
@@ -422,7 +428,7 @@ function renderProfile(user, profile) {
         'Export Excel',
         'Nhật ký hoạt động'
       ]
-    : ['Nhập liệu dữ liệu', 'Chỉnh sửa dữ liệu'];
+    : (permissions.length ? permissions.map((pageKey) => pagePermissionLabels[pageKey] || pageKey) : ['Không có quyền truy cập']);
 
   const actionButtons = actions.map((action) => {
     const button = document.createElement('button');
