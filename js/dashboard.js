@@ -72,18 +72,19 @@ function toggleTeamField(teamField, contextSelector = '.page-access-select') {
 }
 
 function formatPermissions(user) {
+  const hasFullAccess = user.role === 'admin' || user.role === 'dev';
   const permissions = Array.isArray(user.pagePermissions) && user.pagePermissions.length
     ? user.pagePermissions
-    : (user.role === 'admin' ? ALL_PAGE_PERMISSIONS : []);
+    : (hasFullAccess ? ALL_PAGE_PERMISSIONS : []);
   return permissions.map((key) => pagePermissionLabels[key] || key).join(', ') || user.department || 'Chưa phân quyền';
 }
 
 function applyAdminPermissions(roleValue, selectors = ['createUserPermissionOne', 'createUserPermissionTwo', 'createUserPermissionThree']) {
-  const isAdmin = roleValue === 'admin';
+  const isFullAccess = roleValue === 'admin' || roleValue === 'dev';
   selectors.forEach((selector, index) => {
     const element = document.getElementById(selector);
     if (!element) return;
-    if (isAdmin) {
+    if (isFullAccess) {
       element.value = ALL_PAGE_PERMISSIONS[index] || '';
       return;
     }
@@ -186,13 +187,13 @@ async function loadUsers() {
     }
 
     const rows = users.map((user) => {
-      const isAdmin = user.role === 'admin';
+      const roleLabel = user.role === 'dev' ? 'Dev' : user.role === 'admin' ? 'Admin' : 'Staff';
       const row = document.createElement('tr');
       row.append(
         createUserCell(user.email),
         createUserCell(user.name),
         createUserCell(user.password),
-        createUserCell(isAdmin ? 'Admin' : 'Staff'),
+        createUserCell(roleLabel),
         createUserCell(formatPermissions(user)),
         createUserCell(user.teamId || 'Chưa phân tổ')
       );
@@ -261,22 +262,23 @@ createUserForm?.addEventListener('submit', async (event) => {
   const password = passwordInput.value.trim() || generatePassword();
   const displayName = nameInput.value.trim();
   const role = roleInput.value;
-  const department = role === 'admin' ? [...ALL_PAGE_PERMISSIONS] : getAllPagePermissions();
+  const isFullAccessRole = role === 'admin' || role === 'dev';
+  const department = isFullAccessRole ? [...ALL_PAGE_PERMISSIONS] : getAllPagePermissions();
   const teamId = teamIdInput.value;
 
   if (!email) {
     showToast('Vui lòng nhập email.', 'error');
     return;
   }
-  if (role !== 'admin' && !department.length) {
+  if (!isFullAccessRole && !department.length) {
     showToast('Vui lòng chọn ít nhất 1 quyền truy cập trang.', 'error');
     return;
   }
-  if (role !== 'admin' && new Set(department).size !== department.length) {
+  if (!isFullAccessRole && new Set(department).size !== department.length) {
     showToast('Các quyền truy cập trang không được trùng nhau.', 'error');
     return;
   }
-  if (role !== 'admin' && department.includes('congTachMui') && !teamId) {
+  if (!isFullAccessRole && department.includes('congTachMui') && !teamId) {
     showToast('Vui lòng chọn tổ cho quyền Năng xuất tách múi.', 'error');
     return;
   }
@@ -325,7 +327,7 @@ const createUserRole = document.getElementById('createUserRole');
 if (createUserRole) {
   createUserRole.addEventListener('change', () => {
     applyAdminPermissions(createUserRole.value, ['createUserPermissionOne', 'createUserPermissionTwo', 'createUserPermissionThree']);
-    if (createUserRole.value === 'admin') {
+    if (createUserRole.value === 'admin' || createUserRole.value === 'dev') {
       createUserTeamId.value = '';
       createUserTeamId.classList.add('d-none');
     } else {
@@ -337,7 +339,7 @@ if (createUserRole) {
 if (editUserRole) {
   editUserRole.addEventListener('change', () => {
     applyAdminPermissions(editUserRole.value, ['editUserPermissionOne', 'editUserPermissionTwo', 'editUserPermissionThree']);
-    if (editUserRole.value === 'admin') {
+    if (editUserRole.value === 'admin' || editUserRole.value === 'dev') {
       editUserTeamId.value = '';
       editUserTeamId.classList.add('d-none');
     } else {
