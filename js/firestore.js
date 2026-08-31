@@ -72,7 +72,9 @@ export async function getUserProfileByEmail(email) {
 // Chuẩn hóa vai trò về admin hoặc staff.
 export function normalizeUserRole(role = '') {
   const normalizedRole = (role || '').trim().toLowerCase();
-  return normalizedRole === 'admin' ? 'admin' : 'staff';
+  if (normalizedRole === 'dev') return 'dev';
+  if (normalizedRole === 'admin') return 'admin';
+  return 'staff';
 }
 // Lấy vai trò của người dùng từ hồ sơ Firestore.
 export async function getUserRole(uid) {

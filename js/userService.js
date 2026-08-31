@@ -30,6 +30,13 @@ export async function ensureUserDocument() {
     });
   }
 
+  if (resolvedRole === 'dev') {
+    await updateUserProfile(authUser.uid, {
+      pagePermissions: ['production', 'nhapLieuSanXuat', 'report', 'label', 'congTachMui', 'settings', 'history', 'profile', 'dashboard', 'devManager'],
+      department: 'Developer'
+    });
+  }
+
   return getUserProfile(authUser.uid);
 }
 // Lưu các thông tin hồ sơ cơ bản của người dùng.
