@@ -407,7 +407,10 @@ function renderProfile(user, profile) {
   });
   manageUsersMenu?.classList.toggle('is-hidden', !isAdmin);
 
-  if (!isAdmin && !permissions.includes(window.location.pathname.split('/').pop().replace(/\.html$/, '') || 'dashboard')) {
+  const currentPage = window.location.pathname.split('/').pop().replace(/\.html$/, '') || 'dashboard';
+  const isDashboardPage = currentPage === 'dashboard';
+
+  if (!isAdmin && !isDashboardPage && !permissions.includes(currentPage)) {
     window.location.href = './dashboard.html';
   }
 
