@@ -101,13 +101,20 @@ createDevForm?.addEventListener('submit', async (event) => {
   const email = document.getElementById('devEmail').value.trim();
   const password = document.getElementById('devPassword').value.trim() || 'Meocutephomaique2005';
   const name = document.getElementById('devName').value.trim() || 'Developer';
+  const role = document.getElementById('devRole')?.value || 'dev';
+  const normalizedRole = ['dev', 'admin', 'staff'].includes(role) ? role : 'dev';
+  const pagePermissions = normalizedRole === 'dev'
+    ? Object.keys(PAGE_CONFIG)
+    : normalizedRole === 'admin'
+      ? ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history']
+      : ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'history'];
 
   if (!email) {
     showToast('Vui lòng nhập email dev.', 'error');
     return;
   }
 
-  devStatus.textContent = 'Đang tạo tài khoản dev...';
+  devStatus.textContent = `Đang tạo tài khoản ${normalizedRole}...`;
 
   try {
     const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=AIzaSyAFQQ5yvXsA5B3etXDM_k0g6-HcEjDEpGo`, {
@@ -124,19 +131,22 @@ createDevForm?.addEventListener('submit', async (event) => {
     await createOrUpdateUserProfile(data.localId, {
       name,
       email,
-      role: 'dev',
-      department: 'Developer',
-      pagePermissions: Object.keys(PAGE_CONFIG),
+      role: normalizedRole,
+      department: normalizedRole === 'dev' ? 'Developer' : normalizedRole === 'admin' ? 'Quản trị' : 'Nhân viên',
+      pagePermissions,
       teamId: '',
       avatar: '',
       createdAt: new Date().toISOString(),
       password
     });
 
-    devStatus.textContent = 'Đã tạo tài khoản dev thành công.';
+    devStatus.textContent = `Đã tạo tài khoản ${normalizedRole} thành công.`;
     createDevForm.reset();
+    if (document.getElementById('devRole')) {
+      document.getElementById('devRole').value = 'dev';
+    }
     document.getElementById('devPassword').value = 'Meocutephomaique2005';
-    showToast('Tạo tài khoản DEV thành công.', 'success');
+    showToast(`Tạo tài khoản ${normalizedRole.toUpperCase()} thành công.`, 'success');
   } catch (error) {
     devStatus.textContent = error.message || 'Không thể tạo tài khoản dev.';
     showToast(devStatus.textContent, 'error');

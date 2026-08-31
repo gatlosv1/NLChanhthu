@@ -82,6 +82,14 @@
                 <label class="form-label" for="devName">Tên hiển thị</label>
                 <input id="devName" type="text" class="form-control" placeholder="Developer" />
               </div>
+              <div class="col-md-6">
+                <label class="form-label" for="devRole">Quyền</label>
+                <select id="devRole" class="form-select">
+                  <option value="dev" selected>Dev</option>
+                  <option value="admin">Admin</option>
+                  <option value="staff">Staff</option>
+                </select>
+              </div>
               <div class="col-12 d-flex gap-2 align-items-center">
                 <button type="submit" class="btn btn-danger">Tạo tài khoản DEV</button>
                 <span id="devStatus" class="small text-muted"></span>
