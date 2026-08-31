@@ -1,40 +1,45 @@
 ﻿import { getCurrentUser, waitForAuth } from './auth.js';
 import { createOrUpdateUserProfile, getUserProfile, updateUserProfile } from './firestore.js';
 import { resolveInitialRole } from './roleUtils.js';
-// Đảm bảo hồ sơ người dùng tồn tại trong Firestore và cập nhật vai trò nếu cần.
+
+const DEFAULT_PAGE_ACCESS = {
+  dev: ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history', 'devManager'],
+  admin: ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history'],
+  staff: ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'history']
+};
+
 export async function ensureUserDocument() {
   const authUser = await waitForAuth();
   if (!authUser) return null;
 
-  console.log('Current User:', authUser);
-  console.log('UID:', authUser?.uid);
-  console.log('Current Role:', resolveInitialRole(authUser?.email));
-
   const existing = await getUserProfile(authUser.uid);
   const resolvedRole = resolveInitialRole(authUser.email, existing?.role);
+  const defaultPagePermissions = DEFAULT_PAGE_ACCESS[resolvedRole] || DEFAULT_PAGE_ACCESS.staff;
+
+  const baseProfile = {
+    name: existing?.name || authUser.displayName || 'Nhân viên',
+    email: authUser.email,
+    role: resolvedRole,
+    department: resolvedRole === 'dev' ? 'Developer' : resolvedRole === 'admin' ? 'Quản trị' : (existing?.department || 'Chưa phân phòng'),
+    pagePermissions: defaultPagePermissions,
+    permissions: resolvedRole === 'dev'
+      ? ['view', 'add', 'edit', 'delete', 'export', 'import', 'manageUsers', 'manageSettings', 'viewAllHistory', 'maintenance']
+      : resolvedRole === 'admin'
+        ? ['view', 'add', 'edit', 'delete', 'export', 'import', 'manageUsers', 'manageSettings', 'viewAllHistory']
+        : ['view', 'add'],
+    teamId: existing?.teamId || '',
+    avatar: existing?.avatar || '',
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
 
   if (!existing) {
-    await createOrUpdateUserProfile(authUser.uid, {
-      name: authUser.displayName || 'Nhân viên',
-      email: authUser.email,
-      role: resolvedRole,
-      department: 'Chưa phân phòng',
-      avatar: '',
-      createdAt: new Date()
-    });
-  } else if (!existing.role || existing.role !== resolvedRole) {
-    await updateUserProfile(authUser.uid, {
-      role: resolvedRole,
-      email: authUser.email,
-      name: existing.name || authUser.displayName || 'Nhân viên'
-    });
-  }
-
-  if (resolvedRole === 'dev') {
-    await updateUserProfile(authUser.uid, {
-      pagePermissions: ['production', 'nhapLieuSanXuat', 'report', 'label', 'congTachMui', 'settings', 'history', 'profile', 'dashboard', 'devManager'],
-      department: 'Developer'
-    });
+    await createOrUpdateUserProfile(authUser.uid, baseProfile);
+  } else {
+    const hasMismatch = existing.role !== resolvedRole || JSON.stringify(existing.pagePermissions || []) !== JSON.stringify(defaultPagePermissions);
+    if (!existing.role || hasMismatch) {
+      await updateUserProfile(authUser.uid, baseProfile);
+    }
   }
 
   return getUserProfile(authUser.uid);

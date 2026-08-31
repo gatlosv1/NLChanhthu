@@ -292,9 +292,10 @@ async function initialize() {
 
     const profile = await getUserProfile(user.uid);
     currentRole = resolveInitialRole(user.email, profile?.role);
-    setAccess(currentRole === 'admin');
-    if (currentRole === 'admin') setupCongTachMuiCatalog();
-    if (currentRole === 'admin') setupNhapLieuSanXuatCatalog();
+    const canManageSettings = currentRole === 'admin' || currentRole === 'dev';
+    setAccess(canManageSettings);
+    if (canManageSettings) setupCongTachMuiCatalog();
+    if (canManageSettings) setupNhapLieuSanXuatCatalog();
 
     if (!user) {
       showToast('Vui lòng đăng nhập để dữ liệu được lưu vào Firebase.', 'info');

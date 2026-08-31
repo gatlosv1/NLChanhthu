@@ -34,8 +34,8 @@ function escapeHtml(value) {
 }
 
 function requireAdmin() {
-    if (currentRole === 'admin') return true;
-    showToast('Chỉ admin mới được thực hiện thao tác này.', 'error');
+    if (currentRole === 'admin' || currentRole === 'dev') return true;
+    showToast('Chỉ admin/dev mới được thực hiện thao tác này.', 'error');
     return false;
 }
 

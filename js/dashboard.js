@@ -281,8 +281,8 @@ function hideEditPanel() {
 createUserForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
 
-  if (currentRole !== 'admin') {
-    showToast('Chỉ admin mới được tạo tài khoản.', 'error');
+  if (!(currentRole === 'admin' || currentRole === 'dev')) {
+    showToast('Chỉ admin/dev mới được tạo tài khoản.', 'error');
     return;
   }
 
@@ -376,7 +376,11 @@ if (createUserRole) {
 if (editUserRole) {
   editUserRole.addEventListener('change', () => {
     applyAdminPermissions(editUserRole.value, ['editUserPermissionOne', 'editUserPermissionTwo', 'editUserPermissionThree']);
-    setFeaturePermissionsForRole(editUserRole.value, '.permission-checkbox');
+    setFeaturePermissionsForRole(editUserRole.value, '#editPermissionList .permission-checkbox');
+    if (editUserRole.value === 'admin' || editUserRole.value === 'dev') {
+      editUserTeamId.value = '';
+      editUserTeamId.classList.add('d-none');
+    } else {
       toggleTeamField(editUserTeamId, '.page-access-select');
     }
   });

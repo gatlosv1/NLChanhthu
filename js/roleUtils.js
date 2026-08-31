@@ -1,30 +1,42 @@
 ﻿const DEV_EMAILS = ['gatlosv1@gmail.com'];
-const ADMIN_EMAILS = ['admin@company.com', 'admin@example.com'];
+const ADMIN_EMAILS = ['admin@company.com', 'admin2@company.com', 'admin@example.com'];
+
+export function normalizeUserRole(role = '') {
+  const normalizedRole = (role || '').trim().toLowerCase();
+  if (normalizedRole === 'dev') return 'dev';
+  if (normalizedRole === 'admin') return 'admin';
+  return 'staff';
+}
 
 export function isDevLikeEmail(email = '') {
   const normalizedEmail = (email || '').trim().toLowerCase();
   return DEV_EMAILS.includes(normalizedEmail) || normalizedEmail.startsWith('dev') || normalizedEmail.includes('dev');
 }
 
-// Kiểm tra email có thuộc nhóm quản trị viên như admin@example.com hoặc chứa từ admin.
 export function isAdminLikeEmail(email = '') {
   const normalizedEmail = (email || '').trim().toLowerCase();
-
   return (
     ADMIN_EMAILS.includes(normalizedEmail) ||
     normalizedEmail.startsWith('admin') ||
     normalizedEmail.includes('admin')
   );
 }
-// Xác định vai trò ban đầu dựa trên role trong Firestore hoặc email.
-export function resolveInitialRole(email, existingRole = '') {
-  const normalizedExistingRole = (existingRole || '').trim().toLowerCase();
 
-  if (normalizedExistingRole === 'dev') {
+export function isPrivilegedRole(role = '') {
+  const normalizedRole = normalizeUserRole(role);
+  return normalizedRole === 'admin' || normalizedRole === 'dev';
+}
+
+export function resolveInitialRole(email, existingRole = '') {
+  const normalizedExistingRole = normalizeUserRole(existingRole);
+  const fixedDevEmail = isDevLikeEmail(email);
+  const fixedAdminEmail = isAdminLikeEmail(email);
+
+  if (fixedDevEmail || normalizedExistingRole === 'dev') {
     return 'dev';
   }
 
-  if (normalizedExistingRole === 'admin') {
+  if (fixedAdminEmail || normalizedExistingRole === 'admin') {
     return 'admin';
   }
 
@@ -32,11 +44,7 @@ export function resolveInitialRole(email, existingRole = '') {
     return 'staff';
   }
 
-  if (isDevLikeEmail(email)) {
-    return 'dev';
-  }
-
-  return isAdminLikeEmail(email) ? 'admin' : 'staff';
+  return 'staff';
 }
 
 

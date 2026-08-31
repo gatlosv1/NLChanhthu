@@ -64,7 +64,7 @@ function renderCatalog() { renderOptions(teamSelect, catalog.teams, '-- Chọn t
 function initTable() {
   const editableFields = ['morningBtp', 'morningPeople', 'morningHours', 'afternoonBtp', 'afternoonPeople', 'afternoonHours', 'eveningBtp', 'eveningPeople', 'eveningHours'];
   const readonlyFields = ['stt', 'processDisplay', 'productionDate', 'totalBtp', 'totalTime', 'totalProductivity', 'morningTime', 'morningProductivity', 'afternoonTime', 'afternoonProductivity', 'eveningTime', 'eveningProductivity'];
-  const column = (field, title, width, options = {}) => ({ title, field, width, ...options, editor: editableFields.includes(field) ? 'number' : false, editable: readonlyFields.includes(field) ? false : () => currentRole === 'admin' || Boolean(currentUser), formatter: field.toLowerCase().includes('productivity') ? productivityFormatter : undefined });
+  const column = (field, title, width, options = {}) => ({ title, field, width, ...options, editor: editableFields.includes(field) ? 'number' : false, editable: readonlyFields.includes(field) ? false : () => currentRole === 'admin' || currentRole === 'dev' || Boolean(currentUser), formatter: field.toLowerCase().includes('productivity') ? productivityFormatter : undefined });
   const columns = [
     column('stt', 'STT', 60),
     column('processDisplay', 'Ghi chú', 180),
@@ -267,7 +267,7 @@ function refreshClock() { const now = vietnamNow(); const [shiftLabel, shift] = 
 byId('addRowBtn').addEventListener('click', addOfficialRow);
 exportBtn?.addEventListener('click', exportExcel);
 byId('deleteRowBtn').addEventListener('click', async () => {
-  if (currentRole !== 'admin') { showToast('Chỉ admin mới được xóa dòng.', 'info'); return; }
+  if (currentRole !== 'admin' && currentRole !== 'dev') { showToast('Chỉ admin/dev mới được xóa dòng.', 'info'); return; }
   const selectedRows = table.getSelectedRows();
   if (!selectedRows.length) { showToast('Vui lòng chọn dòng cần xóa.', 'info'); return; }
   try {
