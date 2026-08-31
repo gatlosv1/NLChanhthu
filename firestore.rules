@@ -14,7 +14,8 @@ service cloud.firestore {
       return isSignedIn() && (
         request.auth.token.admin == true || (
           exists(/databases/$(database)/documents/users/$(request.auth.uid))
-          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+          && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+            || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'dev')
         )
       );
     }
@@ -23,7 +24,7 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isAdmin();
 
       allow create: if isOwner(userId)
-        && request.resource.data.role in ['admin', 'staff']
+        && request.resource.data.role in ['admin', 'staff', 'dev']
         && request.resource.data.email is string
         && request.resource.data.keys().hasOnly([
           'name', 'email', 'role', 'department', 'pagePermissions', 'teamId', 'avatar', 'createdAt', 'updatedAt', 'password'

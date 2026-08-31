@@ -154,6 +154,21 @@
                     </select>
                   </div>
                   <div class="col-md-8">
+                    <label class="form-label">Quyền chi tiết</label>
+                    <div id="createPermissionList" class="d-flex flex-wrap gap-3">
+                      <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="view" checked /> <span>View</span></label>
+                      <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="add" checked /> <span>Add</span></label>
+                      <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="edit" /> <span>Edit</span></label>
+                      <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="delete" /> <span>Delete</span></label>
+                      <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="export" /> <span>Export</span></label>
+                      <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="import" /> <span>Import</span></label>
+                      <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="manageUsers" /> <span>Manage Users</span></label>
+                      <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="manageSettings" /> <span>Manage Settings</span></label>
+                      <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="viewAllHistory" /> <span>View All History</span></label>
+                      <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="maintenance" /> <span>Maintenance</span></label>
+                    </div>
+                  </div>
+                  <div class="col-md-8">
                     <label class="form-label">Quyền truy cập trang</label>
                     <div class="row g-2">
                       <div class="col-md-4">
@@ -251,7 +266,23 @@
                       <select id="editUserRole" class="form-select">
                         <option value="staff">Staff</option>
                         <option value="admin">Admin</option>
+                        <option value="dev">Dev</option>
                       </select>
+                    </div>
+                    <div class="col-md-8">
+                      <label class="form-label">Quyền chi tiết</label>
+                      <div id="editPermissionList" class="d-flex flex-wrap gap-3">
+                        <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="view" checked /> <span>View</span></label>
+                        <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="add" checked /> <span>Add</span></label>
+                        <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="edit" /> <span>Edit</span></label>
+                        <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="delete" /> <span>Delete</span></label>
+                        <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="export" /> <span>Export</span></label>
+                        <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="import" /> <span>Import</span></label>
+                        <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="manageUsers" /> <span>Manage Users</span></label>
+                        <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="manageSettings" /> <span>Manage Settings</span></label>
+                        <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="viewAllHistory" /> <span>View All History</span></label>
+                        <label class="form-check"><input type="checkbox" class="form-check-input permission-checkbox" value="maintenance" /> <span>Maintenance</span></label>
+                      </div>
                     </div>
                     <div class="col-md-8">
                       <label class="form-label">Quyền truy cập trang</label>

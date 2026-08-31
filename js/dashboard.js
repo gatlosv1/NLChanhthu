@@ -38,6 +38,12 @@ const pagePermissionLabels = {
   congTachMui: 'Năng xuất tách múi'
 };
 const ALL_PAGE_PERMISSIONS = ['production', 'nhapLieuSanXuat', 'report', 'label', 'congTachMui'];
+const ALL_FEATURE_PERMISSIONS = ['view', 'add', 'edit', 'delete', 'export', 'import', 'manageUsers', 'manageSettings', 'viewAllHistory', 'maintenance'];
+const ROLE_DEFAULT_PERMISSIONS = {
+  dev: ['view', 'add', 'edit', 'delete', 'export', 'import', 'manageUsers', 'manageSettings', 'viewAllHistory', 'maintenance'],
+  admin: ['view', 'add', 'edit', 'delete', 'export', 'import', 'manageUsers', 'manageSettings', 'viewAllHistory'],
+  staff: ['view', 'add']
+};
 
 const FIREBASE_API_KEY = 'AIzaSyAFQQ5yvXsA5B3etXDM_k0g6-HcEjDEpGo';
 let currentRole = 'staff';
@@ -94,6 +100,26 @@ function applyAdminPermissions(roleValue, selectors = ['createUserPermissionOne'
   });
 }
 
+function getSelectedFeaturePermissions(containerSelector = '.permission-checkbox') {
+  return [...document.querySelectorAll(containerSelector)].filter((checkbox) => checkbox.checked).map((checkbox) => checkbox.value);
+}
+
+function resolveFeaturePermissionsForRole(role, selectedValues = []) {
+  const defaults = ROLE_DEFAULT_PERMISSIONS[role] || ROLE_DEFAULT_PERMISSIONS.staff;
+  if (role === 'dev') return [...defaults];
+  if (role === 'admin') return selectedValues.length ? [...selectedValues] : [...defaults];
+  return selectedValues.length ? [...selectedValues] : [...defaults];
+}
+
+function setFeaturePermissionsForRole(role, containerSelector = '.permission-checkbox') {
+  const allowed = ROLE_DEFAULT_PERMISSIONS[role] || ROLE_DEFAULT_PERMISSIONS.staff;
+  document.querySelectorAll(containerSelector).forEach((checkbox) => {
+    const isSelected = allowed.includes(checkbox.value);
+    checkbox.checked = isSelected;
+    checkbox.disabled = role === 'dev';
+  });
+}
+
 function renderTeamOptions() {
   [createUserTeamId, editUserTeamId].forEach((select) => {
     if (!select) return;
@@ -137,7 +163,7 @@ function createUserActionButton(label, action, userId, className) {
   return button;
 }
 // Tạo người dùng trên Firebase Authentication rồi lưu hồ sơ vào Firestore.
-async function createFirebaseUser(email, password, displayName, role, department, teamId) {
+async function createFirebaseUser(email, password, displayName, role, department, teamId, featurePermissions = []) {
   const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`, {
     method: 'POST',
     headers: {
@@ -156,12 +182,15 @@ async function createFirebaseUser(email, password, displayName, role, department
   }
 
   const uid = data.localId;
+  const resolvedPermissions = resolveFeaturePermissionsForRole(role, featurePermissions);
+
   await createOrUpdateUserProfile(uid, {
     name: displayName || email.split('@')[0],
     email,
     role,
     department: department.join(', ') || 'Chưa phân phòng',
     pagePermissions: department,
+    permissions: resolvedPermissions,
     teamId: teamId || '',
     avatar: '',
     createdAt: new Date().toISOString()
@@ -221,10 +250,15 @@ function showEditPanel(user) {
   if (!userEditPanel || !editUserForm) return;
   const permissionValues = Array.isArray(user.pagePermissions) && user.pagePermissions.length
     ? user.pagePermissions
-    : (user.role === 'admin' ? ALL_PAGE_PERMISSIONS : []);
+    : (user.role === 'admin' || user.role === 'dev' ? ALL_PAGE_PERMISSIONS : []);
   editUserId.value = user.id;
   editUserName.value = user.name || '';
   editUserRole.value = user.role || 'staff';
+  setFeaturePermissionsForRole(editUserRole.value, '#editPermissionList .permission-checkbox');
+  const existingPermissions = Array.isArray(user.permissions) && user.permissions.length ? user.permissions : ROLE_DEFAULT_PERMISSIONS[user.role] || ROLE_DEFAULT_PERMISSIONS.staff;
+  document.querySelectorAll('#editPermissionList .permission-checkbox').forEach((checkbox) => {
+    checkbox.checked = existingPermissions.includes(checkbox.value);
+  });
   const permissionSelectors = ['editUserPermissionOne', 'editUserPermissionTwo', 'editUserPermissionThree'];
   applyAdminPermissions(editUserRole.value, permissionSelectors);
   permissionSelectors.forEach((selector, index) => {
@@ -265,6 +299,8 @@ createUserForm?.addEventListener('submit', async (event) => {
   const isFullAccessRole = role === 'admin' || role === 'dev';
   const department = isFullAccessRole ? [...ALL_PAGE_PERMISSIONS] : getAllPagePermissions();
   const teamId = teamIdInput.value;
+  const featurePermissions = getSelectedFeaturePermissions('#createPermissionList .permission-checkbox');
+  const resolvedPermissions = resolveFeaturePermissionsForRole(role, featurePermissions);
 
   if (!email) {
     showToast('Vui lòng nhập email.', 'error');
@@ -288,7 +324,7 @@ createUserForm?.addEventListener('submit', async (event) => {
   createUserResult.textContent = '';
 
   try {
-    await createFirebaseUser(email, password, displayName, role, department, teamId);
+    await createFirebaseUser(email, password, displayName, role, department, teamId, resolvedPermissions);
     createUserStatus.textContent = 'Tạo tài khoản thành công.';
     createUserResult.classList.remove('d-none');
     const emailElement = document.createElement('strong');
@@ -327,6 +363,7 @@ const createUserRole = document.getElementById('createUserRole');
 if (createUserRole) {
   createUserRole.addEventListener('change', () => {
     applyAdminPermissions(createUserRole.value, ['createUserPermissionOne', 'createUserPermissionTwo', 'createUserPermissionThree']);
+    setFeaturePermissionsForRole(createUserRole.value, '.permission-checkbox');
     if (createUserRole.value === 'admin' || createUserRole.value === 'dev') {
       createUserTeamId.value = '';
       createUserTeamId.classList.add('d-none');
@@ -339,10 +376,7 @@ if (createUserRole) {
 if (editUserRole) {
   editUserRole.addEventListener('change', () => {
     applyAdminPermissions(editUserRole.value, ['editUserPermissionOne', 'editUserPermissionTwo', 'editUserPermissionThree']);
-    if (editUserRole.value === 'admin' || editUserRole.value === 'dev') {
-      editUserTeamId.value = '';
-      editUserTeamId.classList.add('d-none');
-    } else {
+    setFeaturePermissionsForRole(editUserRole.value, '.permission-checkbox');
       toggleTeamField(editUserTeamId, '.page-access-select');
     }
   });
@@ -368,7 +402,7 @@ watchAuthState(async (user) => {
     } catch (error) {
       console.warn('[Dashboard] Could not load cong tach mui teams', error);
     }
-    if (currentRole === 'admin') {
+    if (currentRole === 'admin' || currentRole === 'dev') {
       userManagementSection?.classList.remove('d-none');
       await loadUsers();
     } else {
@@ -390,39 +424,40 @@ function renderProfile(user, profile) {
   greeting.textContent = `Dashboard - ${name}`;
   currentUserName.textContent = name;
   currentUserEmail.textContent = user.email || '-';
-  currentUserRole.textContent = role === 'admin' ? 'Admin' : 'Staff';
+  currentUserRole.textContent = role === 'dev' ? 'Dev' : role === 'admin' ? 'Admin' : 'Staff';
   currentUserDepartment.textContent = department;
   avatarPreview.textContent = name.charAt(0).toUpperCase();
 
-  const isAdmin = role === 'admin';
+  const isAdmin = role === 'admin' || role === 'dev';
+  const isFullAccessUser = role === 'admin' || role === 'dev';
   const permissions = Array.isArray(profile?.pagePermissions) ? profile.pagePermissions : [];
   const navLinks = document.querySelectorAll('[data-page]');
   navLinks.forEach((item) => {
     const pageKey = item.dataset.page;
-    const hasAccess = isAdmin || permissions.includes(pageKey);
+    const hasAccess = isFullAccessUser || permissions.includes(pageKey);
     item.classList.toggle('d-none', !hasAccess);
   });
 
   const adminMenuItems = document.querySelectorAll('.admin-only');
   adminMenuItems.forEach((item) => {
-    item.classList.toggle('is-hidden', !isAdmin);
+    item.classList.toggle('is-hidden', !(isFullAccessUser));
   });
   manageUsersMenu?.classList.toggle('is-hidden', !isAdmin);
 
   document.querySelectorAll('[data-page-access]').forEach((card) => {
     const pageKey = card.dataset.pageAccess;
-    const shouldShow = isAdmin || permissions.includes(pageKey);
+    const shouldShow = isFullAccessUser || permissions.includes(pageKey);
     card.classList.toggle('d-none', !shouldShow);
   });
 
   const currentPage = window.location.pathname.split('/').pop().replace(/\.html$/, '') || 'dashboard';
   const isDashboardPage = currentPage === 'dashboard';
 
-  if (!isAdmin && !isDashboardPage && !permissions.includes(currentPage)) {
+  if (!isFullAccessUser && !isDashboardPage && !permissions.includes(currentPage)) {
     window.location.href = './dashboard.html';
   }
 
-  const actions = isAdmin
+  const actions = isFullAccessUser
     ? [
         'Quản lý User',
         'Quản lý dữ liệu',
@@ -451,8 +486,8 @@ userTableBody?.addEventListener('click', async (event) => {
 
   if (!userId) return;
 
-  if (currentRole !== 'admin') {
-    showToast('Chỉ admin mới được quản lý tài khoản.', 'error');
+  if (!(currentRole === 'admin' || currentRole === 'dev')) {
+    showToast('Chỉ admin/dev mới được quản lý tài khoản.', 'error');
     return;
   }
 
@@ -522,22 +557,25 @@ editUserForm?.addEventListener('submit', async (event) => {
   const userId = editUserId.value;
   if (!userId) return;
 
-  if (currentRole !== 'admin') {
-    showToast('Chỉ admin mới được chỉnh sửa tài khoản.', 'error');
+  if (!(currentRole === 'admin' || currentRole === 'dev')) {
+    showToast('Chỉ admin/dev mới được chỉnh sửa tài khoản.', 'error');
     return;
   }
 
   try {
-    const permissions = editUserRole.value === 'admin' ? [...ALL_PAGE_PERMISSIONS] : getAllPagePermissions();
-    if (editUserRole.value !== 'admin' && !permissions.length) {
+    const permissions = editUserRole.value === 'admin' || editUserRole.value === 'dev' ? [...ALL_PAGE_PERMISSIONS] : getAllPagePermissions();
+    const featurePermissions = getSelectedFeaturePermissions('#editPermissionList .permission-checkbox');
+    const resolvedPermissions = resolveFeaturePermissionsForRole(editUserRole.value, featurePermissions);
+
+    if (editUserRole.value !== 'admin' && editUserRole.value !== 'dev' && !permissions.length) {
       showToast('Vui lòng chọn ít nhất 1 quyền truy cập trang.', 'error');
       return;
     }
-    if (editUserRole.value !== 'admin' && new Set(permissions).size !== permissions.length) {
+    if (editUserRole.value !== 'admin' && editUserRole.value !== 'dev' && new Set(permissions).size !== permissions.length) {
       showToast('Các quyền truy cập trang không được trùng nhau.', 'error');
       return;
     }
-    if (editUserRole.value !== 'admin' && permissions.includes('congTachMui') && !editUserTeamId.value) {
+    if (editUserRole.value !== 'admin' && editUserRole.value !== 'dev' && permissions.includes('congTachMui') && !editUserTeamId.value) {
       showToast('Vui lòng chọn tổ cho quyền Năng xuất tách múi.', 'error');
       return;
     }
@@ -547,7 +585,8 @@ editUserForm?.addEventListener('submit', async (event) => {
       role: editUserRole.value,
       department: permissions.join(', ') || 'Chưa phân phòng',
       pagePermissions: permissions,
-      teamId: editUserRole.value === 'admin' ? '' : editUserTeamId.value
+      permissions: resolvedPermissions,
+      teamId: editUserRole.value === 'admin' || editUserRole.value === 'dev' ? '' : editUserTeamId.value
     };
 
     const newPassword = editUserPassword.value.trim();
