@@ -3,6 +3,8 @@ import { ensureUserDocument } from './userService.js';
 import { hideLoading, showLoading, showToast } from './utils.js';
 import { isAdminLikeEmail } from './roleUtils.js';
 import { logActivity } from './activityLog.js';
+import { shouldAttemptLegacyAccountRecovery } from './loginRecovery.js';
+import { getUserProfileByEmail } from './firestore.js';
 
 const form = document.getElementById('loginForm');
 const emailInput = document.getElementById('email');
@@ -92,6 +94,27 @@ if (form) {
     showToast(`Đăng nhập thành công. Chào ${credential.user.email}`, 'success');
     window.location.href = './dashboard.html';
   } catch (error) {
+    try {
+      const profile = await getUserProfileByEmail(email);
+      const legacyPassword = profile?.password;
+      const isLegacyRecoveryEnabled = shouldAttemptLegacyAccountRecovery(error.code, { password: legacyPassword });
+
+      if (isLegacyRecoveryEnabled && legacyPassword && legacyPassword !== password) {
+        try {
+          const legacyCredential = await loginWithEmailPassword(email, legacyPassword, rememberMe);
+          await ensureUserDocument();
+          logActivity({ action: 'login', page: 'auth', detail: 'Đăng nhập bằng password legacy từ hồ sơ user' });
+          showToast(`Đăng nhập thành công bằng mật khẩu legacy. Chào ${legacyCredential.user.email}`, 'success');
+          window.location.href = './dashboard.html';
+          return;
+        } catch (legacyError) {
+          console.warn('[Login] Legacy password check failed', legacyError);
+        }
+      }
+    } catch (profileError) {
+      console.warn('[Login] Could not load user profile for fallback login', profileError);
+    }
+
     if ((error.code === 'auth/user-not-found' || error.code === 'auth/invalid-login-credentials') && isAdminLikeEmail(email) && password) {
       try {
         const credential = await signUpWithEmailPassword(email, password);

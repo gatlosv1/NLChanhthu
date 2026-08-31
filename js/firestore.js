@@ -50,6 +50,25 @@ export async function getUserProfile(uid) {
     return null;
   }
 }
+
+export async function getUserProfileByEmail(email) {
+  if (!email) {
+    return null;
+  }
+
+  const usersRef = collection(db, USERS_COLLECTION);
+  logFirestoreRequest('getDocsByEmail', usersRef);
+  try {
+    const snapshot = await getDocs(usersRef);
+    const match = snapshot.docs
+      .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+      .find((user) => String(user.email || '').trim().toLowerCase() === String(email).trim().toLowerCase());
+    return match || null;
+  } catch (error) {
+    console.error('[Firestore] getUserProfileByEmail failed', error);
+    return null;
+  }
+}
 // Chuẩn hóa vai trò về admin hoặc staff.
 export function normalizeUserRole(role = '') {
   const normalizedRole = (role || '').trim().toLowerCase();
