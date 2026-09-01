@@ -74,11 +74,13 @@ export async function requirePageAccess(user, pageKey) {
   const role = resolveInitialRole(user.email, profile?.role);
   const config = await getPageAccessConfig();
 
-  if (role === 'dev') return { profile, role };
-
   if (config[pageKey] === false) {
     showPermissionWarning({ title: 'Trang này đã bị tắt bởi developer.' });
     throw new Error('Trang này đang bị khóa bởi developer.');
+  }
+
+  if (role === 'dev' || role === 'admin') {
+    return { profile, role };
   }
 
   const permissions = Array.isArray(profile?.pagePermissions) ? profile.pagePermissions : [];
@@ -86,5 +88,6 @@ export async function requirePageAccess(user, pageKey) {
     showPermissionWarning();
     throw new Error('Bạn không có quyền truy cập trang này.');
   }
+
   return { profile, role };
 }
