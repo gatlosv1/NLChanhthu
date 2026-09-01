@@ -42,6 +42,44 @@
           </div>
         </header>
 
+        <section class="filter-card mb-4">
+          <form id="reportFilterForm" class="row g-3 align-items-end">
+            <div class="col-12 col-md-6 col-xl-2">
+              <label class="form-label" for="fromDate">Từ ngày</label>
+              <input id="fromDate" type="date" class="form-control" />
+            </div>
+            <div class="col-12 col-md-6 col-xl-2">
+              <label class="form-label" for="toDate">Đến ngày</label>
+              <input id="toDate" type="date" class="form-control" />
+            </div>
+            <div class="col-12 col-md-6 col-xl-2">
+              <label class="form-label" for="teamFilter">Tổ</label>
+              <select id="teamFilter" class="form-select">
+                <option value="all">Tất cả</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-6 col-xl-2">
+              <label class="form-label" for="processFilter">Công đoạn</label>
+              <select id="processFilter" class="form-select">
+                <option value="all">Tất cả</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-6 col-xl-2">
+              <label class="form-label" for="sourceFilter">Nguồn dữ liệu</label>
+              <select id="sourceFilter" class="form-select">
+                <option value="all">Tất cả</option>
+                <option value="production">Phần trăm BTP</option>
+                <option value="nhapLieuSanXuat">Năng suất sản xuất</option>
+                <option value="congTachMui">Năng xuất tách múi</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-6 col-xl-2 d-flex gap-2">
+              <button id="applyReportFilters" type="submit" class="btn btn-primary flex-fill">Áp dụng</button>
+              <button id="exportReportBtn" type="button" class="btn btn-outline-success flex-fill">Xuất Excel</button>
+            </div>
+          </form>
+        </section>
+
         <section class="row g-3 mb-4 metrics-grid">
           <div class="col-12 col-md-6 col-xl-3">
             <div class="metric-card blue">
@@ -57,8 +95,8 @@
           </div>
           <div class="col-12 col-md-6 col-xl-3">
             <div class="metric-card orange">
-              <div class="metric-label">Số dòng dữ liệu</div>
-              <div class="metric-value" id="totalRows">0</div>
+              <div class="metric-label">Tổng thời gian</div>
+              <div class="metric-value" id="totalTime">0</div>
             </div>
           </div>
           <div class="col-12 col-md-6 col-xl-3">
@@ -67,12 +105,18 @@
               <div class="metric-value" id="activeGroups">0</div>
             </div>
           </div>
+          <div class="col-12 col-md-6 col-xl-3">
+            <div class="metric-card gray">
+              <div class="metric-label">Số dòng dữ liệu</div>
+              <div class="metric-value" id="totalRows">0</div>
+            </div>
+          </div>
         </section>
 
         <section class="report-grid">
           <article class="chart-card chart-large">
             <div class="chart-header">
-              <h2>Xu hướng BTP 7 ngày</h2>
+              <h2>Trung bình / Tổng năng xuất theo Tổ (Năng xuất tách múi)</h2>
             </div>
             <div class="chart-wrapper">
               <canvas id="trendChart"></canvas>
@@ -81,7 +125,7 @@
 
           <article class="chart-card">
             <div class="chart-header">
-              <h2>Doanh số theo công đoạn</h2>
+              <h2>Theo công đoạn</h2>
             </div>
             <div class="chart-wrapper small-chart">
               <canvas id="processChart"></canvas>
@@ -90,25 +134,34 @@
 
           <article class="chart-card">
             <div class="chart-header">
-              <h2>Hiệu suất theo tổ</h2>
+              <h2>Theo tổ</h2>
             </div>
             <div class="chart-wrapper small-chart">
               <canvas id="teamChart"></canvas>
+            </div>
+          </article>
+
+          <article class="chart-card chart-wide">
+            <div class="chart-header">
+              <h2>Theo ca làm việc</h2>
+            </div>
+            <div class="chart-wrapper small-chart">
+              <canvas id="shiftChart"></canvas>
             </div>
           </article>
         </section>
 
         <section class="table-card">
           <div class="chart-header">
-            <h2>Top doanh thu theo ngày</h2>
+            <h2>Chi tiết theo ngày</h2>
           </div>
           <div class="table-responsive">
             <table class="table align-middle mb-0">
               <thead>
                 <tr>
                   <th>Ngày</th>
-                  <th>BTP</th>
-                  <th>Thời gian</th>
+                  <th>Tổng BTP</th>
+                  <th>Tổng thời gian</th>
                   <th>Năng suất</th>
                   <th>Số dòng</th>
                 </tr>
