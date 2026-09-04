@@ -79,6 +79,10 @@ export function showPermissionWarning({
 // Kiểm tra quyền vào trang trước khi hiển thị
 // Chặn nếu trang bị developer tắt
 export async function requirePageAccess(user, pageKey) {
+  if (!user) {
+    return { profile: {}, role: 'staff' };
+  }
+
   const profile = await getUserProfile(user.uid);
   const role = resolveInitialRole(user.email, profile?.role);
   const config = await getPageAccessConfig();

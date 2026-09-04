@@ -1239,10 +1239,17 @@ function bindSettingsSyncEvents() {
   try {
     const authUser = await waitForAuth();
     currentUser = authUser;
-    const access = await requirePageAccess(authUser, 'production');
-    const profile = access.profile;
-    currentRole = resolveInitialRole(authUser.email, profile?.role);
-    updateRoleAccess();
+
+    if (authUser) {
+      const access = await requirePageAccess(authUser, 'production');
+      const profile = access.profile;
+      currentRole = resolveInitialRole(authUser.email, profile?.role);
+      updateRoleAccess();
+    } else {
+      currentRole = 'staff';
+      updateRoleAccess();
+    }
+
     await loadProductionData();
   } catch (error) {
     console.error('[Auth] init failed', error);
