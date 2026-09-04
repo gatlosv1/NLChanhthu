@@ -6,14 +6,14 @@
 }
 
 .table-card { width: 100%; max-width: 100%; overflow: visible; }
-#congTachMuiTable { display: block; width: 100%; max-width: 100%; min-width: 0; min-height: 0; overflow: hidden !important; }
-#congTachMuiTable.table-scroll { overflow: hidden !important; }
-#congTachMuiTable .tabulator { width: 2200px !important; min-width: 2200px !important; max-width: none !important; font-size: .82rem; }
-#congTachMuiTable .tabulator-tableholder { width: 100%; max-width: 100%; height: auto !important; max-height: none !important; overflow-x: scroll !important; overflow-y: hidden !important; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; scrollbar-gutter: stable; }
-#congTachMuiTable::-webkit-scrollbar, #congTachMuiTable .tabulator-tableholder::-webkit-scrollbar { height: 12px; }
+#congTachMuiTable { display: block; width: 100%; max-width: 100%; min-width: 0; min-height: 0; height: min(58vh, 700px); max-height: 58vh; overflow: auto; position: relative; border-radius: 0.9rem; border: 1px solid #e9dfb6; }
+#congTachMuiTable.table-scroll { overflow: auto; }
+#congTachMuiTable .tabulator { width: max-content !important; min-width: 100% !important; max-width: none !important; font-size: .82rem; }
+#congTachMuiTable .tabulator-tableholder { width: 100%; max-width: 100%; height: auto !important; max-height: none !important; overflow-x: auto !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; scrollbar-gutter: stable; }
+#congTachMuiTable::-webkit-scrollbar, #congTachMuiTable .tabulator-tableholder::-webkit-scrollbar { height: 12px; width: 12px; }
 #congTachMuiTable::-webkit-scrollbar-track, #congTachMuiTable .tabulator-tableholder::-webkit-scrollbar-track { background: #e9edf2; border-radius: 6px; }
 #congTachMuiTable::-webkit-scrollbar-thumb, #congTachMuiTable .tabulator-tableholder::-webkit-scrollbar-thumb { background: #8b98a8; border-radius: 6px; }
-#congTachMuiTable .tabulator-header { background: #fff4cf; }
+#congTachMuiTable .tabulator-header { position: sticky; top: 0; z-index: 2; background: #fff4cf; }
 #congTachMuiTable .tabulator-header .tabulator-col { background: #fff4cf; color: #172033; font-weight: 700; border-right: 1px solid #d8bf69; }
 #congTachMuiTable .tabulator-header .tabulator-col .tabulator-col-content { min-height: 58px; display: flex; align-items: center; justify-content: center; padding: 6px 4px; }
 #congTachMuiTable .tabulator-header .tabulator-col .tabulator-col-title { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.15; text-align: center; word-break: normal; }
