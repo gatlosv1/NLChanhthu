@@ -2,6 +2,7 @@ import { watchAuthState } from './auth.js';
 import { db } from './firebase.js';
 import { requirePageAccess } from './pageAccess.js';
 import { showToast } from './utils.js';
+import { setTeamDisplayNameMap, getRowTeam as resolveRowTeam } from './reportTeamDisplay.js';
 import { collection, doc, getDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
 const COLLECTIONS = [
@@ -32,8 +33,6 @@ let processChart;
 let teamChart;
 let shiftChart;
 let allRows = [];
-const teamDisplayNameMap = new Map();
-
 function numberValue(value) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : 0;
@@ -119,27 +118,8 @@ function getRowTime(row) {
   );
 }
 
-function resolveTeamDisplayName(value) {
-  if (value === undefined || value === null || value === '') {
-    return 'Chưa phân nhóm';
-  }
-
-  const rawValue = String(value).trim();
-  if (!rawValue) {
-    return 'Chưa phân nhóm';
-  }
-
-  const directMatch = teamDisplayNameMap.get(normalizeKey(rawValue));
-  if (directMatch) {
-    return directMatch;
-  }
-
-  return rawValue;
-}
-
 function getRowTeam(row) {
-  const rawValue = row.teamId || row.team || row.group || row.teamName || row.to;
-  return resolveTeamDisplayName(rawValue);
+  return resolveRowTeam(row);
 }
 
 function getRowProcess(row) {
@@ -173,7 +153,7 @@ async function loadCatalogOptions() {
   const catalogNames = ['congTachMuiCatalog', 'nhapLieuSanXuatCatalog'];
   const teamValues = [];
   const processValues = [];
-  teamDisplayNameMap.clear();
+  const displayTeams = [];
 
   // Duyệt qua từng danh mục trong Firestore
   // Lấy tên tổ và tên công đoạn
@@ -188,8 +168,7 @@ async function loadCatalogOptions() {
           const teamName = team?.name || teamId;
           if (teamName) teamValues.push(teamName);
           if (teamId) {
-            teamDisplayNameMap.set(normalizeKey(teamId), teamName);
-            teamDisplayNameMap.set(normalizeKey(teamName), teamName);
+            displayTeams.push({ id: teamId, name: teamName });
           }
         });
       }
@@ -203,6 +182,8 @@ async function loadCatalogOptions() {
       console.warn('[Report] Could not load catalog', catalogName, error);
     }
   }
+
+  setTeamDisplayNameMap(displayTeams);
 
   const allTeams = teamValues.length ? teamValues : ['Tổ 1', 'Tổ 2', 'Tổ 3'];
   const allProcesses = processValues.length ? processValues : ['Đóng gói', 'Xử lý', 'Phối trộn', 'Bảo quản'];
