@@ -529,7 +529,7 @@ function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData =
 
   if (processCtx) {
     processChart = new Chart(processCtx, {
-      type: 'bar',
+      type: 'doughnut',
       data: {
         labels: processData.map((entry) => entry.name),
         datasets: [{
@@ -541,8 +541,15 @@ function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData =
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true } }
+        cutout: '45%',
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              label: (context) => `${context.label}: ${formatNumber(context.parsed, 2)}`
+            }
+          }
+        }
       }
     });
   }

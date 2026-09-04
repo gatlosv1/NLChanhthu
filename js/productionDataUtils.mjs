@@ -45,3 +45,16 @@ export function buildProductionPayload(row = {}, ownerId = '') {
     materialKind: normalizedRow.materialKind || ''
   };
 }
+
+export function getAllRowsForPersistence(allRows = [], visibleRows = []) {
+  const visibleIds = new Set(visibleRows
+    .map((row) => String(row?.firestoreId || row?.id || '').trim())
+    .filter(Boolean));
+
+  const otherRows = allRows.filter((row) => {
+    const rowId = String(row?.firestoreId || row?.id || '').trim();
+    return rowId && !visibleIds.has(rowId);
+  });
+
+  return [...visibleRows, ...otherRows];
+}

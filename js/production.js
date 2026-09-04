@@ -31,6 +31,7 @@ const tableEl = document.getElementById('productionTable');
 const quickManufacturer = document.getElementById('quickManufacturer');
 const quickRegion = document.getElementById('quickRegion');
 const quickWarehouse = document.getElementById('quickWarehouse');
+const warehouseFilter = document.getElementById('warehouseFilter');
 const quickMaterialKind = document.getElementById('quickMaterialKind');
 const quickLot = document.getElementById('quickLot');
 const quickType = document.getElementById('quickType');
@@ -62,6 +63,7 @@ let isSaving = false;
 let currentRole = 'staff';
 let settingsState = {};
 let stopSettingsListener = null;
+let currentWarehouseFilter = 'all';
 
 // Cấu hình các cột hiển thị trong bảng Tabulator.
 const readonlyColumn = (title, field, width, options = {}) => ({ title, field, width, ...options });
@@ -368,8 +370,9 @@ function mapDocToRow(docItem, index) {
     kgB: rowData.kgB ?? '',
     percentB: rowData.percentB ?? '',
     kgC: rowData.kgC ?? '',
-    kgCNoSeed: rowData.kgCNoSeed ?? '',
     percentC: rowData.percentC ?? '',
+    kgCNoSeed: rowData.kgCNoSeed ?? '',
+    percentCNoSeed: rowData.percentCNoSeed ?? '',
     materialType: rowData.materialType ?? '',
     manufacturer: rowData.manufacturer ?? '',
     region: rowData.region ?? '',
@@ -386,10 +389,39 @@ function formatDateTimeForDisplay(value) {
   return date.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
 }
 
+function getActiveWarehouseRows() {
+  if (currentWarehouseFilter === 'all') return [...data];
+  const selectedWarehouse = String(currentWarehouseFilter || '').trim();
+  return data.filter((row) => String(row.warehouse || '').trim() === selectedWarehouse);
+}
+
+function renderWarehouseFilterOptions() {
+  if (!warehouseFilter) return;
+
+  const uniqueWarehouses = [...new Set(data.map((row) => String(row.warehouse || '').trim()).filter(Boolean))].sort();
+  const previousValue = warehouseFilter.value || 'all';
+  warehouseFilter.innerHTML = '<option value="all">Tất cả kho</option>';
+
+  uniqueWarehouses.forEach((warehouse) => {
+    const option = document.createElement('option');
+    option.value = warehouse;
+    option.textContent = warehouse;
+    warehouseFilter.appendChild(option);
+  });
+
+  if (uniqueWarehouses.includes(previousValue)) {
+    warehouseFilter.value = previousValue;
+  } else {
+    warehouseFilter.value = 'all';
+    currentWarehouseFilter = 'all';
+  }
+}
+
 function applyRowsToTable(rows) {
   data = reindexRows(rows);
+  renderWarehouseFilterOptions();
   if (table) {
-    table.setData(data);
+    table.setData(getActiveWarehouseRows());
     updateSummary();
   }
 }
@@ -403,13 +435,21 @@ function stopProductionRealtimeListener() {
 
 async function startProductionRealtimeListener() {
   stopProductionRealtimeListener();
-  const authUser = await waitForAuth();
-  if (!authUser) {
+
+  if (!db) {
+    console.warn('[Production] Firestore is not available yet.');
     return;
   }
 
-  console.log('Current User:', authUser);
-  console.log('UID:', authUser?.uid);
+  let authUser = null;
+  try {
+    authUser = await waitForAuth();
+  } catch (error) {
+    console.warn('[Production] waitForAuth failed, continuing without auth state:', error);
+  }
+
+  console.log('Current User:', authUser || 'anonymous');
+  console.log('UID:', authUser?.uid || 'none');
   console.log('Current Role:', currentRole);
 
   const productionRef = collection(db, 'production');
@@ -638,11 +678,13 @@ async function saveAllRows() {
   isSaving = true;
   showLoading();
   try {
-    const rows = table.getData();
-    const existingIds = new Set(rows.filter((row) => row.firestoreId).map((row) => row.firestoreId));
-    const updatedIds = new Set(existingIds);
+    const visibleRows = table.getData();
+    const allRows = getAllRowsForPersistence(data, visibleRows);
+    const updatedIds = new Set(allRows
+      .filter((row) => row.firestoreId || row.id)
+      .map((row) => String(row.firestoreId || row.id)));
 
-    const savePromises = rows.map(async (row) => {
+    const savePromises = allRows.map(async (row) => {
       const normalizedRow = normalizeProductionRowForPersistence(row);
       if (!canPersistProductionRow(normalizedRow)) return;
 
@@ -723,41 +765,281 @@ function escapeCsv(value) {
   return /[",\n]/.test(stringValue) ? `"${stringValue.replace(/"/g, '""')}"` : stringValue;
 }
 
-// Xuất các dòng hiện tại của bảng ra file CSV.
-function exportToCsv() {
-  const rows = table.getData();
-  const header = ['STT', 'Ngày sản xuất', 'Lot', 'Kho', 'RI/DO', 'kg BTP A', '% BTP A', 'kg BTP B', '% BTP B', 'kg BTP C', '% BTP C', 'kg BTP C Không hạt', '% BTP C Không hạt', 'Ngày giờ'];
-  const lines = [header.join(',')];
+function getVietnamDateFilename() {
+  const now = new Date(Date.now() + (7 * 60 * 60 * 1000));
+  const yyyy = now.getUTCFullYear();
+  const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(now.getUTCDate()).padStart(2, '0');
+  return `phan-tram-btp-${yyyy}-${mm}-${dd}.xlsx`;
+}
 
-  rows.forEach((row) => {
-    const values = [
-      row.stt || '',
+function sanitizeSheetName(name) {
+  const safeName = String(name || 'Sheet').replace(/[\\/:*?\[\]]/g, ' ').trim();
+  return safeName.slice(0, 31) || 'Sheet';
+}
+
+function toNumber(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function parseDateFromValue(value) {
+  if (!value) return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (trimmed.includes('/')) {
+      const [day, month, year] = trimmed.split('/');
+      const parsed = new Date(`${year}-${month}-${day}`);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return null;
+}
+
+function monthLabelFromValue(value) {
+  const parsed = parseDateFromValue(value);
+  if (!parsed) return 'Chưa xác định';
+  return `${parsed.getMonth() + 1}/${parsed.getFullYear()}`;
+}
+
+function buildSummaryAverageRow(rows) {
+  const averageRow = {
+    label: 'Trung bình cộng'
+  };
+  const numericFields = ['kgA', 'percentA', 'kgB', 'percentB', 'kgC', 'percentC', 'kgCNoSeed', 'percentCNoSeed'];
+  numericFields.forEach((field) => {
+    const values = rows.map((row) => toNumber(row[field])).filter((value) => Number.isFinite(value));
+    averageRow[field] = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+  });
+  return averageRow;
+}
+
+function applyWorkbookStyle(worksheet, headerRowNumber = 1) {
+  worksheet.properties.defaultColWidth = 18;
+  worksheet.views = [{ state: 'normal' }];
+  worksheet.eachRow((row) => {
+    row.font = { name: 'Calibri', family: 2, size: 11, color: { argb: 'FF1F1F1F' } };
+    row.alignment = { vertical: 'middle', horizontal: 'center' };
+  });
+
+  const headerRow = worksheet.getRow(headerRowNumber);
+  headerRow.font = { name: 'Calibri', family: 2, size: 11, bold: true, color: { argb: 'FF1F1F1F' } };
+  headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9EAF7' } };
+}
+
+function applyNumericFormat(worksheet, columnLetters) {
+  columnLetters.forEach((letter) => {
+    worksheet.getColumn(letter).numFmt = '0.00';
+  });
+}
+
+function exportToExcel() {
+  if (!window.ExcelJS) {
+    showToast('Không thể tải thư viện Excel.', 'error');
+    return;
+  }
+
+  const rows = getActiveWarehouseRows();
+  if (!rows.length) {
+    showToast('Không có dữ liệu để xuất cho kho đang chọn.', 'info');
+    return;
+  }
+
+  const exportBtn = document.getElementById('exportBtn');
+  if (exportBtn) {
+    exportBtn.disabled = true;
+    exportBtn.textContent = 'Đang xuất...';
+  }
+
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Production Data';
+  workbook.created = new Date();
+  workbook.modified = new Date();
+  workbook.properties.date1904 = false;
+
+  const rawHeaders = ['STT', 'Ngày sản xuất', 'Lot', 'Kho', 'RI/DO', 'kg BTP A', '% BTP A', 'kg BTP B', '% BTP B', 'kg BTP C', '% BTP C', 'kg BTP C Không hạt', '% BTP C Không hạt', 'Ngày giờ'];
+  const rawSheet = workbook.addWorksheet('Tổng');
+  rawSheet.columns = rawHeaders.map((title) => ({ header: title, width: 18 }));
+
+  rawSheet.getRow(1).values = rawHeaders;
+  rawSheet.getRow(1).font = { name: 'Calibri', family: 2, size: 11, bold: true };
+  rawSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9EAF7' } };
+  rawSheet.getRow(1).alignment = { horizontal: 'center', vertical: 'middle' };
+
+  rows.forEach((row, rowIndex) => {
+    const line = [
+      row.stt || rowIndex + 1,
       normalizeDateValue(row.productionDate),
       row.lot || '',
       row.warehouse || '',
       row.type || '',
-      row.kgA || '',
-      row.percentA || '',
-      row.kgB || '',
-      row.percentB || '',
-      row.kgC || '',
-      row.percentC || '',
-      row.kgCNoSeed || '',
-      row.percentCNoSeed || '',
+      toNumber(row.kgA),
+      toNumber(row.percentA),
+      toNumber(row.kgB),
+      toNumber(row.percentB),
+      toNumber(row.kgC),
+      toNumber(row.percentC),
+      toNumber(row.kgCNoSeed),
+      toNumber(row.percentCNoSeed),
       row.createdDateTime || ''
     ];
-    lines.push(values.map(escapeCsv).join(','));
+    rawSheet.addRow(line);
   });
 
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = 'production-data.csv';
-  anchor.click();
-  URL.revokeObjectURL(url);
-  showToast('Đã xuất CSV.', 'success');
-  logActivity({ action: 'export', page: 'production', detail: `Xuất ${rows.length} dòng CSV` });
+  rawSheet.eachRow((row) => {
+    row.font = { name: 'Calibri', family: 2, size: 11 };
+  });
+  rawSheet.columns.forEach((column, index) => {
+    const maxLength = Math.max(
+      ...rawSheet.getColumn(index + 1).values.filter((value) => value !== null && value !== undefined).map((value) => String(value).length),
+      12
+    );
+    column.width = Math.min(Math.max(maxLength + 2, 12), 26);
+  });
+  ['F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'].forEach((columnLetter) => {
+    rawSheet.getColumn(columnLetter).numFmt = '0.00';
+    rawSheet.getColumn(columnLetter).alignment = { horizontal: 'right', vertical: 'middle' };
+  });
+
+  const averageSheet = workbook.addWorksheet('Trung bình cộng');
+  averageSheet.columns = [
+    { header: 'Chỉ tiêu', width: 28 },
+    { header: 'Giá trị', width: 18 }
+  ];
+  averageSheet.getRow(1).values = ['Chỉ tiêu', 'Giá trị'];
+  averageSheet.getRow(1).font = { name: 'Calibri', family: 2, size: 11, bold: true };
+  averageSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9EAF7' } };
+  averageSheet.getRow(1).alignment = { horizontal: 'center', vertical: 'middle' };
+
+  const averageValues = buildSummaryAverageRow(rows);
+  const averageFields = [
+    ['kg BTP A', 'kgA'],
+    ['% BTP A', 'percentA'],
+    ['kg BTP B', 'kgB'],
+    ['% BTP B', 'percentB'],
+    ['kg BTP C', 'kgC'],
+    ['% BTP C', 'percentC'],
+    ['kg BTP C Không hạt', 'kgCNoSeed'],
+    ['% BTP C Không hạt', 'percentCNoSeed']
+  ];
+  averageFields.forEach(([title, field]) => {
+    const row = averageSheet.addRow([title, averageValues[field] ?? 0]);
+    row.getCell(2).numFmt = '0.00';
+    row.getCell(2).alignment = { horizontal: 'right', vertical: 'middle' };
+  });
+
+  const targetWarehouses = currentWarehouseFilter === 'all'
+    ? [...new Set(rows.map((row) => String(row.warehouse || '').trim()).filter(Boolean))]
+    : [currentWarehouseFilter];
+
+  targetWarehouses.forEach((warehouseName) => {
+    const warehouseRows = rows.filter((row) => String(row.warehouse || '').trim() === warehouseName);
+    const warehouseSheet = workbook.addWorksheet(sanitizeSheetName(warehouseName || 'Kho chưa xác định'));
+    warehouseSheet.columns = [
+      { header: 'Tháng', width: 18 },
+      { header: 'Số dòng', width: 12 },
+      { header: 'Tổng kg BTP A', width: 18 },
+      { header: 'TB kg BTP A', width: 18 },
+      { header: 'Tổng % BTP A', width: 18 },
+      { header: 'TB % BTP A', width: 18 },
+      { header: 'Tổng kg BTP B', width: 18 },
+      { header: 'TB kg BTP B', width: 18 },
+      { header: 'Tổng % BTP B', width: 18 },
+      { header: 'TB % BTP B', width: 18 },
+      { header: 'Tổng kg BTP C', width: 18 },
+      { header: 'TB kg BTP C', width: 18 },
+      { header: 'Tổng % BTP C', width: 18 },
+      { header: 'TB % BTP C', width: 18 },
+      { header: 'Tổng kg BTP C Không hạt', width: 18 },
+      { header: 'TB kg BTP C Không hạt', width: 18 },
+      { header: 'Tổng % BTP C Không hạt', width: 18 },
+      { header: 'TB % BTP C Không hạt', width: 18 }
+    ];
+    warehouseSheet.getRow(1).values = warehouseSheet.columns.map((column) => column.header);
+    warehouseSheet.getRow(1).font = { name: 'Calibri', family: 2, size: 11, bold: true };
+    warehouseSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9EAF7' } };
+    warehouseSheet.getRow(1).alignment = { horizontal: 'center', vertical: 'middle' };
+
+    const monthlyMap = new Map();
+    warehouseRows.forEach((row) => {
+      const monthKey = monthLabelFromValue(row.productionDate);
+      if (!monthlyMap.has(monthKey)) monthlyMap.set(monthKey, []);
+      monthlyMap.get(monthKey).push(row);
+    });
+
+    [...monthlyMap.entries()].sort((a, b) => {
+      const one = a[0].split('/');
+      const two = b[0].split('/');
+      return new Date(Number(one[1]), Number(one[0]) - 1, 1) - new Date(Number(two[1]), Number(two[0]) - 1, 1);
+    }).forEach(([monthKey, monthRows]) => {
+      const totals = { kgA: 0, kgB: 0, kgC: 0, kgCNoSeed: 0, percentA: 0, percentB: 0, percentC: 0, percentCNoSeed: 0 };
+      monthRows.forEach((row) => {
+        totals.kgA += toNumber(row.kgA);
+        totals.kgB += toNumber(row.kgB);
+        totals.kgC += toNumber(row.kgC);
+        totals.kgCNoSeed += toNumber(row.kgCNoSeed);
+        totals.percentA += toNumber(row.percentA);
+        totals.percentB += toNumber(row.percentB);
+        totals.percentC += toNumber(row.percentC);
+        totals.percentCNoSeed += toNumber(row.percentCNoSeed);
+      });
+      const count = monthRows.length || 1;
+      const rowValues = [
+        monthKey,
+        monthRows.length,
+        totals.kgA,
+        totals.kgA / count,
+        totals.percentA,
+        totals.percentA / count,
+        totals.kgB,
+        totals.kgB / count,
+        totals.percentB,
+        totals.percentB / count,
+        totals.kgC,
+        totals.kgC / count,
+        totals.percentC,
+        totals.percentC / count,
+        totals.kgCNoSeed,
+        totals.kgCNoSeed / count,
+        totals.percentCNoSeed,
+        totals.percentCNoSeed / count
+      ];
+      const monthRow = warehouseSheet.addRow(rowValues);
+      monthRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      monthRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+      for (let i = 3; i <= 18; i += 1) {
+        monthRow.getCell(i).numFmt = '0.00';
+        monthRow.getCell(i).alignment = { horizontal: 'right', vertical: 'middle' };
+      }
+    });
+  });
+
+  workbook.xlsx.writeBuffer().then((buffer) => {
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = getVietnamDateFilename();
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    showToast('Đã xuất Excel thành công.', 'success');
+    logActivity({ action: 'export', page: 'production', detail: `Xuất ${rows.length} dòng Excel` });
+  }).catch((error) => {
+    console.error('[Production] Excel export failed', error);
+    showToast(error.message || 'Không thể xuất file Excel.', 'error');
+  }).finally(() => {
+    if (exportBtn) {
+      exportBtn.disabled = false;
+      exportBtn.textContent = 'Export Excel';
+    }
+  });
 }
 
 // Nhập dữ liệu từ file CSV vào bảng.
@@ -861,6 +1143,14 @@ function bindEvents() {
     element.addEventListener('change', updateQuickLot);
   });
 
+  warehouseFilter?.addEventListener('change', () => {
+    currentWarehouseFilter = warehouseFilter.value || 'all';
+    if (table) {
+      table.setData(getActiveWarehouseRows());
+      updateSummary();
+    }
+  });
+
   quickAddBtn.addEventListener('click', addQuickEntry);
   deleteRowBtn.addEventListener('click', () => {
     if (!canDeleteProductionRows(currentRole)) {
@@ -873,7 +1163,7 @@ function bindEvents() {
     startProductionRealtimeListener();
   });
   importBtn.addEventListener('click', importFromCsv);
-  exportBtn.addEventListener('click', exportToCsv);
+  exportBtn.addEventListener('click', exportToExcel);
   saveBtn.addEventListener('click', saveAllRows);
 }
 
