@@ -5,6 +5,8 @@ import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase
 
 let permissionWarningShown = false;
 
+// Danh sách trang mặc định được bật
+// Dùng khi chưa có cấu hình riêng
 export const DEFAULT_PAGE_ACCESS = {
   dashboard: true,
   profile: true,
@@ -18,6 +20,8 @@ export const DEFAULT_PAGE_ACCESS = {
   devManager: true
 };
 
+// Lấy cấu hình bật tắt trang từ Firestore
+// Nếu lỗi thì trả về cấu hình mặc định
 export async function getPageAccessConfig() {
   try {
     const ref = doc(db, 'settings', 'pageAccessControl');
@@ -33,11 +37,14 @@ export async function getPageAccessConfig() {
   }
 }
 
+// Kiểm tra một trang có đang được bật không
 export async function isPageEnabled(pageKey) {
   const config = await getPageAccessConfig();
   return config[pageKey] !== false;
 }
 
+// Hiển thị cảnh báo không đủ quyền truy cập
+// Chỉ hiện một lần, tránh lặp nhiều bảng
 export function showPermissionWarning({
   title = 'Missing or insufficient permissions.',
   buttonText = 'Back to dashboard',
@@ -69,6 +76,8 @@ export function showPermissionWarning({
   permissionWarningShown = true;
 }
 
+// Kiểm tra quyền vào trang trước khi hiển thị
+// Chặn nếu trang bị developer tắt
 export async function requirePageAccess(user, pageKey) {
   const profile = await getUserProfile(user.uid);
   const role = resolveInitialRole(user.email, profile?.role);
@@ -79,10 +88,12 @@ export async function requirePageAccess(user, pageKey) {
     throw new Error('Trang này đang bị khóa bởi developer.');
   }
 
+  // Admin và dev luôn được vào mọi trang
   if (role === 'dev' || role === 'admin') {
     return { profile, role };
   }
 
+  // Staff chỉ vào được trang có trong danh sách quyền
   const permissions = Array.isArray(profile?.pagePermissions) ? profile.pagePermissions : [];
   if (!permissions.includes(pageKey)) {
     showPermissionWarning();

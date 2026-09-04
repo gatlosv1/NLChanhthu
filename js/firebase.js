@@ -28,6 +28,8 @@ let db;
 let storage;
 let rtdb;
 
+// Khởi tạo Firebase và các dịch vụ liên quan
+// Nếu lỗi thì dùng lại app đã có sẵn
 try {
   app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   analytics = typeof window !== 'undefined' && typeof window.gtag !== 'undefined' ? getAnalytics(app) : null;

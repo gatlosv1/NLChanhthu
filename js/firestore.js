@@ -51,6 +51,8 @@ export async function getUserProfile(uid) {
   }
 }
 
+// Tìm hồ sơ người dùng theo địa chỉ email
+// Dùng khi cần tra cứu thay vì biết uid
 export async function getUserProfileByEmail(email) {
   if (!email) {
     return null;

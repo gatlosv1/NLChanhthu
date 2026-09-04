@@ -2,12 +2,16 @@
 import { createOrUpdateUserProfile, getUserProfile, updateUserProfile } from './firestore.js';
 import { resolveInitialRole } from './roleUtils.js';
 
+// Danh sách trang được vào mặc định
+// Phân theo từng vai trò
 const DEFAULT_PAGE_ACCESS = {
   dev: ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history', 'devManager'],
   admin: ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history'],
   staff: ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'history']
 };
 
+// Đảm bảo user luôn có hồ sơ Firestore
+// Tự sửa vai trò và quyền nếu bị sai lệch
 export async function ensureUserDocument() {
   const authUser = await waitForAuth();
   if (!authUser) return null;
@@ -34,10 +38,13 @@ export async function ensureUserDocument() {
   };
 
   if (!existing) {
+    // Chưa có hồ sơ thì tạo mới hoàn toàn
     await createOrUpdateUserProfile(authUser.uid, baseProfile);
   } else {
+    // Kiểm tra vai trò hoặc quyền có bị lệch không
     const hasMismatch = existing.role !== resolvedRole || JSON.stringify(existing.pagePermissions || []) !== JSON.stringify(defaultPagePermissions);
     if (!existing.role || hasMismatch) {
+      // Lệch thì cập nhật lại cho đúng
       await updateUserProfile(authUser.uid, baseProfile);
     }
   }

@@ -50,16 +50,19 @@ let currentRole = 'staff';
 let activeUsersLoadToken = 0;
 let congTachMuiTeams = [];
 
+// Lấy giá trị đang chọn của một select
 function getSelectedValues(select) {
   if (!select) return [];
   return select.value ? [select.value] : [];
 }
 
+// Lấy toàn bộ quyền trang đang được chọn
 function getAllPagePermissions() {
   const selects = document.querySelectorAll('.page-access-select');
   return [...selects].map((select) => select.value).filter(Boolean);
 }
 
+// Gán giá trị quyền có sẵn vào các select
 function applyPermissionValuesToSelectors(selectors, values = []) {
   const permissionValues = Array.isArray(values) ? values : [];
   selectors.forEach((selector, index) => {
@@ -70,6 +73,7 @@ function applyPermissionValuesToSelectors(selectors, values = []) {
   });
 }
 
+// Hiện ô chọn tổ khi có quyền tách múi
 function toggleTeamField(teamField, contextSelector = '.page-access-select') {
   const selections = Array.from(document.querySelectorAll(contextSelector)).map((select) => select.value).filter(Boolean);
   const visible = selections.includes('congTachMui');
@@ -77,6 +81,8 @@ function toggleTeamField(teamField, contextSelector = '.page-access-select') {
   if (!visible && teamField) teamField.value = '';
 }
 
+// Chuyển danh sách quyền trang thành chuỗi hiển thị
+// Admin và dev mặc định xem như có toàn bộ quyền
 function formatPermissions(user) {
   const hasFullAccess = user.role === 'admin' || user.role === 'dev';
   const permissions = Array.isArray(user.pagePermissions) && user.pagePermissions.length
@@ -85,6 +91,7 @@ function formatPermissions(user) {
   return permissions.map((key) => pagePermissionLabels[key] || key).join(', ') || user.department || 'Chưa phân quyền';
 }
 
+// Tự động điền đủ quyền nếu chọn vai trò admin/dev
 function applyAdminPermissions(roleValue, selectors = ['createUserPermissionOne', 'createUserPermissionTwo', 'createUserPermissionThree']) {
   const isFullAccess = roleValue === 'admin' || roleValue === 'dev';
   selectors.forEach((selector, index) => {
@@ -100,10 +107,13 @@ function applyAdminPermissions(roleValue, selectors = ['createUserPermissionOne'
   });
 }
 
+// Lấy danh sách quyền tính năng đang được tích
 function getSelectedFeaturePermissions(containerSelector = '.permission-checkbox') {
   return [...document.querySelectorAll(containerSelector)].filter((checkbox) => checkbox.checked).map((checkbox) => checkbox.value);
 }
 
+// Xác định quyền tính năng cuối cùng theo vai trò
+// Dev luôn dùng quyền mặc định, không cho chọn
 function resolveFeaturePermissionsForRole(role, selectedValues = []) {
   const defaults = ROLE_DEFAULT_PERMISSIONS[role] || ROLE_DEFAULT_PERMISSIONS.staff;
   if (role === 'dev') return [...defaults];
@@ -111,6 +121,8 @@ function resolveFeaturePermissionsForRole(role, selectedValues = []) {
   return selectedValues.length ? [...selectedValues] : [...defaults];
 }
 
+// Tích sẵn các ô quyền theo vai trò đã chọn
+// Khóa ô tích nếu vai trò là dev
 function setFeaturePermissionsForRole(role, containerSelector = '.permission-checkbox') {
   const allowed = ROLE_DEFAULT_PERMISSIONS[role] || ROLE_DEFAULT_PERMISSIONS.staff;
   document.querySelectorAll(containerSelector).forEach((checkbox) => {
@@ -120,6 +132,7 @@ function setFeaturePermissionsForRole(role, containerSelector = '.permission-che
   });
 }
 
+// Vẽ danh sách tổ vào các ô chọn tổ
 function renderTeamOptions() {
   [createUserTeamId, editUserTeamId].forEach((select) => {
     if (!select) return;

@@ -42,6 +42,7 @@ const DEFAULT_PAGE_ACCESS = {
 
 let pageAccessState = { ...DEFAULT_PAGE_ACCESS };
 
+// Tải trạng thái bật tắt trang từ Firestore
 async function loadPageAccessState() {
   try {
     const ref = doc(db, 'settings', 'pageAccessControl');
@@ -54,6 +55,7 @@ async function loadPageAccessState() {
   }
 }
 
+// Vẽ bảng quản lý bật tắt từng trang
 function renderPageAccessTable() {
   if (!pageAccessTableBody) return;
 
@@ -78,6 +80,7 @@ function renderPageAccessTable() {
   pageAccessTableBody.replaceChildren(...rows);
 }
 
+// Lưu cấu hình bật tắt trang về Firestore
 savePageAccessBtn?.addEventListener('click', async () => {
   try {
     const ref = doc(db, 'settings', 'pageAccessControl');
@@ -88,6 +91,8 @@ savePageAccessBtn?.addEventListener('click', async () => {
   }
 });
 
+// Chuyển đổi trạng thái bật tắt khi bấm nút
+// Chưa lưu ngay, chời bấm nút lưu
 pageAccessTableBody?.addEventListener('click', (event) => {
   const button = event.target.closest('[data-page-toggle]');
   if (!button) return;
@@ -96,6 +101,8 @@ pageAccessTableBody?.addEventListener('click', (event) => {
   renderPageAccessTable();
 });
 
+// Tạo tài khoản mới với vai trò tùy chọn
+// Mặc định là dev nếu không chọn gì
 createDevForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const email = document.getElementById('devEmail').value.trim();

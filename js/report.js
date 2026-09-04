@@ -32,6 +32,7 @@ let processChart;
 let teamChart;
 let shiftChart;
 let allRows = [];
+const teamDisplayNameMap = new Map();
 
 function numberValue(value) {
   const numeric = Number(value);
@@ -118,8 +119,27 @@ function getRowTime(row) {
   );
 }
 
+function resolveTeamDisplayName(value) {
+  if (value === undefined || value === null || value === '') {
+    return 'Chưa phân nhóm';
+  }
+
+  const rawValue = String(value).trim();
+  if (!rawValue) {
+    return 'Chưa phân nhóm';
+  }
+
+  const directMatch = teamDisplayNameMap.get(normalizeKey(rawValue));
+  if (directMatch) {
+    return directMatch;
+  }
+
+  return rawValue;
+}
+
 function getRowTeam(row) {
-  return row.teamId || row.team || row.group || row.teamName || row.to || 'Chưa phân nhóm';
+  const rawValue = row.teamId || row.team || row.group || row.teamName || row.to;
+  return resolveTeamDisplayName(rawValue);
 }
 
 function getRowProcess(row) {
@@ -153,7 +173,10 @@ async function loadCatalogOptions() {
   const catalogNames = ['congTachMuiCatalog', 'nhapLieuSanXuatCatalog'];
   const teamValues = [];
   const processValues = [];
+  teamDisplayNameMap.clear();
 
+  // Duyệt qua từng danh mục trong Firestore
+  // Lấy tên tổ và tên công đoạn
   for (const catalogName of catalogNames) {
     try {
       const snapshot = await getDoc(doc(db, 'settings', catalogName));
@@ -161,8 +184,13 @@ async function loadCatalogOptions() {
       const data = snapshot.data() || {};
       if (Array.isArray(data.teams)) {
         data.teams.forEach((team) => {
-          const teamName = team?.name || team?.id || team;
+          const teamId = team?.id || team;
+          const teamName = team?.name || teamId;
           if (teamName) teamValues.push(teamName);
+          if (teamId) {
+            teamDisplayNameMap.set(normalizeKey(teamId), teamName);
+            teamDisplayNameMap.set(normalizeKey(teamName), teamName);
+          }
         });
       }
       if (Array.isArray(data.processes)) {
@@ -183,6 +211,8 @@ async function loadCatalogOptions() {
   populateSelectOptions(processFilterEl, allProcesses, 'Tất cả');
 }
 
+// Tải toàn bộ dữ liệu từ 3 collection báo cáo
+// Gắn thêm nguồn để sau này lọc theo nguồn
 async function loadDataset() {
   const snapshots = await Promise.all(COLLECTIONS.map(async ({ name }) => {
     try {
@@ -222,6 +252,8 @@ function validateRange(from, to) {
   return { valid: true, diffDays };
 }
 
+// Lọc danh sách dữ liệu theo bộ lọc đang chọn
+// Kiểm tra ngày, nguồn, tổ và công đoạn
 function filterRows(rows, filters) {
   const source = filters.source || 'all';
   const team = (filters.team || 'all').trim();
@@ -235,11 +267,14 @@ function filterRows(rows, filters) {
     const dayKey = formatDateInput(rowDate);
     const dayDate = parseDateInput(dayKey);
     if (!dayDate) return false;
+    // Bỏ qua dòng ngoài khoảng ngày đã chọn
     if (from && dayDate < from) return false;
     if (to && dayDate > to) return false;
 
+    // Bỏ qua dòng không đúng nguồn dữ liệu
     if (source !== 'all' && getRowSourceLabel(row) !== source) return false;
 
+    // So khớp tên tổ hoặc id tổ cũ
     if (team !== 'all') {
       const selectedTeam = normalizeKey(team);
       const rowTeam = normalizeKey(getRowTeam(row));
@@ -247,12 +282,15 @@ function filterRows(rows, filters) {
       if (rowTeam !== selectedTeam && rowTeamId !== selectedTeam) return false;
     }
 
+    // Bỏ qua dòng không đúng công đoạn đã chọn
     if (process !== 'all' && normalizeKey(getRowProcess(row)) !== normalizeKey(process)) return false;
 
     return true;
   });
 }
 
+// Nhóm dữ liệu theo từng ngày trong khoảng lọc
+// Tính tổng BTP, thời gian và năng suất
 function aggregateByDate(rows) {
   const range = { from: parseDateInput(getCurrentFilters().from), to: parseDateInput(getCurrentFilters().to) };
   const start = range.from || new Date();
@@ -293,6 +331,8 @@ function aggregateByDate(rows) {
     .sort((left, right) => (left.key > right.key ? 1 : -1));
 }
 
+// Nhóm dữ liệu theo từng công đoạn
+// Lấy tối đa 8 công đoạn có BTP cao nhất
 function aggregateByProcess(rows) {
   const map = new Map();
   rows.forEach((row) => {
@@ -304,6 +344,8 @@ function aggregateByProcess(rows) {
   return [...map.values()].sort((left, right) => right.value - left.value).slice(0, 8);
 }
 
+// Nhóm dữ liệu theo từng tổ
+// Lấy tối đa 8 tổ có BTP cao nhất
 function aggregateByTeam(rows) {
   const map = new Map();
   rows.forEach((row) => {
@@ -315,6 +357,8 @@ function aggregateByTeam(rows) {
   return [...map.values()].sort((left, right) => right.value - left.value).slice(0, 8);
 }
 
+// Tính tổng BTP theo từng ca làm việc
+// Dùng để vẽ biểu đồ theo ca
 function aggregateByShift(rows) {
   const totals = { 'Ca sáng': 0, 'Ca chiều': 0, 'Ca tối': 0 };
   rows.forEach((row) => {
@@ -326,6 +370,8 @@ function aggregateByShift(rows) {
   return Object.entries(totals).map(([name, value]) => ({ name, value }));
 }
 
+// Tạo dữ liệu biểu đồ đường theo từng tổ
+// Chỉ lấy dữ liệu tách múi trong khoảng ngày đã chọn
 function buildTeamTrendChartData(rows, filters) {
   const start = parseDateInput(filters.from) || new Date();
   const end = parseDateInput(filters.to) || new Date();
@@ -368,8 +414,11 @@ function buildTeamTrendChartData(rows, filters) {
   return { labels: labels.map((day) => day.label), datasets };
 }
 
+// Bảng màu riêng cho từng tổ trên biểu đồ
 const TEAM_COLORS = ['#1267d6', '#1da76e', '#f57c1f', '#6f42c1', '#ef4444', '#14b8a6', '#f59e0b', '#8b5cf6', '#0ea5e9', '#22c55e'];
 
+// Lấy giá trị năng xuất ưu tiên từ một dòng
+// Ưu tiên totalBtp, sau đó mới đến totalProductivity
 function getRowProductivityValue(row) {
   if (row?.totalBtp !== undefined && row?.totalBtp !== null && row?.totalBtp !== '') {
     return numberValue(row.totalBtp);
@@ -380,6 +429,8 @@ function getRowProductivityValue(row) {
   return numberValue(row?.btp ?? row?.kgA ?? row?.kgB ?? row?.kgC ?? row?.kgCNoSeed ?? 0);
 }
 
+// Tính và hiển thị các chỉ số KPI tổng quan
+// Dựa trên dữ liệu đã lọc
 function renderMetrics(rows) {
   let totalBtp = 0;
   let totalTime = 0;
@@ -400,6 +451,7 @@ function renderMetrics(rows) {
   activeGroupsEl.textContent = formatNumber(groups.size, 0);
 }
 
+// Hiển thị bảng chi tiết dữ liệu theo ngày
 function renderDailyTable(dailyData) {
   if (!dailyTableBody) return;
 
@@ -421,10 +473,13 @@ function renderDailyTable(dailyData) {
     .join('');
 }
 
+// Hủy biểu đồ cũ trước khi vẽ biểu đồ mới
 function destroyChart(chart) {
   if (chart) chart.destroy();
 }
 
+// Vẽ lại toàn bộ 4 biểu đồ của trang báo cáo
+// Dữ liệu truyền vào đã được lọc sẵn
 function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData = null) {
   const trendCtx = document.getElementById('trendChart');
   const processCtx = document.getElementById('processChart');
@@ -552,6 +607,8 @@ function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData =
   }
 }
 
+// Xuất dữ liệu đang lọc ra file CSV
+// Dùng để tải về máy người dùng
 function exportCsv(rows) {
   const header = ['Ngày', 'Nguồn', 'Tổ', 'Công đoạn', 'BTP', 'Thời gian', 'Năng suất'];
   const entries = rows.map((row) => [
@@ -577,6 +634,8 @@ function exportCsv(rows) {
   URL.revokeObjectURL(url);
 }
 
+// Hàm chính: lọc dữ liệu và vẽ lại toàn bộ báo cáo
+// Kiểm tra khoảng ngày trước khi xử lý
 async function renderCurrentReport() {
   const filters = getCurrentFilters();
   const validation = validateRange(filters.from, filters.to);
@@ -603,6 +662,8 @@ async function renderCurrentReport() {
   }
 }
 
+// Khởi tạo trang báo cáo khi mới tải
+// Đặt khoảng ngày mặc định rồi tải dữ liệu
 async function initializeReport() {
   const defaultRange = getDefaultDateRange();
   fromDateInput.value = defaultRange.from;
