@@ -920,30 +920,33 @@ function exportToExcel() {
 
   const totalSheet = workbook.addWorksheet('Tổng');
   totalSheet.columns = [
-    { header: 'Chỉ tiêu', width: 28 },
-    { header: 'Giá trị', width: 18 }
+    { header: 'Chỉ tiêu', width: 24 },
+    { header: 'Giá trị', width: 16 },
+    { header: 'Chỉ tiêu', width: 24 },
+    { header: 'Giá trị', width: 16 }
   ];
-  totalSheet.getRow(1).values = ['Chỉ tiêu', 'Giá trị'];
+
+  const totalValues = buildSummaryTotalRow(rows);
+  const summaryRows = [
+    ['kg BTP A', totalValues.kgA ?? 0, '% BTP A', totalValues.percentA ?? 0],
+    ['kg BTP B', totalValues.kgB ?? 0, '% BTP B', totalValues.percentB ?? 0],
+    ['kg BTP C', totalValues.kgC ?? 0, '% BTP C', totalValues.percentC ?? 0],
+    ['kg BTP C Không hạt', totalValues.kgCNoSeed ?? 0, '% BTP C Không hạt', totalValues.percentCNoSeed ?? 0],
+    ['Tổng', (totalValues.kgA ?? 0) + (totalValues.kgB ?? 0) + (totalValues.kgC ?? 0) + (totalValues.kgCNoSeed ?? 0), 'Tổng', 100]
+  ];
+
+  totalSheet.addRow(['Chỉ tiêu', 'Giá trị', 'Chỉ tiêu', 'Giá trị']);
+  summaryRows.forEach((rowValues) => {
+    const row = totalSheet.addRow(rowValues);
+    row.getCell(2).numFmt = '0.00';
+    row.getCell(4).numFmt = '0.00';
+    row.getCell(2).alignment = { horizontal: 'right', vertical: 'middle' };
+    row.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
+  });
+
   totalSheet.getRow(1).font = { name: 'Calibri', family: 2, size: 11, bold: true };
   totalSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9EAF7' } };
   totalSheet.getRow(1).alignment = { horizontal: 'center', vertical: 'middle' };
-
-  const totalValues = buildSummaryTotalRow(rows);
-  const totalFields = [
-    ['kg BTP A', 'kgA'],
-    ['% BTP A', 'percentA'],
-    ['kg BTP B', 'kgB'],
-    ['% BTP B', 'percentB'],
-    ['kg BTP C', 'kgC'],
-    ['% BTP C', 'percentC'],
-    ['kg BTP C Không hạt', 'kgCNoSeed'],
-    ['% BTP C Không hạt', 'percentCNoSeed']
-  ];
-  totalFields.forEach(([title, field]) => {
-    const row = totalSheet.addRow([title, totalValues[field] ?? 0]);
-    row.getCell(2).numFmt = '0.00';
-    row.getCell(2).alignment = { horizontal: 'right', vertical: 'middle' };
-  });
 
   const targetWarehouses = currentWarehouseFilter === 'all'
     ? [...new Set(rows.map((row) => String(row.warehouse || '').trim()).filter(Boolean))]
