@@ -293,7 +293,7 @@ function getDefaultProductionDate() {
 
 // Tính lại các cột phần trăm từ các giá trị kg.
 function updatePercentages(rowData) {
-  const total = Number(rowData.kgA || 0) + Number(rowData.kgB || 0) + Number(rowData.kgC || 0);
+  const total = Number(rowData.kgA || 0) + Number(rowData.kgB || 0) + Number(rowData.kgC || 0) + Number(rowData.kgCNoSeed || 0);
   if (total > 0) {
     rowData.percentA = ((Number(rowData.kgA || 0) / total) * 100).toFixed(2);
     rowData.percentB = ((Number(rowData.kgB || 0) / total) * 100).toFixed(2);
@@ -806,16 +806,16 @@ function monthLabelFromValue(value) {
   return `${parsed.getMonth() + 1}/${parsed.getFullYear()}`;
 }
 
-function buildSummaryAverageRow(rows) {
-  const averageRow = {
-    label: 'Trung bình cộng'
+function buildSummaryTotalRow(rows) {
+  const totalRow = {
+    label: 'Tổng'
   };
   const numericFields = ['kgA', 'percentA', 'kgB', 'percentB', 'kgC', 'percentC', 'kgCNoSeed', 'percentCNoSeed'];
   numericFields.forEach((field) => {
     const values = rows.map((row) => toNumber(row[field])).filter((value) => Number.isFinite(value));
-    averageRow[field] = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+    totalRow[field] = values.reduce((sum, value) => sum + value, 0);
   });
-  return averageRow;
+  return totalRow;
 }
 
 function applyWorkbookStyle(worksheet, headerRowNumber = 1) {
@@ -863,7 +863,7 @@ function exportToExcel() {
   workbook.properties.date1904 = false;
 
   const rawHeaders = ['STT', 'Ngày sản xuất', 'Lot', 'Kho', 'RI/DO', 'kg BTP A', '% BTP A', 'kg BTP B', '% BTP B', 'kg BTP C', '% BTP C', 'kg BTP C Không hạt', '% BTP C Không hạt', 'Ngày giờ'];
-  const rawSheet = workbook.addWorksheet('Tổng');
+  const rawSheet = workbook.addWorksheet('Dữ liệu');
   rawSheet.columns = rawHeaders.map((title) => ({ header: title, width: 18 }));
 
   rawSheet.getRow(1).values = rawHeaders;
@@ -906,18 +906,18 @@ function exportToExcel() {
     rawSheet.getColumn(columnLetter).alignment = { horizontal: 'right', vertical: 'middle' };
   });
 
-  const averageSheet = workbook.addWorksheet('Trung bình cộng');
-  averageSheet.columns = [
+  const totalSheet = workbook.addWorksheet('Tổng');
+  totalSheet.columns = [
     { header: 'Chỉ tiêu', width: 28 },
     { header: 'Giá trị', width: 18 }
   ];
-  averageSheet.getRow(1).values = ['Chỉ tiêu', 'Giá trị'];
-  averageSheet.getRow(1).font = { name: 'Calibri', family: 2, size: 11, bold: true };
-  averageSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9EAF7' } };
-  averageSheet.getRow(1).alignment = { horizontal: 'center', vertical: 'middle' };
+  totalSheet.getRow(1).values = ['Chỉ tiêu', 'Giá trị'];
+  totalSheet.getRow(1).font = { name: 'Calibri', family: 2, size: 11, bold: true };
+  totalSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9EAF7' } };
+  totalSheet.getRow(1).alignment = { horizontal: 'center', vertical: 'middle' };
 
-  const averageValues = buildSummaryAverageRow(rows);
-  const averageFields = [
+  const totalValues = buildSummaryTotalRow(rows);
+  const totalFields = [
     ['kg BTP A', 'kgA'],
     ['% BTP A', 'percentA'],
     ['kg BTP B', 'kgB'],
@@ -927,8 +927,8 @@ function exportToExcel() {
     ['kg BTP C Không hạt', 'kgCNoSeed'],
     ['% BTP C Không hạt', 'percentCNoSeed']
   ];
-  averageFields.forEach(([title, field]) => {
-    const row = averageSheet.addRow([title, averageValues[field] ?? 0]);
+  totalFields.forEach(([title, field]) => {
+    const row = totalSheet.addRow([title, totalValues[field] ?? 0]);
     row.getCell(2).numFmt = '0.00';
     row.getCell(2).alignment = { horizontal: 'right', vertical: 'middle' };
   });
