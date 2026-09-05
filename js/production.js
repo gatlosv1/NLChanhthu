@@ -810,11 +810,23 @@ function buildSummaryTotalRow(rows) {
   const totalRow = {
     label: 'Tổng'
   };
-  const numericFields = ['kgA', 'percentA', 'kgB', 'percentB', 'kgC', 'percentC', 'kgCNoSeed', 'percentCNoSeed'];
-  numericFields.forEach((field) => {
-    const values = rows.map((row) => toNumber(row[field])).filter((value) => Number.isFinite(value));
-    totalRow[field] = values.reduce((sum, value) => sum + value, 0);
-  });
+
+  const kgA = rows.reduce((sum, row) => sum + toNumber(row.kgA), 0);
+  const kgB = rows.reduce((sum, row) => sum + toNumber(row.kgB), 0);
+  const kgC = rows.reduce((sum, row) => sum + toNumber(row.kgC), 0);
+  const kgCNoSeed = rows.reduce((sum, row) => sum + toNumber(row.kgCNoSeed), 0);
+  const totalKg = kgA + kgB + kgC + kgCNoSeed;
+
+  totalRow.kgA = kgA;
+  totalRow.kgB = kgB;
+  totalRow.kgC = kgC;
+  totalRow.kgCNoSeed = kgCNoSeed;
+
+  totalRow.percentA = totalKg > 0 ? (kgA / totalKg) * 100 : 0;
+  totalRow.percentB = totalKg > 0 ? (kgB / totalKg) * 100 : 0;
+  totalRow.percentC = totalKg > 0 ? (kgC / totalKg) * 100 : 0;
+  totalRow.percentCNoSeed = totalKg > 0 ? (kgCNoSeed / totalKg) * 100 : 0;
+
   return totalRow;
 }
 
