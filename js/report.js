@@ -78,17 +78,47 @@ function normalizeKey(value) {
 
 function getRowDateValue(row) {
   const directDate = row?.productionDate || row?.date || row?.ngay || row?.createdAt;
-  if (directDate && typeof directDate === 'string' && directDate.length >= 8) {
-    const parsed = new Date(directDate);
-    if (!Number.isNaN(parsed.getTime())) return parsed;
+
+  if (!directDate) return null;
+
+  if (directDate instanceof Date && !Number.isNaN(directDate.getTime())) {
+    return directDate;
   }
+
   if (directDate && typeof directDate?.toDate === 'function') {
-    return directDate.toDate();
+    const fromTimestamp = directDate.toDate();
+    if (!Number.isNaN(fromTimestamp.getTime())) return fromTimestamp;
   }
-  if (row?.createdAt && typeof row.createdAt === 'string') {
-    const parsed = new Date(row.createdAt);
+
+  if (typeof directDate === 'string') {
+    const value = directDate.trim();
+    if (!value) return null;
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const parsed = new Date(`${value}T00:00:00`);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+      const [day, month, year] = value.split('/').map(Number);
+      const parsed = new Date(year, month - 1, day);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+
+    if (/^\d{2}\/\d{2}\/\d{2}$/.test(value)) {
+      const [day, month, yearShort] = value.split('/').map(Number);
+      let year = yearShort;
+      if (year < 100) {
+        year = year >= 50 ? 1900 + year : 2000 + year;
+      }
+      const parsed = new Date(year, month - 1, day);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+
+    const parsed = new Date(value);
     if (!Number.isNaN(parsed.getTime())) return parsed;
   }
+
   return null;
 }
 
@@ -312,17 +342,69 @@ function aggregateByDate(rows) {
     .sort((left, right) => (left.key > right.key ? 1 : -1));
 }
 
-// Nhóm dữ liệu theo từng công đoạn
-// Lấy tối đa 8 công đoạn có BTP cao nhất
-function aggregateByProcess(rows) {
-  const map = new Map();
+// Nhóm dữ liệu theo 4 loại BTP chính trong collection production
+// Sử dụng để thay thế biểu đồ "Theo công đoạn" bằng tỷ lệ BTP A/B/C/C Không hạt
+function aggregateProductionBtpBreakdown(rows) {
+  const totals = {
+    'BTP A': 0,
+    'BTP B': 0,
+    'BTP C có hạt': 0,
+    'BTP C Không hạt': 0
+  };
+
+  rows
+    .filter((row) => getRowSourceLabel(row) === 'production')
+    .forEach((row) => {
+      totals['BTP A'] += numberValue(row.kgA ?? 0);
+      totals['BTP B'] += numberValue(row.kgB ?? 0);
+      totals['BTP C có hạt'] += numberValue(row.kgC ?? 0);
+      totals['BTP C Không hạt'] += numberValue(row.kgCNoSeed ?? 0);
+    });
+
+  const total = Object.values(totals).reduce((sum, value) => sum + value, 0);
+  if (total <= 0) {
+    return [{ name: 'Không có dữ liệu', value: 1 }];
+  }
+
+  return [
+    { name: 'BTP A', value: totals['BTP A'] },
+    { name: 'BTP B', value: totals['BTP B'] },
+    { name: 'BTP C có hạt', value: totals['BTP C có hạt'] },
+    { name: 'BTP C Không hạt', value: totals['BTP C Không hạt'] }
+  ];
+}
+
+// Tính trung bình BTP theo tuần của từng kho trong collection production
+function aggregateWarehouseWeeklyAverage(rows) {
+  const weekTotals = new Map();
+
   rows.forEach((row) => {
-    const key = getRowProcess(row);
-    const current = map.get(key) || { name: key, value: 0 };
-    current.value += getRowBtp(row);
-    map.set(key, current);
+    const rowDate = getRowDateValue(row);
+    if (!rowDate) return;
+
+    const warehouse = String(row?.warehouse || row?.kho || 'Chưa phân loại').trim() || 'Chưa phân loại';
+    const current = new Date(rowDate);
+    const day = current.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const weekStart = new Date(current);
+    weekStart.setDate(current.getDate() + diffToMonday);
+    weekStart.setHours(0, 0, 0, 0);
+
+    const weekKey = `${formatDateInput(weekStart)}|${warehouse}`;
+    const warehouseMap = weekTotals.get(warehouse) || new Map();
+    const totalThisWeek = warehouseMap.get(weekKey) || 0;
+    warehouseMap.set(weekKey, totalThisWeek + getRowBtp(row));
+    weekTotals.set(warehouse, warehouseMap);
   });
-  return [...map.values()].sort((left, right) => right.value - left.value).slice(0, 8);
+
+  const warehouseAverages = [...weekTotals.entries()].map(([warehouse, byWeek]) => {
+    const weeklyTotals = [...byWeek.values()];
+    const average = weeklyTotals.length ? weeklyTotals.reduce((sum, value) => sum + value, 0) / weeklyTotals.length : 0;
+    return { name: warehouse, value: average };
+  });
+
+  const visible = warehouseAverages.filter((entry) => entry.value > 0).sort((left, right) => right.value - left.value);
+  return visible.length ? visible : [{ name: 'Không có dữ liệu', value: 1 }];
 }
 
 // Nhóm dữ liệu theo từng tổ
@@ -379,18 +461,24 @@ function buildTeamTrendChartData(rows, filters) {
     bucket.set(rowDateKey, (bucket.get(rowDateKey) || 0) + value);
   });
 
-  const datasets = [...teamMap.entries()]
-    .map(([teamName, values], index) => ({
+  const catalogTeams = Array.from(teamFilterEl?.options || [])
+    .map((option) => String(option.value || '').trim())
+    .filter((value) => value && value !== 'all');
+
+  const datasets = catalogTeams.map((teamName, index) => {
+    const values = teamMap.get(teamName) || new Map();
+    return {
       label: teamName,
-      data: labels.map((day) => values.get(day.key) ?? null),
+      data: labels.map((day) => values.get(day.key) ?? 0),
       borderColor: TEAM_COLORS[index % TEAM_COLORS.length],
       backgroundColor: TEAM_COLORS[index % TEAM_COLORS.length],
       borderWidth: 2,
-      tension: 0.35,
+      tension: 0,
       pointRadius: 4,
       pointHoverRadius: 5,
       fill: false
-    }));
+    };
+  });
 
   return { labels: labels.map((day) => day.label), datasets };
 }
@@ -399,13 +487,17 @@ function buildTeamTrendChartData(rows, filters) {
 const TEAM_COLORS = ['#1267d6', '#1da76e', '#f57c1f', '#6f42c1', '#ef4444', '#14b8a6', '#f59e0b', '#8b5cf6', '#0ea5e9', '#22c55e'];
 
 // Lấy giá trị năng xuất ưu tiên từ một dòng
-// Ưu tiên totalBtp, sau đó mới đến totalProductivity
+// Ưu tiên totalProductivity, sau đó mới đến totalBtp nếu không có giá trị năng suất
 function getRowProductivityValue(row) {
-  if (row?.totalBtp !== undefined && row?.totalBtp !== null && row?.totalBtp !== '') {
-    return numberValue(row.totalBtp);
-  }
   if (row?.totalProductivity !== undefined && row?.totalProductivity !== null && row?.totalProductivity !== '') {
     return numberValue(row.totalProductivity);
+  }
+  if (row?.totalBtp !== undefined && row?.totalBtp !== null && row?.totalBtp !== '') {
+    const totalTime = numberValue(row?.totalTime ?? 0);
+    if (totalTime > 0) {
+      return numberValue(row.totalBtp / totalTime);
+    }
+    return numberValue(row.totalBtp);
   }
   return numberValue(row?.btp ?? row?.kgA ?? row?.kgB ?? row?.kgC ?? row?.kgCNoSeed ?? 0);
 }
@@ -482,7 +574,7 @@ function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData =
             data: dailyData.map((entry) => entry.btp),
             borderColor: '#1267d6',
             backgroundColor: 'rgba(18, 103, 214, 0.12)',
-            tension: 0.35,
+            tension: 0,
             fill: true,
             pointRadius: 4
           }
@@ -528,14 +620,20 @@ function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData =
   }
 
   if (processCtx) {
+    const chartLabels = processData.map((entry) => entry.name);
+    const chartValues = processData.map((entry) => entry.value);
+    const chartColors = ['#1267d6', '#1da76e', '#f57c1f', '#6f42c1', '#ef4444', '#0ea5e9', '#14b8a6', '#f59e0b'];
+
+    const isEmpty = !chartValues.length;
+
     processChart = new Chart(processCtx, {
       type: 'doughnut',
       data: {
-        labels: processData.map((entry) => entry.name),
+        labels: isEmpty ? ['Không có dữ liệu'] : chartLabels,
         datasets: [{
           label: 'BTP',
-          data: processData.map((entry) => entry.value),
-          backgroundColor: ['#1267d6', '#1da76e', '#f57c1f', '#6f42c1', '#ef4444', '#0ea5e9', '#14b8a6', '#f59e0b']
+          data: isEmpty ? [1] : chartValues,
+          backgroundColor: isEmpty ? ['#1267d6'] : chartLabels.map((_, index) => chartColors[index % chartColors.length])
         }]
       },
       options: {
@@ -543,10 +641,28 @@ function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData =
         maintainAspectRatio: false,
         cutout: '45%',
         plugins: {
-          legend: { position: 'bottom' },
+          legend: {
+            position: 'bottom',
+            labels: {
+              generateLabels: (chart) => {
+                const dataset = chart.data.datasets[0];
+                if (isEmpty) {
+                  return [{ text: 'Không có dữ liệu', fillStyle: '#1267d6', strokeStyle: '#1267d6', lineWidth: 0, hidden: false, index: 0 }];
+                }
+                return chart.data.labels.map((label, index) => ({
+                  text: label,
+                  fillStyle: dataset.backgroundColor[index] || '#1267d6',
+                  strokeStyle: dataset.backgroundColor[index] || '#1267d6',
+                  lineWidth: 0,
+                  hidden: false,
+                  index
+                }));
+              }
+            }
+          },
           tooltip: {
             callbacks: {
-              label: (context) => `${context.label}: ${formatNumber(context.parsed, 2)}`
+              label: (context) => isEmpty ? 'Không có dữ liệu' : `${context.label}: ${formatNumber(context.parsed, 2)}`
             }
           }
         }
@@ -633,9 +749,11 @@ async function renderCurrentReport() {
   }
 
   const filteredRows = filterRows(allRows, filters);
+  const productionRows = filterRows(allRows.filter((row) => getRowSourceLabel(row) === 'production'), filters);
+  const nhapLieuRows = filterRows(allRows.filter((row) => getRowSourceLabel(row) === 'nhapLieuSanXuat'), filters);
   const congTachMuiRows = filterRows(allRows.filter((row) => getRowSourceLabel(row) === 'congTachMui'), filters);
   const dailyData = aggregateByDate(filteredRows);
-  const processData = aggregateByProcess(filteredRows);
+  const processData = aggregateProductionBtpBreakdown(productionRows);
   const teamData = aggregateByTeam(filteredRows);
   const shiftData = aggregateByShift(filteredRows);
   const teamTrendData = buildTeamTrendChartData(congTachMuiRows, filters);
