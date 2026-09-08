@@ -420,17 +420,20 @@ function aggregateByTeam(rows) {
   return [...map.values()].sort((left, right) => right.value - left.value).slice(0, 8);
 }
 
-// Tính tổng BTP theo từng ca làm việc
-// Dùng để vẽ biểu đồ theo ca
-function aggregateByShift(rows) {
-  const totals = { 'Ca sáng': 0, 'Ca chiều': 0, 'Ca tối': 0 };
+// Tính tổng BTP theo từng công đoạn
+// Dùng để vẽ biểu đồ cột theo công đoạn theo ngày đang lọc
+function aggregateByProcess(rows) {
+  const totals = new Map();
+
   rows.forEach((row) => {
-    const shiftTotals = getShiftTotals(row);
-    totals['Ca sáng'] += shiftTotals['Ca sáng'];
-    totals['Ca chiều'] += shiftTotals['Ca chiều'];
-    totals['Ca tối'] += shiftTotals['Ca tối'];
+    const processName = String(getRowProcess(row) || 'Chưa phân loại').trim() || 'Chưa phân loại';
+    const current = totals.get(processName) || 0;
+    totals.set(processName, current + getRowBtp(row));
   });
-  return Object.entries(totals).map(([name, value]) => ({ name, value }));
+
+  return [...totals.entries()]
+    .map(([name, value]) => ({ name, value }))
+    .sort((left, right) => right.value - left.value);
 }
 
 // Tạo dữ liệu biểu đồ đường theo từng tổ
@@ -693,19 +696,35 @@ function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData =
 
   if (shiftCtx) {
     shiftChart = new Chart(shiftCtx, {
-      type: 'doughnut',
+      type: 'bar',
       data: {
         labels: shiftData.map((entry) => entry.name),
         datasets: [{
+          label: 'Tổng BTP',
           data: shiftData.map((entry) => entry.value),
-          backgroundColor: ['#1267d6', '#1da76e', '#f57c1f']
+          backgroundColor: ['#1267d6', '#1da76e', '#f57c1f', '#6f42c1', '#f59e0b', '#0ea5e9', '#14b8a6', '#ef4444']
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: '50%',
-        plugins: { legend: { position: 'bottom' } }
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (context) => `${context.label}: ${formatNumber(context.parsed.y, 2)}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Công đoạn' }
+          },
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: 'Tổng BTP' }
+          }
+        }
       }
     });
   }
@@ -755,7 +774,7 @@ async function renderCurrentReport() {
   const dailyData = aggregateByDate(filteredRows);
   const processData = aggregateProductionBtpBreakdown(productionRows);
   const teamData = aggregateByTeam(filteredRows);
-  const shiftData = aggregateByShift(filteredRows);
+  const shiftData = aggregateByProcess(filteredRows);
   const teamTrendData = buildTeamTrendChartData(congTachMuiRows, filters);
 
   renderMetrics(filteredRows);
