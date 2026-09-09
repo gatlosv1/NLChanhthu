@@ -553,7 +553,7 @@ async function addNewRow() {
   data = reindexRows([...data, newRow]);
   table.setData(data);
   updateSummary();
-  logActivity({ action: 'delete', page: 'production', detail: `Xóa ${selected.length} dòng sản xuất` });
+  logActivity({ action: 'add', page: 'production', detail: `Thêm dòng mới` });
 }
 
 // Tạo một dòng dữ liệu từ form nhập nhanh và lưu lại.
@@ -684,9 +684,13 @@ async function saveAllRows() {
       .filter((row) => row.firestoreId || row.id)
       .map((row) => String(row.firestoreId || row.id)));
 
+    let skippedCount = 0;
     const savePromises = allRows.map(async (row) => {
       const normalizedRow = normalizeProductionRowForPersistence(row);
-      if (!canPersistProductionRow(normalizedRow)) return;
+      if (!canPersistProductionRow(normalizedRow)) {
+        skippedCount += 1;
+        return;
+      }
 
       const payload = {
         ...buildProductionPayload({
@@ -726,8 +730,12 @@ async function saveAllRows() {
 
     await Promise.all(deletePromises);
 
-    showToast('Đã lưu dữ liệu thành công.', 'success');
-    logActivity({ action: 'save', page: 'production', detail: `Lưu ${rows.length} dòng sản xuất` });
+    if (skippedCount > 0) {
+      showToast(`Đã lưu dữ liệu, nhưng ${skippedCount} dòng thiếu Lot/RI-DO chưa được lưu.`, 'error');
+    } else {
+      showToast('Đã lưu dữ liệu thành công.', 'success');
+    }
+    logActivity({ action: 'save', page: 'production', detail: `Lưu ${allRows.length - skippedCount} dòng sản xuất` });
   } catch (error) {
     showToast(error.message || 'Không thể lưu dữ liệu.', 'error');
   } finally {
@@ -742,13 +750,14 @@ function updateSummary() {
   const numeric = rows.map((row) => ({
     kgA: Number(row.kgA || 0),
     kgB: Number(row.kgB || 0),
-    kgC: Number(row.kgC || 0)
+    kgC: Number(row.kgC || 0),
+    kgCNoSeed: Number(row.kgCNoSeed || 0)
   }));
   summaryRows.textContent = rows.length;
   summaryA.textContent = numeric.reduce((sum, row) => sum + row.kgA, 0).toFixed(2);
   summaryB.textContent = numeric.reduce((sum, row) => sum + row.kgB, 0).toFixed(2);
   summaryC.textContent = numeric.reduce((sum, row) => sum + row.kgC, 0).toFixed(2);
-  summaryCNoSeed.textContent = numeric.reduce((sum, row) => sum + Number(row.kgCNoSeed || 0), 0).toFixed(2);
+  summaryCNoSeed.textContent = numeric.reduce((sum, row) => sum + row.kgCNoSeed, 0).toFixed(2);
 }
 
 // Kích hoạt tự động lưu sau khi bảng thay đổi.
