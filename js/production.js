@@ -23,7 +23,12 @@ import {
 import { hideLoading, showLoading, showToast } from './utils.js?v=20260804-8';
 import { ensureDefaultSettings, getSettingOptions, listenToSettings, SETTING_KEYS } from './settings.js';
 import { canDeleteProductionRows, canEditProductionRows } from './productionPermissions.js';
-import { buildProductionPayload, canPersistProductionRow, normalizeProductionRowForPersistence } from './productionDataUtils.mjs?v=20260804-8';
+import {
+  buildProductionPayload,
+  canPersistProductionRow,
+  getAllRowsForPersistence,
+  normalizeProductionRowForPersistence
+} from './productionDataUtils.mjs?v=20260804-8';
 import { logActivity } from './activityLog.js';
 
 // Lấy các phần tử DOM từ HTML để code có thể thao tác với form, bảng và nút bấm.
