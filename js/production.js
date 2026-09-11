@@ -22,7 +22,7 @@ import {
 // Các hàm hỗ trợ hiển thị loading, toast và thông báo.
 import { hideLoading, showLoading, showToast } from './utils.js?v=20260804-8';
 import { ensureDefaultSettings, getSettingOptions, listenToSettings, SETTING_KEYS } from './settings.js';
-import { canDeleteProductionRows, canEditProductionRows } from './productionPermissions.js';
+import { canDeleteProductionRows, canEditProductionDate, canEditProductionRows } from './productionPermissions.js';
 import {
   buildProductionPayload,
   canPersistProductionRow,
@@ -78,7 +78,7 @@ const columns = [
     const value = cell.getValue();
     return value === null || value === undefined || value === '' ? '' : value;
   } }),
-  readonlyColumn('Ngày sản xuất', 'productionDate', 110, { frozen: true, editor: 'date', editorParams: { format: 'dd/MM/yyyy' }, sorter: 'date', validator: ['required'], editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'input', headerFilterPlaceholder: 'Lọc ngày', headerFilterLiveFilter: true }),
+  readonlyColumn('Ngày sản xuất', 'productionDate', 110, { frozen: true, editor: 'date', editorParams: { format: 'dd/MM/yyyy' }, sorter: 'date', validator: ['required'], editable: () => canEditProductionDate(currentUser, currentRole), headerFilter: 'input', headerFilterPlaceholder: 'Lọc ngày', headerFilterLiveFilter: true }),
   readonlyColumn('Lot', 'lot', 160, { frozen: true, editor: 'input', validator: ['required'], editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'input', headerFilterPlaceholder: 'Lọc lot', headerFilterLiveFilter: true }),
   readonlyColumn('Kho', 'warehouse', 100, { editor: 'input', editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'input', headerFilterPlaceholder: 'Lọc kho', headerFilterLiveFilter: true }),
   readonlyColumn('RI/DO', 'type', 75, { editor: 'select', editorParams: { values: [] }, validator: ['required'], editable: () => canEditProductionRows(currentUser, currentRole), headerFilter: 'select', headerFilterParams: { values: [] }, headerFilterPlaceholder: 'Lọc' }),
@@ -150,8 +150,8 @@ function initTable() {
         {
           label: 'Xóa dòng',
           action: () => {
-            if (currentRole !== 'admin') {
-              showToast('Bạn chỉ có thể nhập dữ liệu, không được xóa.', 'info');
+            if (!canDeleteProductionRows(currentRole)) {
+              showToast('Bạn chỉ có thể xem, không được xóa dữ liệu.', 'info');
               return;
             }
             removeSelectedRows();
@@ -549,12 +549,17 @@ async function ensureAdminCanWrite(actionLabel = 'thêm và đồng bộ dữ li
   const authUser = await waitForAuth();
   currentUser = authUser;
 
-  if (authUser) {
-    return true;
+  if (!authUser) {
+    showToast(`Bạn cần đăng nhập để ${actionLabel}.`, 'info');
+    return false;
   }
 
-  showToast(`Bạn cần đăng nhập để ${actionLabel}.`, 'info');
-  return false;
+  if (!(currentRole === 'admin' || currentRole === 'dev')) {
+    showToast('Chỉ admin/dev mới được thêm hoặc sửa dữ liệu trên trang này.', 'info');
+    return false;
+  }
+
+  return true;
 }
 
 // Thêm một dòng trống cục bộ để người dùng điền thông tin.
