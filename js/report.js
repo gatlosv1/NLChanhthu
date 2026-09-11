@@ -882,6 +882,17 @@ function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData =
     const teamColors = ['#1267d6', '#1da76e', '#f57c1f', '#6f42c1', '#f59e0b', '#10b981', '#ec4899', '#64748b'];
     const teamLabels = teamData.map((entry) => entry.name);
     const teamValues = teamData.map((entry) => entry.value);
+    const chartHeight = Math.max(280, teamLabels.length * 38 + 40);
+    const teamChartInner = teamCtx.closest('.team-chart-inner');
+
+    if (teamChartInner) {
+      teamChartInner.style.height = `${chartHeight}px`;
+      teamChartInner.style.minHeight = `${chartHeight}px`;
+    }
+
+    if (teamCtx) {
+      teamCtx.style.height = `${chartHeight}px`;
+    }
 
     teamChart = new Chart(teamCtx, {
       type: 'bar',
@@ -890,13 +901,18 @@ function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData =
         datasets: [{
           label: 'Tổng BTP trung bình',
           data: teamValues,
-          backgroundColor: teamLabels.map((_, index) => teamColors[index % teamColors.length])
+          backgroundColor: teamLabels.map((_, index) => teamColors[index % teamColors.length]),
+          borderRadius: 6,
+          borderSkipped: false,
+          barThickness: 24,
+          maxBarThickness: 32
         }]
       },
       options: {
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
+        animation: false,
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -921,7 +937,10 @@ function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData =
             title: { display: true, text: 'Tổng BTP trung bình' }
           },
           y: {
-            title: { display: true, text: 'Kho' }
+            title: { display: true, text: 'Kho' },
+            ticks: {
+              autoSkip: false
+            }
           }
         }
       }
