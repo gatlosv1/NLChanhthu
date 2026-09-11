@@ -3,7 +3,7 @@ import { db } from './firebase.js';
 import { requirePageAccess } from './pageAccess.js';
 import { showToast } from './utils.js';
 import { setTeamDisplayNameMap, getRowTeam as resolveRowTeam } from './reportTeamDisplay.js';
-import { collection, doc, getDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+import { collection, doc, getDoc, getDocs, setDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
 const COLLECTIONS = [
   { name: 'production', label: 'Phần trăm BTP' },
@@ -27,12 +27,32 @@ const processFilterEl = document.getElementById('processFilter');
 const sourceFilterEl = document.getElementById('sourceFilter');
 const applyReportFiltersBtn = document.getElementById('applyReportFilters');
 const exportReportBtn = document.getElementById('exportReportBtn');
+const autoReportFromDateInput = document.getElementById('autoReportFromDate');
+const autoReportToDateInput = document.getElementById('autoReportToDate');
+const autoReportEnabledInput = document.getElementById('autoReportEnabled');
+const autoReportSendTimeInput = document.getElementById('autoReportSendTime');
+const autoReportOnlyHasDataInput = document.getElementById('autoReportOnlyHasData');
+const reportRecipientInput = document.getElementById('reportRecipientInput');
+const addReportRecipientBtn = document.getElementById('addReportRecipientBtn');
+const reportRecipientList = document.getElementById('reportRecipientList');
+const sendReportNowBtn = document.getElementById('sendReportNowBtn');
+const previewReportBtn = document.getElementById('previewReportBtn');
+const saveAutoReportConfigBtn = document.getElementById('saveAutoReportConfigBtn');
+const reportPreviewModal = document.getElementById('reportPreviewModal');
+const reportPreviewBody = document.getElementById('reportPreviewBody');
+const reportPreviewSendBtn = document.getElementById('reportPreviewSendBtn');
+const reportPreviewCloseBtn = document.getElementById('reportPreviewCloseBtn');
+const reportPreviewCloseFooterBtn = document.getElementById('reportPreviewCloseFooterBtn');
 
 let reportChart;
 let processChart;
 let teamChart;
 let shiftChart;
 let allRows = [];
+let autoReportRecipients = [];
+let autoReportTimer = null;
+let lastScheduledSendDate = '';
+
 function numberValue(value) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : 0;
@@ -54,6 +74,34 @@ function formatDateInput(date) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function getWeekStart(date) {
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+  const day = target.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  target.setDate(target.getDate() + diff);
+  return target;
+}
+
+function getAutoReportDateRange() {
+  const toValue = parseDateInput(autoReportToDateInput?.value) || new Date();
+  const to = new Date(toValue.getFullYear(), toValue.getMonth(), toValue.getDate());
+  const fromValue = parseDateInput(autoReportFromDateInput?.value);
+  const from = fromValue ? new Date(fromValue.getFullYear(), fromValue.getMonth(), fromValue.getDate()) : getWeekStart(to);
+  return { from: formatDateInput(from), to: formatDateInput(to) };
+}
+
+function getReportDateInputValue() {
+  return autoReportToDateInput?.value || formatDateInput(new Date());
+}
+
+function formatDisplayDate(dateValue) {
+  if (!dateValue) return '';
+  const parsed = parseDateInput(dateValue);
+  if (!parsed) return dateValue;
+  return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(parsed);
 }
 
 function parseDateInput(value) {
@@ -472,13 +520,17 @@ function buildTeamTrendChartData(rows, filters) {
     const values = teamMap.get(teamName) || new Map();
     return {
       label: teamName,
-      data: labels.map((day) => values.get(day.key) ?? 0),
+      data: labels.map((day) => {
+        const v = values.get(day.key);
+        return v === undefined || v === null ? null : v;
+      }),
       borderColor: TEAM_COLORS[index % TEAM_COLORS.length],
       backgroundColor: TEAM_COLORS[index % TEAM_COLORS.length],
       borderWidth: 2,
       tension: 0,
-      pointRadius: 4,
-      pointHoverRadius: 5,
+      spanGaps: true,
+      pointRadius: (ctx) => (ctx.raw == null ? 0 : 4),
+      pointHoverRadius: (ctx) => (ctx.raw == null ? 0 : 5),
       fill: false
     };
   });
@@ -787,6 +839,694 @@ async function renderCurrentReport() {
   }
 }
 
+function getVietnamTime(date = new Date()) {
+  return new Date(date.getTime() + (7 * 60 * 60 * 1000));
+}
+
+function getReportDateWithVietnamTime(date = new Date()) {
+  const vietnamDate = getVietnamTime(date);
+  const year = vietnamDate.getFullYear();
+  const month = String(vietnamDate.getMonth() + 1).padStart(2, '0');
+  const day = String(vietnamDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getSelectedAutoReportCharts() {
+  return Array.from(document.querySelectorAll('#autoReportSection input[type="checkbox"]'))
+    .filter((input) => input.checked && input.value)
+    .map((input) => input.value);
+}
+
+async function persistAutoReportRecipients({ silent = true } = {}) {
+  const ref = doc(db, 'settings', 'autoReportConfig');
+  const payload = {
+    recipients: autoReportRecipients,
+    updatedAt: new Date(),
+    updatedBy: 'report-page'
+  };
+
+  try {
+    await setDoc(ref, payload, { merge: true });
+    if (!silent) showToast('Đã lưu danh sách email nhận báo cáo.', 'success');
+  } catch (error) {
+    console.error('[Report] persistAutoReportRecipients failed', error);
+    if (!silent) showToast('Không thể lưu danh sách email nhận báo cáo.', 'error');
+  }
+}
+
+function renderRecipientList() {
+  if (!reportRecipientList) return;
+  reportRecipientList.innerHTML = '';
+
+  if (!autoReportRecipients.length) {
+    const empty = document.createElement('span');
+    empty.className = 'text-muted small';
+    empty.textContent = 'Chưa có email nào.';
+    reportRecipientList.appendChild(empty);
+    return;
+  }
+
+  autoReportRecipients.forEach((email, index) => {
+    const chip = document.createElement('span');
+    chip.className = 'badge rounded-pill bg-light text-dark border d-inline-flex align-items-center gap-2 px-3 py-2';
+    chip.innerHTML = `${email} <button type="button" class="btn-close btn-close-sm" data-index="${index}" aria-label="Xóa"></button>`;
+    chip.querySelector('button').addEventListener('click', async () => {
+      autoReportRecipients.splice(index, 1);
+      renderRecipientList();
+      await persistAutoReportRecipients({ silent: true });
+    });
+    reportRecipientList.appendChild(chip);
+  });
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email || '').trim());
+}
+
+async function addReportRecipient() {
+  const email = (reportRecipientInput?.value || '').trim();
+  if (!email) {
+    showToast('Vui lòng nhập email.', 'error');
+    return;
+  }
+  if (!isValidEmail(email)) {
+    showToast('Email không hợp lệ.', 'error');
+    return;
+  }
+  if (autoReportRecipients.includes(email)) {
+    showToast('Email này đã có trong danh sách.', 'warning');
+    return;
+  }
+
+  autoReportRecipients.push(email);
+  renderRecipientList();
+  await persistAutoReportRecipients({ silent: true });
+  if (reportRecipientInput) reportRecipientInput.value = '';
+  if (reportRecipientInput) reportRecipientInput.focus();
+}
+
+async function loadAutoReportConfig() {
+  try {
+    const ref = doc(db, 'settings', 'autoReportConfig');
+    const snapshot = await getDoc(ref);
+    if (!snapshot.exists()) {
+      autoReportConfigDefaults();
+      return;
+    }
+
+    const data = snapshot.data() || {};
+    autoReportRecipients = Array.isArray(data.recipients) ? data.recipients.filter(Boolean) : [];
+    if (autoReportEnabledInput) autoReportEnabledInput.checked = Boolean(data.enabled);
+    if (autoReportSendTimeInput) autoReportSendTimeInput.value = data.sendTime || '18:00';
+    if (autoReportOnlyHasDataInput) autoReportOnlyHasDataInput.checked = data.onlyHasData !== false;
+    if (autoReportFromDateInput) autoReportFromDateInput.value = data.fromDate || getAutoReportDateRange().from;
+    if (autoReportToDateInput) autoReportToDateInput.value = data.toDate || getAutoReportDateRange().to;
+    lastScheduledSendDate = data.lastSentDate || '';
+
+    const selectedCharts = Array.isArray(data.selectedCharts) && data.selectedCharts.length
+      ? data.selectedCharts
+      : ['kpi', 'trend', 'btpBreakdown', 'team', 'shift', 'dailyTable'];
+
+    document.querySelectorAll('#autoReportSection input[type="checkbox"]').forEach((input) => {
+      input.checked = selectedCharts.includes(input.value);
+    });
+  } catch (error) {
+    console.warn('[Report] Could not load auto report config', error);
+    autoReportConfigDefaults();
+  }
+  renderRecipientList();
+}
+
+function autoReportConfigDefaults() {
+  autoReportRecipients = [];
+  const defaultRange = getAutoReportDateRange();
+  if (autoReportFromDateInput) autoReportFromDateInput.value = defaultRange.from;
+  if (autoReportToDateInput) autoReportToDateInput.value = defaultRange.to;
+  if (autoReportEnabledInput) autoReportEnabledInput.checked = true;
+  if (autoReportSendTimeInput) autoReportSendTimeInput.value = '18:00';
+  if (autoReportOnlyHasDataInput) autoReportOnlyHasDataInput.checked = true;
+  lastScheduledSendDate = '';
+
+  document.querySelectorAll('#autoReportSection input[type="checkbox"]').forEach((input) => {
+    input.checked = ['kpi', 'trend', 'btpBreakdown', 'team', 'shift', 'dailyTable'].includes(input.value);
+  });
+  renderRecipientList();
+}
+
+async function saveAutoReportConfig({ silent = false } = {}) {
+  const ref = doc(db, 'settings', 'autoReportConfig');
+  const payload = {
+    enabled: Boolean(autoReportEnabledInput?.checked),
+    sendTime: autoReportSendTimeInput?.value || '18:00',
+    onlyHasData: Boolean(autoReportOnlyHasDataInput?.checked),
+    fromDate: autoReportFromDateInput?.value || getAutoReportDateRange().from,
+    toDate: autoReportToDateInput?.value || getAutoReportDateRange().to,
+    selectedCharts: getSelectedAutoReportCharts(),
+    recipients: autoReportRecipients,
+    lastSentDate: lastScheduledSendDate,
+    updatedAt: new Date(),
+    updatedBy: 'report-page'
+  };
+
+  try {
+    await setDoc(ref, payload, { merge: true });
+    if (!silent) showToast('Đã lưu cấu hình báo cáo tự động.', 'success');
+  } catch (error) {
+    console.error('[Report] saveAutoReportConfig failed', error);
+    if (!silent) showToast('Không thể lưu cấu hình báo cáo tự động.', 'error');
+  }
+}
+
+function getChartBase64(chartInstance) {
+  if (!chartInstance || typeof chartInstance.toBase64Image !== 'function') return '';
+  return chartInstance.toBase64Image('image/png', 1).replace(/^data:image\/png;base64,/, '');
+}
+
+function collectSelectedChartImages(selectedCharts) {
+  const chartList = Array.isArray(selectedCharts) ? selectedCharts : getSelectedAutoReportCharts();
+  return {
+    trend: chartList.includes('trend') ? getChartBase64(reportChart) : '',
+    btpBreakdown: chartList.includes('btpBreakdown') ? getChartBase64(processChart) : '',
+    team: chartList.includes('team') ? getChartBase64(teamChart) : '',
+    shift: chartList.includes('shift') ? getChartBase64(shiftChart) : ''
+  };
+}
+
+function buildReportEmailHtml(reportData, selectedCharts, reportDateOrRange, chartsBase64 = null) {
+  const data = reportData || {};
+  const chartList = Array.isArray(selectedCharts) && selectedCharts.length ? selectedCharts : ['kpi', 'trend', 'btpBreakdown', 'team', 'shift', 'dailyTable'];
+  const chartImages = chartsBase64 || collectSelectedChartImages(chartList);
+  const range = reportDateOrRange && typeof reportDateOrRange === 'object' ? reportDateOrRange : null;
+  const fromDate = range?.from || data.from || getAutoReportDateRange().from;
+  const toDate = range?.to || data.to || getAutoReportDateRange().to;
+  const titleText = fromDate && toDate && fromDate !== toDate
+    ? `BÁO CÁO SẢN XUẤT TỪ ${formatDisplayDate(fromDate)} ĐẾN ${formatDisplayDate(toDate)}`
+    : `BÁO CÁO SẢN XUẤT NGÀY ${formatDisplayDate(fromDate || toDate || getReportDateInputValue())}`;
+  const reportDateLabel = fromDate && toDate && fromDate !== toDate
+    ? `${formatDisplayDate(fromDate)} - ${formatDisplayDate(toDate)}`
+    : formatDisplayDate(fromDate || toDate || getReportDateInputValue());
+
+  const formatNumber = (value) => Number(value || 0).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formatPercent = (value) => `${Number(value || 0).toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+
+  const summaryItems = [];
+  if (chartList.includes('kpi')) summaryItems.push('<li>KPI tổng quan: Tổng BTP, Năng suất TB, Tổng thời gian, Số dòng, Số tổ.</li>');
+  if (chartList.includes('trend')) summaryItems.push('<li>Biểu đồ xu hướng theo ngày / theo tổ.</li>');
+  if (chartList.includes('btpBreakdown')) summaryItems.push('<li>Bảng tổng hợp BTP A / B / C / C Không hạt.</li>');
+  if (chartList.includes('team')) summaryItems.push('<li>Tóm tắt theo Tổ.</li>');
+  if (chartList.includes('shift')) summaryItems.push('<li>Tóm tắt theo Ca / công đoạn.</li>');
+  if (chartList.includes('dailyTable')) summaryItems.push('<li>Bảng chi tiết theo ngày.</li>');
+
+  const total = Number(data.totalBtp || 0);
+  const breakdownRows = (data.btpBreakdown || []).map((item) => {
+    const percent = total > 0 ? (Number(item.value || 0) / total) * 100 : 0;
+    return `
+      <tr>
+        <td style="padding:10px 12px; border:1px solid #dfe7e6; color:#1f2937;">${item.name}</td>
+        <td style="padding:10px 12px; border:1px solid #dfe7e6; text-align:right; color:#1f2937;">${formatNumber(item.value)}</td>
+        <td style="padding:10px 12px; border:1px solid #dfe7e6; text-align:right; color:#1f2937;">${formatPercent(percent)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const teamRows = (data.teamData || []).map((item) => `
+    <tr>
+      <td style="padding:10px 12px; border:1px solid #dfe7e6; color:#1f2937;">${item.name}</td>
+      <td style="padding:10px 12px; border:1px solid #dfe7e6; text-align:right; color:#1f2937;">${formatNumber(item.value)}</td>
+    </tr>
+  `).join('');
+
+  const shiftRows = (data.shiftData || []).map((item) => `
+    <tr>
+      <td style="padding:10px 12px; border:1px solid #dfe7e6; color:#1f2937;">${item.name}</td>
+      <td style="padding:10px 12px; border:1px solid #dfe7e6; text-align:right; color:#1f2937;">${formatNumber(item.value)}</td>
+    </tr>
+  `).join('');
+
+  const dailyRows = (data.dailyData || []).map((day) => `
+    <tr>
+      <td style="padding:10px 12px; border:1px solid #dfe7e6; color:#1f2937;">${day.label}</td>
+      <td style="padding:10px 12px; border:1px solid #dfe7e6; text-align:right; color:#1f2937;">${formatNumber(day.btp)}</td>
+      <td style="padding:10px 12px; border:1px solid #dfe7e6; text-align:right; color:#1f2937;">${formatNumber(day.time)}</td>
+      <td style="padding:10px 12px; border:1px solid #dfe7e6; text-align:right; color:#1f2937;">${Number(day.rows || 0).toLocaleString('vi-VN')}</td>
+    </tr>
+  `).join('');
+
+  const companyLogo = 'images/321516476_449770387367145_728949342124126507_n.jpg';
+  const chartMarkup = [];
+  if (chartList.includes('trend') && chartImages.trend) {
+    chartMarkup.push(`<div style="padding:4px 0 10px;"><div style="font-size:16px; font-weight:700; margin:8px 0;">Biểu đồ xu hướng</div><img src="data:image/png;base64,${chartImages.trend}" style="max-width:100%;height:auto;border-radius:12px;display:block;border:1px solid #dfe7e6;" /></div>`);
+  }
+  if (chartList.includes('btpBreakdown') && chartImages.btpBreakdown) {
+    chartMarkup.push(`<div style="padding:4px 0 10px;"><div style="font-size:16px; font-weight:700; margin:8px 0;">Theo loại BTP</div><img src="data:image/png;base64,${chartImages.btpBreakdown}" style="max-width:100%;height:auto;border-radius:12px;display:block;border:1px solid #dfe7e6;" /></div>`);
+  }
+  if (chartList.includes('team') && chartImages.team) {
+    chartMarkup.push(`<div style="padding:4px 0 10px;"><div style="font-size:16px; font-weight:700; margin:8px 0;">Theo Tổ</div><img src="data:image/png;base64,${chartImages.team}" style="max-width:100%;height:auto;border-radius:12px;display:block;border:1px solid #dfe7e6;" /></div>`);
+  }
+  if (chartList.includes('shift') && chartImages.shift) {
+    chartMarkup.push(`<div style="padding:4px 0 10px;"><div style="font-size:16px; font-weight:700; margin:8px 0;">Theo Ca / Công đoạn</div><img src="data:image/png;base64,${chartImages.shift}" style="max-width:100%;height:auto;border-radius:12px;display:block;border:1px solid #dfe7e6;" /></div>`);
+  }
+
+  return `
+    <div style="font-family:Arial, sans-serif; background:#edf7f0; padding:24px; color:#0f172a;">
+      <div style="max-width:860px; margin:0 auto; background:#ffffff; border:1px solid #dfe7e6; border-radius:18px; overflow:hidden; box-shadow:0 8px 22px rgba(15,23,42,.08);">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; background:#ffffff;">
+          <tr>
+            <td style="padding:18px 28px; background:linear-gradient(90deg, #0f6b3b 0%, #1d8f57 100%); border-bottom:1px solid #dfe7e6;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                <tr>
+                  <td style="width:90px; vertical-align:middle; text-align:left;">
+                    <img src="${companyLogo}" alt="Logo Chanh Thu" style="display:block; width:80px; height:80px; border-radius:12px; object-fit:cover; border:2px solid rgba(255,255,255,.5);" />
+                  </td>
+                  <td style="padding-left:12px; color:#ffffff; vertical-align:middle;">
+                    <div style="font-size:16px; font-weight:700; letter-spacing:0.4px; line-height:1.3;">CÔNG TY CỔ PHẦN TẬP ĐOÀN XUẤT - NHẬP KHẨU TRÁI CÂY CHANH THU</div>
+                    <div style="font-size:12px; opacity:0.9; margin-top:4px;">thôn Nam Kỳ, xã Cưor Đăng, tỉnh Đắk Lắk</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:22px 28px 8px; text-align:center;">
+              <div style="font-size:24px; font-weight:700; color:#0f172a; letter-spacing:0.4px;">${titleText}</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:18px 28px 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; font-size:14px;">
+                <tr>
+                  <td style="padding:8px 0; color:#4b5563; width:160px;">Ngày báo cáo</td>
+                  <td style="padding:8px 0; font-weight:700; color:#111827;">${reportDateLabel}</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0; color:#4b5563;">Người gửi</td>
+                  <td style="padding:8px 0; font-weight:700; color:#111827;">Hệ thống Quản lý Nguyên liệu – Chanh Thu</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:18px 28px 6px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate; border-spacing:0;">
+                <tr>
+                  <td style="width:25%; padding:0 8px 12px 0; vertical-align:top;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; background:#eaf7f0; border-left:4px solid #0f6b3b; border-radius:10px; overflow:hidden;">
+                      <tr><td style="padding:14px 12px 8px; font-size:12px; color:#375a46;">Tổng BTP</td></tr>
+                      <tr><td style="padding:0 12px 14px; font-size:24px; font-weight:700; color:#0f172a;">${formatNumber(data.totalBtp)} kg</td></tr>
+                    </table>
+                  </td>
+                  <td style="width:25%; padding:0 8px 12px 0; vertical-align:top;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; background:#eefaf4; border-left:4px solid #12a56f; border-radius:10px; overflow:hidden;">
+                      <tr><td style="padding:14px 12px 8px; font-size:12px; color:#375a46;">Năng suất TB</td></tr>
+                      <tr><td style="padding:0 12px 14px; font-size:24px; font-weight:700; color:#0f172a;">${formatNumber(data.totalTime > 0 ? data.totalBtp / data.totalTime : 0)}</td></tr>
+                    </table>
+                  </td>
+                  <td style="width:25%; padding:0 8px 12px 0; vertical-align:top;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; background:#fff7ed; border-left:4px solid #f59e0b; border-radius:10px; overflow:hidden;">
+                      <tr><td style="padding:14px 12px 8px; font-size:12px; color:#7c4a09;">Tổng thời gian</td></tr>
+                      <tr><td style="padding:0 12px 14px; font-size:24px; font-weight:700; color:#0f172a;">${formatNumber(data.totalTime)}</td></tr>
+                    </table>
+                  </td>
+                  <td style="width:25%; padding:0 0 12px 0; vertical-align:top;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; background:#f4f3ff; border-left:4px solid #7c3aed; border-radius:10px; overflow:hidden;">
+                      <tr><td style="padding:14px 12px 8px; font-size:12px; color:#5545b2;">Số dòng</td></tr>
+                      <tr><td style="padding:0 12px 14px; font-size:24px; font-weight:700; color:#0f172a;">${Number(data.totalRows || 0).toLocaleString('vi-VN')}</td></tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 28px 8px;">
+              <div style="font-size:18px; font-weight:700; color:#0f172a; margin:6px 0 12px;">Bảng tổng hợp BTP A / B / C / C Không hạt</div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:1px solid #dfe7e6; background:#f9fbfa;">
+                <thead>
+                  <tr style="background:#e8f4ee;">
+                    <th style="padding:10px 12px; text-align:left; color:#0f172a; font-size:13px;">Loại</th>
+                    <th style="padding:10px 12px; text-align:right; color:#0f172a; font-size:13px;">Kg</th>
+                    <th style="padding:10px 12px; text-align:right; color:#0f172a; font-size:13px;">%</th>
+                  </tr>
+                </thead>
+                <tbody>${breakdownRows || '<tr><td colspan="3" style="padding:12px; text-align:center; color:#64748b;">Không có dữ liệu</td></tr>'}</tbody>
+              </table>
+            </td>
+          </tr>
+
+          ${chartList.includes('team') ? `
+          <tr>
+            <td style="padding:8px 28px 8px;">
+              <div style="font-size:18px; font-weight:700; color:#0f172a; margin:6px 0 12px;">Tóm tắt theo Tổ</div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:1px solid #dfe7e6; background:#ffffff;">
+                <thead>
+                  <tr style="background:#f3f7f6;">
+                    <th style="padding:10px 12px; text-align:left; color:#0f172a; font-size:13px;">Tổ</th>
+                    <th style="padding:10px 12px; text-align:right; color:#0f172a; font-size:13px;">BTP</th>
+                  </tr>
+                </thead>
+                <tbody>${teamRows || '<tr><td colspan="2" style="padding:12px; text-align:center; color:#64748b;">Không có dữ liệu</td></tr>'}</tbody>
+              </table>
+            </td>
+          </tr>` : ''}
+
+          ${chartList.includes('shift') ? `
+          <tr>
+            <td style="padding:8px 28px 8px;">
+              <div style="font-size:18px; font-weight:700; color:#0f172a; margin:6px 0 12px;">Tóm tắt theo Ca / Công đoạn</div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:1px solid #dfe7e6; background:#ffffff;">
+                <thead>
+                  <tr style="background:#f3f7f6;">
+                    <th style="padding:10px 12px; text-align:left; color:#0f172a; font-size:13px;">Ca / Công đoạn</th>
+                    <th style="padding:10px 12px; text-align:right; color:#0f172a; font-size:13px;">BTP</th>
+                  </tr>
+                </thead>
+                <tbody>${shiftRows || '<tr><td colspan="2" style="padding:12px; text-align:center; color:#64748b;">Không có dữ liệu</td></tr>'}</tbody>
+              </table>
+            </td>
+          </tr>` : ''}
+
+          ${chartList.includes('dailyTable') ? `
+          <tr>
+            <td style="padding:8px 28px 8px;">
+              <div style="font-size:18px; font-weight:700; color:#0f172a; margin:6px 0 12px;">Bảng chi tiết theo ngày</div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:1px solid #dfe7e6; background:#ffffff;">
+                <thead>
+                  <tr style="background:#f3f7f6;">
+                    <th style="padding:10px 12px; text-align:left; color:#0f172a; font-size:13px;">Ngày</th>
+                    <th style="padding:10px 12px; text-align:right; color:#0f172a; font-size:13px;">BTP</th>
+                    <th style="padding:10px 12px; text-align:right; color:#0f172a; font-size:13px;">Thời gian</th>
+                    <th style="padding:10px 12px; text-align:right; color:#0f172a; font-size:13px;">Số dòng</th>
+                  </tr>
+                </thead>
+                <tbody>${dailyRows || '<tr><td colspan="4" style="padding:12px; text-align:center; color:#64748b;">Không có dữ liệu</td></tr>'}</tbody>
+              </table>
+            </td>
+          </tr>` : ''}
+
+          ${chartMarkup.length ? `
+          <tr>
+            <td style="padding:12px 28px 12px;">
+              ${chartMarkup.join('')}
+            </td>
+          </tr>` : ''}
+
+          <tr>
+            <td style="padding:12px 28px 12px;">
+              <div style="font-size:18px; font-weight:700; color:#0f172a; margin:0 0 10px;">Nội dung đã chọn</div>
+              <ul style="margin:0; padding-left:20px; color:#334155; line-height:1.8; font-size:14px;">${summaryItems.join('') || '<li>Không có nội dung nào được chọn.</li>'}</ul>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:12px 28px 28px; border-top:1px solid #e5e7eb; font-size:12px; line-height:1.7; color:#64748b;">
+              Email được gửi tự động từ hệ thống Quản lý Nguyên liệu – Chanh Thu<br />
+              Vui lòng không trả lời email này.
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+async function sendReportEmail({ reportDate, recipients, selectedCharts, filters = getCurrentFilters(), html }) {
+  const summary = buildReportData(
+    filters?.from || getAutoReportDateRange().from,
+    filters?.to || getAutoReportDateRange().to,
+    filters
+  );
+
+  const payload = {
+    reportDate,
+    recipients,
+    selectedCharts,
+    filters,
+    html: html || '',
+    subject: `[Báo cáo sản xuất] ${reportDate} – Tổng BTP: ${formatNumber(summary.totalBtp, 2)} kg`
+  };
+
+  const response = await fetch('https://asia-southeast1-quanlynlchanhthu.cloudfunctions.net/sendProductionReport', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || 'Gửi báo cáo thất bại.');
+  }
+
+  return response.json();
+}
+
+function buildReportData(from, to, filters = getCurrentFilters()) {
+  const fromDate = parseDateInput(from) || parseDateInput(getAutoReportDateRange().from);
+  const toDate = parseDateInput(to) || parseDateInput(getAutoReportDateRange().to);
+  const rows = filterRows(allRows, { ...filters, from: formatDateInput(fromDate), to: formatDateInput(toDate) });
+  const productionRows = rows.filter((row) => getRowSourceLabel(row) === 'production');
+  const dailyData = aggregateByDate(rows);
+  const btpBreakdown = aggregateProductionBtpBreakdown(productionRows);
+  const totalBtp = rows.reduce((sum, row) => sum + getRowBtp(row), 0);
+  const totalTime = rows.reduce((sum, row) => sum + getRowTime(row), 0);
+  const teamData = aggregateByTeam(rows);
+  const shiftData = aggregateByProcess(rows);
+
+  return {
+    from: formatDateInput(fromDate),
+    to: formatDateInput(toDate),
+    totalBtp,
+    totalTime,
+    totalRows: rows.length,
+    activeGroups: new Set(rows.map((row) => getRowTeam(row))).size,
+    dailyData,
+    btpBreakdown,
+    teamData,
+    shiftData,
+    selectedCharts: getSelectedAutoReportCharts()
+  };
+}
+
+async function sendReportNow() {
+  const range = getAutoReportDateRange();
+  const recipients = autoReportRecipients;
+  const selectedCharts = getSelectedAutoReportCharts();
+
+  if (!recipients.length) {
+    showToast('Vui lòng thêm ít nhất 1 email nhận báo cáo.', 'error');
+    return;
+  }
+
+  const fromDate = parseDateInput(range.from);
+  const toDate = parseDateInput(range.to);
+  if (!fromDate || !toDate) {
+    showToast('Khoảng ngày không hợp lệ.', 'error');
+    return;
+  }
+  if (fromDate > toDate) {
+    showToast('Từ ngày không thể lớn hơn Đến ngày.', 'error');
+    return;
+  }
+
+  try {
+    const diffDays = Math.round((toDate - fromDate) / (1000 * 60 * 60 * 24));
+    if (diffDays > MAX_RANGE_DAYS) {
+      showToast(`Khoảng thời gian tối đa là ${MAX_RANGE_DAYS} ngày.`, 'error');
+      return;
+    }
+
+    const filters = getCurrentFilters();
+    const data = buildReportData(range.from, range.to, { ...filters, from: range.from, to: range.to });
+    const chartsBase64 = collectSelectedChartImages(selectedCharts);
+    const html = buildReportEmailHtml(data, selectedCharts, { from: range.from, to: range.to }, chartsBase64);
+
+    if (autoReportOnlyHasDataInput?.checked && !(data.totalRows > 0)) {
+      showToast('Không có dữ liệu trong khoảng thời gian đã chọn. Báo cáo không được gửi.', 'warning');
+      return;
+    }
+
+    await sendReportEmail({
+      reportDate: `${range.from} → ${range.to}`,
+      recipients,
+      selectedCharts,
+      filters: { ...filters, from: range.from, to: range.to },
+      html
+    });
+
+    await setDoc(doc(db, 'reportEmailsLog', `${Date.now()}`), {
+      fromDate: range.from,
+      toDate: range.to,
+      recipients,
+      status: 'sent',
+      sentAt: new Date(),
+      selectedCharts,
+      htmlPreview: html.slice(0, 300),
+      note: 'Email sent via Firebase Function'
+    }, { merge: true });
+
+    showToast('Đã gửi báo cáo thành công.', 'success');
+
+    if (reportPreviewModal) reportPreviewModal.style.display = 'none';
+  } catch (error) {
+    console.error('[Report] send scheduled report failed', error);
+    const message = error?.message || 'Gửi báo cáo thất bại. Vui lòng kiểm tra cấu hình.';
+    showToast(message, 'error');
+  }
+}
+
+async function handleSendReportNow() {
+  return sendReportNow();
+}
+
+function openReportPreview() {
+  const range = getAutoReportDateRange();
+  const fromDate = parseDateInput(range.from);
+  const toDate = parseDateInput(range.to);
+  if (!fromDate || !toDate) {
+    showToast('Khoảng ngày không hợp lệ.', 'error');
+    return;
+  }
+  if (fromDate > toDate) {
+    showToast('Từ ngày không thể lớn hơn Đến ngày.', 'error');
+    return;
+  }
+
+  const diffDays = Math.round((toDate - fromDate) / (1000 * 60 * 60 * 24));
+  if (diffDays > MAX_RANGE_DAYS) {
+    showToast(`Khoảng thời gian tối đa là ${MAX_RANGE_DAYS} ngày.`, 'error');
+    return;
+  }
+
+  const selectedCharts = getSelectedAutoReportCharts();
+  const filters = getCurrentFilters();
+  const data = buildReportData(range.from, range.to, { ...filters, from: range.from, to: range.to });
+  const html = buildReportEmailHtml(data, selectedCharts, { from: range.from, to: range.to }, collectSelectedChartImages(selectedCharts));
+
+  if (reportPreviewBody) reportPreviewBody.innerHTML = html;
+  if (reportPreviewModal) {
+    reportPreviewModal.style.display = 'block';
+    reportPreviewModal.setAttribute('aria-hidden', 'false');
+  }
+}
+
+function closeReportPreview() {
+  if (reportPreviewModal) {
+    reportPreviewModal.style.display = 'none';
+    reportPreviewModal.setAttribute('aria-hidden', 'true');
+  }
+}
+
+function tryAutoSendReportAtSchedule() {
+  const configEnabled = Boolean(autoReportEnabledInput?.checked);
+  if (!configEnabled) return;
+
+  const sendTime = autoReportSendTimeInput?.value || '18:00';
+  if (sendTime !== '18:00') return;
+
+  const now = getVietnamTime(new Date());
+  const hour = now.getHours();
+  const minute = now.getMinutes();
+  const seconds = now.getSeconds();
+  const todayKey = getReportDateWithVietnamTime(now);
+
+  if (hour !== 18 || minute !== 0 || seconds >= 5) return;
+  if (lastScheduledSendDate === todayKey) return;
+
+  const recipients = autoReportRecipients;
+  if (!recipients.length) return;
+
+  const reportDate = todayKey;
+  const filters = getCurrentFilters();
+  const data = buildReportData(reportDate, { ...filters, from: reportDate, to: reportDate });
+  if (autoReportOnlyHasDataInput?.checked && !(data.totalRows > 0)) return;
+
+  lastScheduledSendDate = todayKey;
+  saveAutoReportConfig({ silent: true }).catch(() => {});
+  handleSendReportNow().catch(() => {});
+}
+
+function startAutoReportScheduler() {
+  if (autoReportTimer) {
+    clearInterval(autoReportTimer);
+  }
+
+  autoReportTimer = setInterval(() => {
+    tryAutoSendReportAtSchedule();
+  }, 30000);
+}
+
+async function initializeAutoReportSection() {
+  const defaultRange = getAutoReportDateRange();
+  if (autoReportFromDateInput) autoReportFromDateInput.value = defaultRange.from;
+  if (autoReportToDateInput) autoReportToDateInput.value = defaultRange.to;
+
+  if (addReportRecipientBtn) {
+    addReportRecipientBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      addReportRecipient();
+    });
+  }
+
+  if (reportRecipientInput) {
+    reportRecipientInput.onkeydown = (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addReportRecipient();
+      }
+    };
+    reportRecipientInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addReportRecipient();
+      }
+    });
+  }
+
+  if (sendReportNowBtn) {
+    sendReportNowBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      handleSendReportNow();
+    });
+  }
+
+  if (previewReportBtn) {
+    previewReportBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      openReportPreview();
+    });
+  }
+
+  if (reportPreviewCloseBtn) {
+    reportPreviewCloseBtn.addEventListener('click', closeReportPreview);
+  }
+  if (reportPreviewCloseFooterBtn) {
+    reportPreviewCloseFooterBtn.addEventListener('click', closeReportPreview);
+  }
+  if (reportPreviewSendBtn) {
+    reportPreviewSendBtn.addEventListener('click', async () => {
+      closeReportPreview();
+      await sendReportNow();
+    });
+  }
+
+  if (reportPreviewModal) {
+    reportPreviewModal.addEventListener('click', (event) => {
+      if (event.target === reportPreviewModal) closeReportPreview();
+    });
+  }
+
+  if (saveAutoReportConfigBtn) {
+    saveAutoReportConfigBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      saveAutoReportConfig();
+    });
+  }
+
+  await loadAutoReportConfig();
+  renderRecipientList();
+  startAutoReportScheduler();
+}
+
 // Khởi tạo trang báo cáo khi mới tải
 // Đặt khoảng ngày mặc định rồi tải dữ liệu
 async function initializeReport() {
@@ -796,6 +1536,7 @@ async function initializeReport() {
   await loadCatalogOptions();
   await loadDataset();
   await renderCurrentReport();
+  await initializeAutoReportSection();
 }
 
 applyReportFiltersBtn?.addEventListener('click', async (event) => {
@@ -826,7 +1567,10 @@ watchAuthState(async (user) => {
   }
 
   try {
-    await requirePageAccess(user, 'report');
+    const accessData = await requirePageAccess(user, 'report');
+    const autoSection = document.getElementById('autoReportSection');
+    const isPrivileged = accessData?.role === 'admin' || accessData?.role === 'dev';
+    if (autoSection) autoSection.hidden = !isPrivileged;
     await initializeReport();
   } catch (error) {
     console.error('[Report] Access error', error);

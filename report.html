@@ -80,6 +80,77 @@
           </form>
         </section>
 
+        <section id="autoReportSection" class="card border-0 shadow-sm mb-4" hidden>
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="mb-0 fw-bold">Báo cáo tự động</h5>
+              <span class="badge bg-primary-subtle text-primary">Admin / Dev</span>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="autoReportFromDate">Từ ngày</label>
+                <input id="autoReportFromDate" type="date" class="form-control" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="autoReportToDate">Đến ngày</label>
+                <input id="autoReportToDate" type="date" class="form-control" />
+              </div>
+
+              <div class="col-md-8">
+                <label class="form-label">Chọn nội dung gửi</label>
+                <div class="row g-2">
+                  <div class="col-md-6">
+                    <div class="form-check"><input class="form-check-input" type="checkbox" value="kpi" id="reportOptKpi" checked /><label class="form-check-label" for="reportOptKpi">KPI tổng quan</label></div>
+                    <div class="form-check"><input class="form-check-input" type="checkbox" value="trend" id="reportOptTrend" checked /><label class="form-check-label" for="reportOptTrend">Biểu đồ xu hướng</label></div>
+                    <div class="form-check"><input class="form-check-input" type="checkbox" value="btpBreakdown" id="reportOptBtpBreakdown" checked /><label class="form-check-label" for="reportOptBtpBreakdown">Theo loại BTP</label></div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="form-check"><input class="form-check-input" type="checkbox" value="team" id="reportOptTeam" checked /><label class="form-check-label" for="reportOptTeam">Biểu đồ theo Tổ</label></div>
+                    <div class="form-check"><input class="form-check-input" type="checkbox" value="shift" id="reportOptShift" checked /><label class="form-check-label" for="reportOptShift">Biểu đồ theo Ca</label></div>
+                    <div class="form-check"><input class="form-check-input" type="checkbox" value="dailyTable" id="reportOptDailyTable" checked /><label class="form-check-label" for="reportOptDailyTable">Bảng chi tiết theo ngày</label></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <label class="form-label">Danh sách Gmail nhận báo cáo</label>
+              <div class="input-group">
+                <input id="reportRecipientInput" type="email" class="form-control" placeholder="example@gmail.com" />
+                <button id="addReportRecipientBtn" type="button" class="btn btn-outline-primary">Thêm</button>
+              </div>
+              <div id="reportRecipientList" class="d-flex flex-wrap gap-2 mt-3"></div>
+            </div>
+
+            <div class="row g-3 mt-2 align-items-end">
+              <div class="col-md-4">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="autoReportEnabled" />
+                  <label class="form-check-label" for="autoReportEnabled">Bật gửi tự động mỗi ngày</label>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="autoReportSendTime">Giờ gửi</label>
+                <input id="autoReportSendTime" type="time" class="form-control" value="18:00" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="autoReportOnlyHasData">Chỉ gửi nếu có dữ liệu</label>
+                <div class="form-check form-switch mt-2">
+                  <input class="form-check-input" type="checkbox" id="autoReportOnlyHasData" checked />
+                  <label class="form-check-label" for="autoReportOnlyHasData">Có dữ liệu trong ngày</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-4 flex-wrap">
+              <button id="sendReportNowBtn" type="button" class="btn btn-primary">Gửi báo cáo ngay</button>
+              <button id="previewReportBtn" type="button" class="btn btn-outline-primary">Xem trước báo cáo</button>
+              <button id="saveAutoReportConfigBtn" type="button" class="btn btn-outline-success">Lưu cấu hình tự động</button>
+            </div>
+          </div>
+        </section>
+
         <section class="row g-3 mb-4 metrics-grid">
           <div class="col-12 col-md-6 col-xl-3">
             <div class="metric-card blue">
@@ -175,6 +246,22 @@
           </div>
         </section>
       </main>
+    </div>
+
+    <div id="reportPreviewModal" class="modal fade show" tabindex="-1" style="display:none; background:rgba(15,23,42,.45); position:fixed; inset:0; z-index:1055; overflow-y:auto;">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document" style="margin:24px auto; max-width:1100px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius:16px; overflow:hidden;">
+          <div class="modal-header bg-success-subtle px-4 py-3">
+            <h5 class="modal-title fw-bold text-success-emphasis mb-0">Xem trước báo cáo</h5>
+            <button id="reportPreviewCloseBtn" type="button" class="btn-close" aria-label="Đóng"></button>
+          </div>
+          <div id="reportPreviewBody" class="modal-body p-0 bg-light"></div>
+          <div class="modal-footer justify-content-between px-4 py-3">
+            <button id="reportPreviewCloseFooterBtn" type="button" class="btn btn-outline-secondary">Đóng</button>
+            <button id="reportPreviewSendBtn" type="button" class="btn btn-primary">Gửi ngay từ bản xem trước</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>

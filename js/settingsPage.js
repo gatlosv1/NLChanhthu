@@ -32,6 +32,7 @@ let stopSettingsListener = null;
 let stopCongTachMuiCatalogListener = null;
 let stopNhapLieuSanXuatCatalogListener = null;
 
+// Hiển thị danh sách các mục trong catalog của Năng xuất tách múi trên giao diện.
 function renderCongTachMuiCatalog() {
   const teamsList = document.getElementById('congTachMuiTeamsList');
   const processesList = document.getElementById('congTachMuiProcessesList');
@@ -47,11 +48,13 @@ function renderCongTachMuiCatalog() {
   render(shiftsList, congTachMuiCatalog.shifts, (shift) => `${shift.id} - ${shift.name}`);
 }
 
+// Lưu dữ liệu catalog Năng xuất tách múi xuống Firestore và ghi log hoạt động.
 async function saveCongTachMuiCatalog() {
   await setDoc(congTachMuiCatalogRef, congTachMuiCatalog, { merge: true });
   logActivity({ action: 'save', page: 'settings', detail: 'Cập nhật danh mục Năng xuất tách múi' });
 }
 
+// Thiết lập listener và form để người dùng thêm dữ liệu cho catalog Năng xuất tách múi.
 function setupCongTachMuiCatalog() {
   if (stopCongTachMuiCatalogListener) stopCongTachMuiCatalogListener();
   stopCongTachMuiCatalogListener = onSnapshot(congTachMuiCatalogRef, (snapshot) => {
@@ -81,6 +84,7 @@ function setupCongTachMuiCatalog() {
   getDoc(congTachMuiCatalogRef).then((snapshot) => { if (!snapshot.exists()) saveCongTachMuiCatalog(); });
 }
 
+// Cập nhật ngày giờ thực tế hiển thị trong phần catalog Năng xuất tách múi.
 function updateCongTachMuiRealtimeDate() {
   const target = document.getElementById('congTachMuiRealtimeDate');
   if (!target) return;
@@ -90,6 +94,7 @@ function updateCongTachMuiRealtimeDate() {
 updateCongTachMuiRealtimeDate();
 setInterval(updateCongTachMuiRealtimeDate, 1000);
 
+// Hiển thị danh sách các mục trong catalog của Năng suất sản xuất trên giao diện.
 function renderNhapLieuSanXuatCatalog() {
   const processesList = document.getElementById('nhapLieuSanXuatProcessesList');
   const typesList = document.getElementById('nhapLieuSanXuatTypesList');
@@ -101,11 +106,13 @@ function renderNhapLieuSanXuatCatalog() {
   render(typesList, nhapLieuSanXuatCatalog.types, (value) => value);
 }
 
+// Lưu dữ liệu catalog Năng suất sản xuất xuống Firestore và ghi log hoạt động.
 async function saveNhapLieuSanXuatCatalog() {
   await setDoc(nhapLieuSanXuatCatalogRef, nhapLieuSanXuatCatalog, { merge: true });
   logActivity({ action: 'save', page: 'settings', detail: 'Cập nhật danh mục Năng suất sản xuất' });
 }
 
+// Thiết lập listener và form để người dùng thêm dữ liệu cho catalog Năng suất sản xuất.
 function setupNhapLieuSanXuatCatalog() {
   if (stopNhapLieuSanXuatCatalogListener) stopNhapLieuSanXuatCatalogListener();
   stopNhapLieuSanXuatCatalogListener = onSnapshot(nhapLieuSanXuatCatalogRef, (snapshot) => {
@@ -120,7 +127,7 @@ function setupNhapLieuSanXuatCatalog() {
   }));
   getDoc(nhapLieuSanXuatCatalogRef).then((snapshot) => { if (!snapshot.exists()) saveNhapLieuSanXuatCatalog(); });
 }
-// Hàm hiển thị danh sách.
+// Hiển thị danh sách mục của một nhóm danh mục với nút sửa/xóa.
 function renderList(key, items) {
   const container = lists[key];
   if (!container) return;
@@ -168,13 +175,13 @@ function renderList(key, items) {
   });
   container.replaceChildren(...rows);
 }
-// Hàm hiển thị toàn bộ danh sách.
+// Hiển thị lại tất cả các nhóm danh mục đang có trong settingsState.
 function renderAll() {
   Object.entries(lists).forEach(([key, container]) => {
     renderList(key, settingsState[key] || []);
   });
 }
-// Hàm thiết lập quyền truy cập.
+// Thiết lập trạng thái truy cập theo quyền admin hoặc không admin.
 function setAccess(isAdmin) {
   if (!isAdmin) {
     const accessPage = document.createElement('div');
@@ -200,7 +207,7 @@ function setAccess(isAdmin) {
   Object.values(forms).forEach((form) => form?.classList.remove('d-none'));
   Object.values(lists).forEach((container) => container?.classList.remove('opacity-50'));
 }
-// Hàm xử lý gửi biểu mẫu.
+// Xử lý khi người dùng submit form thêm mới mục vào danh mục.
 async function handleSubmit(key, event) {
   event.preventDefault();
   if (currentRole !== 'admin') {
@@ -226,7 +233,7 @@ async function handleSubmit(key, event) {
   logActivity({ action: 'save', page: 'settings', detail: `Thêm mục danh mục ${key}` });
   showToast('Đã thêm mục mới.', 'success');
 }
-// Hàm xử lý xóa mục.
+// Xóa một mục trong danh mục đang chọn nếu người dùng có quyền.
 async function handleDelete(key, index) {
   if (currentRole !== 'admin') {
     showToast('Bạn không có quyền chỉnh sửa danh mục.', 'error');
@@ -242,7 +249,7 @@ async function handleDelete(key, index) {
   showToast('Đã xóa mục.', 'success');
   logActivity({ action: 'delete', page: 'settings', detail: `Xóa mục danh mục ${key}` });
 }
-// Hàm xử lý chỉnh sửa mục.
+// Chỉnh sửa mã và tên của một mục trong danh mục đã chọn.
 async function handleEdit(key, index) {
   if (currentRole !== 'admin') {
     showToast('Bạn không có quyền chỉnh sửa danh mục.', 'error');
@@ -263,7 +270,7 @@ async function handleEdit(key, index) {
   showToast('Đã cập nhật mục.', 'success');
   logActivity({ action: 'edit', page: 'settings', detail: `Sửa mục danh mục ${key}` });
 }
-// Hàm khởi tạo.
+// Khởi tạo luồng chính của trang cài đặt: load dữ liệu, bind form và kiểm tra quyền truy cập.
 async function initialize() {
   await ensureDefaultSettings();
   stopSettingsListener = listenToSettings((state) => {

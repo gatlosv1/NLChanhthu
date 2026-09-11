@@ -46,6 +46,7 @@ export function buildProductionPayload(row = {}, ownerId = '') {
   };
 }
 
+// Gộp các dòng đang hiển thị với các dòng còn lại chưa hiện trên giao diện để chuẩn bị lưu lên Firestore.
 export function getAllRowsForPersistence(allRows = [], visibleRows = []) {
   const visibleIds = new Set(visibleRows
     .map((row) => String(row?.firestoreId || row?.id || '').trim())

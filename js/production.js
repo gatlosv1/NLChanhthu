@@ -36,6 +36,7 @@ const tableEl = document.getElementById('productionTable');
 const quickManufacturer = document.getElementById('quickManufacturer');
 const quickRegion = document.getElementById('quickRegion');
 const quickWarehouse = document.getElementById('quickWarehouse');
+const quickProductionDate = document.getElementById('quickProductionDate');
 const warehouseFilter = document.getElementById('warehouseFilter');
 const quickMaterialKind = document.getElementById('quickMaterialKind');
 const quickLot = document.getElementById('quickLot');
@@ -359,6 +360,7 @@ function reindexRows(rows) {
   }));
 }
 
+// Chuyển đổi document Firestore thành 1 dòng dữ liệu tương ứng trong bảng sản xuất.
 function mapDocToRow(docItem, index) {
   const rowData = docItem.data();
   const row = {
@@ -387,6 +389,7 @@ function mapDocToRow(docItem, index) {
   return updatePercentages(row);
 }
 
+// Định dạng timestamp thành chuỗi ngày giờ theo ngôn ngữ Việt Nam để hiển thị trên bảng.
 function formatDateTimeForDisplay(value) {
   if (!value) return '';
   const date = value?.toDate ? value.toDate() : new Date(value);
@@ -394,12 +397,35 @@ function formatDateTimeForDisplay(value) {
   return date.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
 }
 
+// Chuẩn hóa ngày sản xuất từ nhiều dạng đầu vào thành định dạng ISO yyyy-mm-dd.
+function normalizeProductionDateValue(value) {
+  if (!value) return '';
+  const stringValue = String(value).trim();
+  if (!stringValue) return '';
+
+  if (stringValue.includes('/')) {
+    const [day, month, year] = stringValue.split('/');
+    if (day && month && year) {
+      return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+  }
+
+  const isoDate = new Date(stringValue);
+  if (!Number.isNaN(isoDate.getTime())) {
+    return isoDate.toISOString().slice(0, 10);
+  }
+
+  return stringValue.slice(0, 10);
+}
+
+// Lấy các dòng dữ liệu thuộc kho đang được chọn hiện tại.
 function getActiveWarehouseRows() {
   if (currentWarehouseFilter === 'all') return [...data];
   const selectedWarehouse = String(currentWarehouseFilter || '').trim();
   return data.filter((row) => String(row.warehouse || '').trim() === selectedWarehouse);
 }
 
+// Tạo lại danh sách tùy chọn kho trong bộ lọc dựa trên dữ liệu hiện có.
 function renderWarehouseFilterOptions() {
   if (!warehouseFilter) return;
 
@@ -422,6 +448,7 @@ function renderWarehouseFilterOptions() {
   }
 }
 
+// Áp dụng danh sách dòng dữ liệu vào bảng và cập nhật lại bộ lọc kho và tổng kết.
 function applyRowsToTable(rows) {
   data = reindexRows(rows);
   renderWarehouseFilterOptions();
@@ -431,6 +458,7 @@ function applyRowsToTable(rows) {
   }
 }
 
+// Dừng listener realtime hiện tại để tránh lặp dữ liệu hoặc rò rỉ listener.
 function stopProductionRealtimeListener() {
   if (productionUnsubscribe) {
     productionUnsubscribe();
@@ -438,6 +466,7 @@ function stopProductionRealtimeListener() {
   }
 }
 
+// Bắt đầu theo dõi dữ liệu sản xuất theo thời gian thực từ Firestore và cập nhật bảng.
 async function startProductionRealtimeListener() {
   stopProductionRealtimeListener();
 
@@ -538,7 +567,7 @@ async function addNewRow() {
   const newRow = {
     id: `${user.uid}-${Date.now()}`,
     stt: data.length + 1,
-    productionDate: getDefaultProductionDate(),
+    productionDate: quickProductionDate.value || getDefaultProductionDate(),
     lot: '',
     type: 'RI',
     kgA: '',
@@ -567,11 +596,13 @@ async function addQuickEntry() {
     return;
   }
 
+  const productionDateValue = quickProductionDate.value || getDefaultProductionDate();
+
   const generatedLot = generateLot({
     materialType: quickMaterialKind.value,
     manufacturer: quickManufacturer.value,
     region: quickRegion.value,
-    productionDate: getDefaultProductionDate(),
+    productionDate: productionDateValue,
     warehouse: quickWarehouse.value,
     materialKind: quickMaterialKind.value,
     type: quickType.value
@@ -580,7 +611,7 @@ async function addQuickEntry() {
   const normalizedRow = normalizeProductionRowForPersistence({
     lot: quickLot.value,
     type: quickType.value,
-    productionDate: getDefaultProductionDate(),
+    productionDate: productionDateValue,
     warehouse: quickWarehouse.value
   });
 
@@ -592,7 +623,7 @@ async function addQuickEntry() {
   const newRow = {
     id: `${Date.now()}`,
     stt: data.length + 1,
-    productionDate: getDefaultProductionDate(),
+    productionDate: productionDateValue,
     lot: normalizedRow.lot,
     type: normalizedRow.type,
     kgA: quickKgA.value || '',
@@ -617,6 +648,7 @@ async function addQuickEntry() {
   quickManufacturer.value = '';
   quickRegion.value = '';
   quickWarehouse.value = '';
+  quickProductionDate.value = getDefaultProductionDate();
   quickKgA.value = '';
   quickKgB.value = '';
   quickKgC.value = '';
@@ -779,6 +811,7 @@ function escapeCsv(value) {
   return /[",\n]/.test(stringValue) ? `"${stringValue.replace(/"/g, '""')}"` : stringValue;
 }
 
+// Tạo tên file Excel theo thời gian hiện tại theo định dạng Việt Nam.
 function getVietnamDateFilename() {
   const now = new Date(Date.now() + (7 * 60 * 60 * 1000));
   const yyyy = now.getUTCFullYear();
@@ -787,16 +820,19 @@ function getVietnamDateFilename() {
   return `phan-tram-btp-${yyyy}-${mm}-${dd}.xlsx`;
 }
 
+// Làm sạch tên sheet để tránh các ký tự không hợp lệ trong Excel.
 function sanitizeSheetName(name) {
   const safeName = String(name || 'Sheet').replace(/[\\/:*?\[\]]/g, ' ').trim();
   return safeName.slice(0, 31) || 'Sheet';
 }
 
+// Chuyển đổi giá trị sang số, nếu không hợp lệ thì trả về 0.
 function toNumber(value) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
+// Phân tích giá trị ngày từ chuỗi hoặc đối tượng Date để chuẩn hóa cho Excel.
 function parseDateFromValue(value) {
   if (!value) return null;
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
@@ -814,12 +850,14 @@ function parseDateFromValue(value) {
   return null;
 }
 
+// Chuyển đổi ngày thành nhãn tháng dạng m/yyyy để nhóm dữ liệu theo tháng.
 function monthLabelFromValue(value) {
   const parsed = parseDateFromValue(value);
   if (!parsed) return 'Chưa xác định';
   return `${parsed.getMonth() + 1}/${parsed.getFullYear()}`;
 }
 
+// Tạo dòng tổng hợp các chỉ số kg và phần trăm cho toàn bộ dữ liệu đang chọn.
 function buildSummaryTotalRow(rows) {
   const totalRow = {
     label: 'Tổng'
@@ -844,6 +882,7 @@ function buildSummaryTotalRow(rows) {
   return totalRow;
 }
 
+// Áp dụng kiểu dáng cơ bản cho sheet Excel, bao gồm font và căn chỉnh ô.
 function applyWorkbookStyle(worksheet, headerRowNumber = 1) {
   worksheet.properties.defaultColWidth = 18;
   worksheet.views = [{ state: 'normal' }];
@@ -858,12 +897,14 @@ function applyWorkbookStyle(worksheet, headerRowNumber = 1) {
   headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9EAF7' } };
 }
 
+// Áp dụng định dạng số có 2 chữ số thập phân cho các cột được chỉ định.
 function applyNumericFormat(worksheet, columnLetters) {
   columnLetters.forEach((letter) => {
     worksheet.getColumn(letter).numFmt = '0.00';
   });
 }
 
+// Xuất dữ liệu sản xuất hiện tại ra file Excel theo cấu trúc tổng, dữ liệu và theo kho.
 function exportToExcel() {
   if (!window.ExcelJS) {
     showToast('Không thể tải thư viện Excel.', 'error');
@@ -1152,6 +1193,7 @@ function renderCategorySelects() {
   renderOptions(quickType, '-- Chọn loại sản phẩm --', typeOptions);
 }
 
+// Cập nhật đồng hồ thời gian thực hiển thị trên giao diện.
 function updateRealtimeClock() {
   if (!realtimeClock) return;
   const now = new Date();
@@ -1166,6 +1208,7 @@ function updateRealtimeClock() {
   realtimeClock.textContent = value;
 }
 
+// Gắn các sự kiện cho các ô nhập nhanh, bộ lọc kho và các nút thao tác chính trên trang.
 function bindEvents() {
   [quickManufacturer, quickRegion, quickWarehouse, quickMaterialKind, quickType].forEach((element) => {
     element.addEventListener('input', updateQuickLot);
@@ -1196,6 +1239,7 @@ function bindEvents() {
   saveBtn.addEventListener('click', saveAllRows);
 }
 
+// Đồng bộ danh mục cài đặt và cập nhật danh sách giá trị cho cột loại sản phẩm trong bảng.
 async function startSettingsSync() {
   if (stopSettingsListener) {
     stopSettingsListener();
@@ -1215,6 +1259,7 @@ async function startSettingsSync() {
   });
 }
 
+// Đăng ký các sự kiện để khởi động lại đồng bộ dữ liệu danh mục khi có cập nhật hoặc lưu vào bộ nhớ cục bộ.
 function bindSettingsSyncEvents() {
   window.addEventListener('catalog-updated', () => {
     startSettingsSync();
