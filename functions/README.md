@@ -9,22 +9,33 @@ firebase login
 firebase deploy --only "functions" --project quanlynlchanhthu
 ```
 
-## 2) Set environment variables
+## 2) Set up the real Gmail sender account
 
-Set these in Firebase Functions config before using email sending:
+Use a dedicated Gmail sending account, not the admin login account.
+
+1. Open the Gmail account you want to use for sending reports.
+2. Enable 2-Step Verification.
+3. Create an App Password.
+4. Set it in Firebase Functions:
 
 ```bash
 firebase functions:config:set \
-  gmail.user="your-gmail@gmail.com" \
-  gmail.pass="your-app-password"
+  gmail.user="report.sender@gmail.com" \
+  gmail.pass="abcd-efgh-ijkl-mnop"
 ```
 
-Then read them in code as:
+You can also set the Zapier secret:
+
+```bash
+firebase functions:config:set zapier.secret="myStrongZapierSecret123"
+```
+
+Then the function uses:
 
 ```js
-process.env.GMAIL_USER
-process.env.GMAIL_PASS
-process.env.ZAPIER_SECRET
+functions.config().gmail.user
+functions.config().gmail.pass
+functions.config().zapier.secret
 ```
 
 ## 2) Your webhook endpoint

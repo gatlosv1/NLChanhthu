@@ -8,8 +8,17 @@ import {
   onAuthStateChanged,
   setPersistence,
   browserLocalPersistence,
-  browserSessionPersistence
+  browserSessionPersistence,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: 'select_account'
+});
 
 let authReadyPromise = null;
 // Khởi tạo promise chờ Auth sẵn sàng để tái sử dụng trong các hàm khác.
@@ -64,6 +73,25 @@ export async function loginAnonymously() {
     throw new Error('Firebase Auth chưa sẵn sàng. Vui lòng tải lại trang hoặc kiểm tra cấu hình Firebase.');
   }
   return signInAnonymously(auth);
+}
+// Đăng nhập bằng tài khoản Google.
+export async function loginWithGoogle() {
+  if (!auth) {
+    throw new Error('Firebase Auth chưa sẵn sàng. Vui lòng tải lại trang hoặc kiểm tra cấu hình Firebase.');
+  }
+
+  try {
+    return await signInWithPopup(auth, googleProvider);
+  } catch (error) {
+    const isPopupBlocked = error?.code === 'auth/popup-blocked' || error?.code === 'auth/cancelled-popup-request';
+
+    if (isPopupBlocked) {
+      await signInWithRedirect(auth, googleProvider);
+      return await getRedirectResult(auth);
+    }
+
+    throw error;
+  }
 }
 // Tạo tài khoản mới bằng email và mật khẩu.
 export async function signUpWithEmailPassword(email, password) {

@@ -1,4 +1,4 @@
-import { watchAuthState } from './auth.js';
+import { watchAuthState, loginWithGoogle, getCurrentUser, logout } from './auth.js';
 import { db } from './firebase.js';
 import { requirePageAccess } from './pageAccess.js';
 import { showToast } from './utils.js';
@@ -35,6 +35,9 @@ const autoReportOnlyHasDataInput = document.getElementById('autoReportOnlyHasDat
 const reportRecipientInput = document.getElementById('reportRecipientInput');
 const addReportRecipientBtn = document.getElementById('addReportRecipientBtn');
 const reportRecipientList = document.getElementById('reportRecipientList');
+const googleSignInBtn = document.getElementById('googleSignInBtn');
+const googleSignOutBtn = document.getElementById('googleSignOutBtn');
+const googleLoginStatus = document.getElementById('googleLoginStatus');
 const sendReportNowBtn = document.getElementById('sendReportNowBtn');
 const previewReportBtn = document.getElementById('previewReportBtn');
 const saveAutoReportConfigBtn = document.getElementById('saveAutoReportConfigBtn');
@@ -50,8 +53,103 @@ let teamChart;
 let shiftChart;
 let allRows = [];
 let autoReportRecipients = [];
+let autoReportSenderEmail = '';
 let autoReportTimer = null;
 let lastScheduledSendDate = '';
+const GOOGLE_REPORT_SENDER_CLIENT_ID = window.GOOGLE_REPORT_SENDER_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+let googleSenderTokenClient = null;
+
+async function ensureGoogleIdentitySdk() {
+  if (window.google?.accounts?.oauth2) {
+    return;
+  }
+
+  if (document.querySelector('script[data-google-identity-sdk="true"]')) {
+    await new Promise((resolve) => {
+      const check = () => {
+        if (window.google?.accounts?.oauth2) {
+          resolve();
+          return;
+        }
+        setTimeout(check, 200);
+      };
+      check();
+    });
+    return;
+  }
+
+  await new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.setAttribute('data-google-identity-sdk', 'true');
+    script.onload = resolve;
+    script.onerror = () => reject(new Error('Không thể tải Google Identity Services.'));
+    document.head.appendChild(script);
+  });
+}
+
+async function selectGoogleReportSender() {
+  if (!GOOGLE_REPORT_SENDER_CLIENT_ID || GOOGLE_REPORT_SENDER_CLIENT_ID.includes('YOUR_GOOGLE_CLIENT_ID')) {
+    showToast('Thiếu Google Client ID cho Gmail gửi báo cáo. Cấu hình window.GOOGLE_REPORT_SENDER_CLIENT_ID.', 'error');
+    return;
+  }
+
+  try {
+    await ensureGoogleIdentitySdk();
+
+    if (!window.google?.accounts?.oauth2) {
+      throw new Error('Google Identity Services chưa sẵn sàng.');
+    }
+
+    if (!googleSenderTokenClient) {
+      googleSenderTokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_REPORT_SENDER_CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+        callback: async (response) => {
+          if (response.error) {
+            throw new Error(response.error_description || 'Google OAuth2 bị hủy hoặc lỗi xác thực.');
+          }
+
+          const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+            headers: {
+              Authorization: `Bearer ${response.access_token}`
+            }
+          });
+
+          if (!userInfoResponse.ok) {
+            throw new Error('Không lấy được thông tin Gmail từ Google.');
+          }
+
+          const profile = await userInfoResponse.json();
+          const email = String(profile.email || '').trim();
+
+          if (!isValidEmail(email)) {
+            throw new Error('Google không trả về email hợp lệ để làm Gmail gửi báo cáo.');
+          }
+
+          autoReportSenderEmail = email;
+          syncGoogleLoginStatus();
+          await saveAutoReportConfig({ silent: true });
+          showToast(`Đã chọn Gmail gửi báo cáo: ${email}`, 'success');
+        }
+      });
+    }
+
+    googleSenderTokenClient.requestAccessToken({ prompt: 'consent' });
+  } catch (error) {
+    console.error('[Report] selectGoogleReportSender failed', error);
+    showToast(error?.message || 'Không thể chọn Gmail gửi báo cáo.', 'error');
+  }
+}
+
+function clearGoogleReportSender() {
+  autoReportSenderEmail = '';
+  syncGoogleLoginStatus();
+  saveAutoReportConfig({ silent: true }).catch(() => {});
+  showToast('Đã xóa Gmail gửi báo cáo.', 'success');
+}
 
 function numberValue(value) {
   const numeric = Number(value);
@@ -455,17 +553,72 @@ function aggregateWarehouseWeeklyAverage(rows) {
   return visible.length ? visible : [{ name: 'Không có dữ liệu', value: 1 }];
 }
 
-// Nhóm dữ liệu theo từng tổ
-// Lấy tối đa 8 tổ có BTP cao nhất
-function aggregateByTeam(rows) {
-  const map = new Map();
+// Tính trung bình cộng BTP theo kho (warehouse), dựa trên số ngày có dữ liệu.
+// Mỗi kho được tính trung bình theo tổng BTP từng ngày, rồi chia cho số ngày phát sinh.
+// Điều này giúp biểu đồ 'Theo tổ' thực sự hiển thị mức trung bình hàng ngày theo kho, đúng theo logic mới.
+function aggregateWarehouseAverageRanked(rows) {
+  const warehouseDailyTotals = new Map();
+
   rows.forEach((row) => {
-    const key = getRowTeam(row);
-    const current = map.get(key) || { name: key, value: 0 };
-    current.value += getRowBtp(row);
-    map.set(key, current);
+    const rowDate = getRowDateValue(row);
+    if (!rowDate) return;
+
+    const warehouse = String(row?.warehouse || row?.kho || 'Chưa phân loại').trim() || 'Chưa phân loại';
+    const dayKey = formatDateInput(rowDate);
+    const warehouseMap = warehouseDailyTotals.get(warehouse) || new Map();
+    const current = warehouseMap.get(dayKey) || {
+      kgA: 0,
+      kgB: 0,
+      kgC: 0,
+      kgCNoSeed: 0
+    };
+
+    current.kgA += numberValue(row?.kgA ?? row?.a ?? 0);
+    current.kgB += numberValue(row?.kgB ?? row?.b ?? 0);
+    current.kgC += numberValue(row?.kgC ?? row?.c ?? 0);
+    current.kgCNoSeed += numberValue(row?.kgCNoSeed ?? row?.cNoSeed ?? 0);
+
+    warehouseMap.set(dayKey, current);
+    warehouseDailyTotals.set(warehouse, warehouseMap);
   });
-  return [...map.values()].sort((left, right) => right.value - left.value).slice(0, 8);
+
+  const warehouseSummaries = [...warehouseDailyTotals.entries()].map(([name, dayMap]) => {
+    const dailyTotals = [...dayMap.values()];
+    const totalDays = dailyTotals.length || 1;
+
+    const avgA = dailyTotals.reduce((sum, item) => sum + (item.kgA || 0), 0) / totalDays;
+    const avgB = dailyTotals.reduce((sum, item) => sum + (item.kgB || 0), 0) / totalDays;
+    const avgC = dailyTotals.reduce((sum, item) => sum + (item.kgC || 0), 0) / totalDays;
+    const avgCNoSeed = dailyTotals.reduce((sum, item) => sum + (item.kgCNoSeed || 0), 0) / totalDays;
+    const totalAverage = avgA + avgB + avgC + avgCNoSeed;
+
+    return {
+      name,
+      value: totalAverage,
+      avgA,
+      avgB,
+      avgC,
+      avgCNoSeed,
+      percentA: totalAverage > 0 ? (avgA / totalAverage) * 100 : 0,
+      percentB: totalAverage > 0 ? (avgB / totalAverage) * 100 : 0,
+      percentC: totalAverage > 0 ? (avgC / totalAverage) * 100 : 0,
+      percentCNoSeed: totalAverage > 0 ? (avgCNoSeed / totalAverage) * 100 : 0
+    };
+  });
+
+  return warehouseSummaries
+    .filter((entry) => entry.value > 0)
+    .sort((left, right) => {
+      const leftMax = Math.max(left.percentA, left.percentB, left.percentC, left.percentCNoSeed);
+      const rightMax = Math.max(right.percentA, right.percentB, right.percentC, right.percentCNoSeed);
+
+      if (rightMax !== leftMax) return rightMax - leftMax;
+      if (right.percentA !== left.percentA) return right.percentA - left.percentA;
+      if (right.percentB !== left.percentB) return right.percentB - left.percentB;
+      if (right.percentC !== left.percentC) return right.percentC - left.percentC;
+      if (right.percentCNoSeed !== left.percentCNoSeed) return right.percentCNoSeed - left.percentCNoSeed;
+      return right.value - left.value;
+    });
 }
 
 // Tính tổng BTP theo từng công đoạn
@@ -726,22 +879,51 @@ function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData =
   }
 
   if (teamCtx) {
+    const teamColors = ['#1267d6', '#1da76e', '#f57c1f', '#6f42c1', '#f59e0b', '#10b981', '#ec4899', '#64748b'];
+    const teamLabels = teamData.map((entry) => entry.name);
+    const teamValues = teamData.map((entry) => entry.value);
+
     teamChart = new Chart(teamCtx, {
       type: 'bar',
       data: {
-        labels: teamData.map((entry) => entry.name),
+        labels: teamLabels,
         datasets: [{
-          label: 'BTP',
-          data: teamData.map((entry) => entry.value),
-          backgroundColor: ['#1267d6', '#1da76e', '#f57c1f', '#6f42c1', '#f59e0b', '#10b981', '#ec4899', '#64748b']
+          label: 'Tổng BTP trung bình',
+          data: teamValues,
+          backgroundColor: teamLabels.map((_, index) => teamColors[index % teamColors.length])
         }]
       },
       options: {
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { x: { beginAtZero: true } }
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: (items) => items[0]?.label || '',
+              label: (context) => `Tổng BTP trung bình: ${formatNumber(context.parsed.x, 2)}`,
+              afterLabel: (context) => {
+                const item = teamData[context.dataIndex] || {};
+                return [
+                  `A: ${formatNumber(item.percentA || 0, 1)}%`,
+                  `B: ${formatNumber(item.percentB || 0, 1)}%`,
+                  `C hạt: ${formatNumber(item.percentC || 0, 1)}%`,
+                  `C không hạt: ${formatNumber(item.percentCNoSeed || 0, 1)}%`
+                ];
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            title: { display: true, text: 'Tổng BTP trung bình' }
+          },
+          y: {
+            title: { display: true, text: 'Kho' }
+          }
+        }
       }
     });
   }
@@ -825,7 +1007,7 @@ async function renderCurrentReport() {
   const congTachMuiRows = filterRows(allRows.filter((row) => getRowSourceLabel(row) === 'congTachMui'), filters);
   const dailyData = aggregateByDate(filteredRows);
   const processData = aggregateProductionBtpBreakdown(productionRows);
-  const teamData = aggregateByTeam(filteredRows);
+  const teamData = aggregateWarehouseAverageRanked(productionRows);
   const shiftData = aggregateByProcess(filteredRows);
   const teamTrendData = buildTeamTrendChartData(congTachMuiRows, filters);
 
@@ -855,6 +1037,25 @@ function getSelectedAutoReportCharts() {
   return Array.from(document.querySelectorAll('#autoReportSection input[type="checkbox"]'))
     .filter((input) => input.checked && input.value)
     .map((input) => input.value);
+}
+
+function syncGoogleLoginStatus() {
+  const userEmail = autoReportSenderEmail || '';
+
+  if (googleLoginStatus) {
+    googleLoginStatus.textContent = userEmail
+      ? `Gmail gửi báo cáo hiện tại: ${userEmail}`
+      : 'Chưa chọn Gmail gửi báo cáo';
+  }
+
+  if (googleSignInBtn) {
+    googleSignInBtn.textContent = userEmail ? 'Đổi Gmail gửi báo cáo' : 'Chọn Gmail gửi báo cáo';
+  }
+
+  if (googleSignOutBtn) {
+    googleSignOutBtn.textContent = 'Xóa Gmail gửi báo cáo';
+    googleSignOutBtn.hidden = !userEmail;
+  }
 }
 
 async function persistAutoReportRecipients({ silent = true } = {}) {
@@ -936,9 +1137,11 @@ async function loadAutoReportConfig() {
 
     const data = snapshot.data() || {};
     autoReportRecipients = Array.isArray(data.recipients) ? data.recipients.filter(Boolean) : [];
+    autoReportSenderEmail = typeof data.senderEmail === 'string' ? data.senderEmail.trim() : '';
     if (autoReportEnabledInput) autoReportEnabledInput.checked = Boolean(data.enabled);
     if (autoReportSendTimeInput) autoReportSendTimeInput.value = data.sendTime || '18:00';
     if (autoReportOnlyHasDataInput) autoReportOnlyHasDataInput.checked = data.onlyHasData !== false;
+    syncGoogleLoginStatus();
     if (autoReportFromDateInput) autoReportFromDateInput.value = data.fromDate || getAutoReportDateRange().from;
     if (autoReportToDateInput) autoReportToDateInput.value = data.toDate || getAutoReportDateRange().to;
     lastScheduledSendDate = data.lastSentDate || '';
@@ -959,6 +1162,7 @@ async function loadAutoReportConfig() {
 
 function autoReportConfigDefaults() {
   autoReportRecipients = [];
+  autoReportSenderEmail = getCurrentUser()?.email || '';
   const defaultRange = getAutoReportDateRange();
   if (autoReportFromDateInput) autoReportFromDateInput.value = defaultRange.from;
   if (autoReportToDateInput) autoReportToDateInput.value = defaultRange.to;
@@ -983,6 +1187,7 @@ async function saveAutoReportConfig({ silent = false } = {}) {
     toDate: autoReportToDateInput?.value || getAutoReportDateRange().to,
     selectedCharts: getSelectedAutoReportCharts(),
     recipients: autoReportRecipients,
+    senderEmail: autoReportSenderEmail || '',
     lastSentDate: lastScheduledSendDate,
     updatedAt: new Date(),
     updatedBy: 'report-page'
@@ -1257,12 +1462,17 @@ async function sendReportEmail({ reportDate, recipients, selectedCharts, filters
     filters
   );
 
+  if (!autoReportSenderEmail || !isValidEmail(autoReportSenderEmail)) {
+    throw new Error('Vui lòng chọn Gmail để gửi báo cáo.');
+  }
+
   const payload = {
     reportDate,
     recipients,
     selectedCharts,
     filters,
     html: html || '',
+    senderEmail: autoReportSenderEmail,
     subject: `[Báo cáo sản xuất] ${reportDate} – Tổng BTP: ${formatNumber(summary.totalBtp, 2)} kg`
   };
 
@@ -1481,6 +1691,22 @@ async function initializeAutoReportSection() {
       }
     });
   }
+
+  if (googleSignInBtn) {
+    googleSignInBtn.addEventListener('click', async (event) => {
+      event.preventDefault();
+      await selectGoogleReportSender();
+    });
+  }
+
+  if (googleSignOutBtn) {
+    googleSignOutBtn.addEventListener('click', async (event) => {
+      event.preventDefault();
+      clearGoogleReportSender();
+    });
+  }
+
+  syncGoogleLoginStatus();
 
   if (sendReportNowBtn) {
     sendReportNowBtn.addEventListener('click', (event) => {

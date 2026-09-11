@@ -115,6 +115,15 @@
             </div>
 
             <div class="mt-4">
+              <label class="form-label">Tài khoản gửi báo cáo</label>
+              <div class="d-flex flex-wrap gap-2 align-items-center">
+                <button id="googleSignInBtn" type="button" class="btn btn-outline-danger">Đăng nhập Google</button>
+                <button id="googleSignOutBtn" type="button" class="btn btn-outline-secondary" hidden>Đăng xuất</button>
+                <span id="googleLoginStatus" class="text-muted small">Chưa đăng nhập</span>
+              </div>
+            </div>
+
+            <div class="mt-4">
               <label class="form-label">Danh sách Gmail nhận báo cáo</label>
               <div class="input-group">
                 <input id="reportRecipientInput" type="email" class="form-control" placeholder="example@gmail.com" />

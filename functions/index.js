@@ -15,13 +15,15 @@ const ZAPIER_SECRET = process.env.ZAPIER_SECRET || 'replace-with-your-secret';
 const GMAIL_USER = process.env.GMAIL_USER || 'your-gmail@gmail.com';
 const GMAIL_PASS = process.env.GMAIL_PASS || '';
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: GMAIL_USER,
-    pass: GMAIL_PASS
-  }
-});
+const transporter = GMAIL_USER && GMAIL_PASS
+  ? nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: GMAIL_USER,
+        pass: GMAIL_PASS
+      }
+    })
+  : null;
 
 function getBearerToken(req) {
   const authHeader = req.headers.authorization || '';
@@ -98,7 +100,10 @@ exports.sendProductionReport = functions.region('asia-southeast1').https.onReque
     }
 
     try {
-      const { recipients, subject, html, reportDate } = req.body || {};
+      const { recipients, subject, html, reportDate, senderEmail } = req.body || {};
+      const senderAddress = typeof senderEmail === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail.trim())
+        ? senderEmail.trim()
+        : GMAIL_USER;
 
       if (!Array.isArray(recipients) || recipients.length === 0) {
         res.status(400).json({ ok: false, message: 'Danh sách người nhận không hợp lệ' });
@@ -117,12 +122,20 @@ exports.sendProductionReport = functions.region('asia-southeast1').https.onReque
       const finalSubject = subject || `[Báo cáo Chanh Thu] ${reportDate || new Date().toISOString()}`;
       const finalHtml = html || '<p>Không có nội dung báo cáo.</p>';
 
+      if (!transporter) {
+        res.status(500).json({
+          ok: false,
+          message: 'Cấu hình Gmail chưa được thiết lập. Vui lòng đặt GMAIL_USER và GMAIL_PASS cho Firebase Function.'
+        });
+        return;
+      }
+
       const mailOptions = {
-        from: `Báo cáo Chanh Thu <${GMAIL_USER}>`,
+        from: `Báo cáo Chanh Thu <${senderAddress}>`,
         to: validRecipients.join(', '),
         subject: finalSubject,
         html: finalHtml,
-        replyTo: GMAIL_USER
+        replyTo: senderAddress
       };
 
       await transporter.sendMail(mailOptions);
