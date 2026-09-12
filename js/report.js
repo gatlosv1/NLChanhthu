@@ -553,9 +553,12 @@ function aggregateWarehouseWeeklyAverage(rows) {
   return visible.length ? visible : [{ name: 'Không có dữ liệu', value: 1 }];
 }
 
-// Tính trung bình cộng BTP theo kho (warehouse), dựa trên số ngày có dữ liệu.
-// Mỗi kho được tính trung bình theo tổng BTP từng ngày, rồi chia cho số ngày phát sinh.
-// Điều này giúp biểu đồ 'Theo tổ' thực sự hiển thị mức trung bình hàng ngày theo kho, đúng theo logic mới.
+// Tính BTP theo kho theo đúng logic nghiệp vụ:
+// 1) Gom dữ liệu theo kho và ngày.
+// 2) Với từng ngày, tính %A, %B, %C hạt, %C không hạt dựa trên tổng kg của ngày đó.
+// 3) Sau đó lấy trung bình các % theo số ngày có dữ liệu.
+// 4) value = tổng BTP trung bình hàng ngày của kho.
+// 5) Sắp xếp theo % của từng loại, ưu tiên loại có % cao nhất trước.
 function aggregateWarehouseAverageRanked(rows) {
   const warehouseDailyTotals = new Map();
 
@@ -570,53 +573,63 @@ function aggregateWarehouseAverageRanked(rows) {
       kgA: 0,
       kgB: 0,
       kgC: 0,
-      kgCNoSeed: 0
+      kgCNoSeed: 0,
+      total: 0
     };
 
     current.kgA += numberValue(row?.kgA ?? row?.a ?? 0);
     current.kgB += numberValue(row?.kgB ?? row?.b ?? 0);
     current.kgC += numberValue(row?.kgC ?? row?.c ?? 0);
     current.kgCNoSeed += numberValue(row?.kgCNoSeed ?? row?.cNoSeed ?? 0);
+    current.total = current.kgA + current.kgB + current.kgC + current.kgCNoSeed;
 
     warehouseMap.set(dayKey, current);
     warehouseDailyTotals.set(warehouse, warehouseMap);
   });
 
   const warehouseSummaries = [...warehouseDailyTotals.entries()].map(([name, dayMap]) => {
-    const dailyTotals = [...dayMap.values()];
-    const totalDays = dailyTotals.length || 1;
+    const dailyEntries = [...dayMap.values()];
+    const dayCount = dailyEntries.length;
 
-    const avgA = dailyTotals.reduce((sum, item) => sum + (item.kgA || 0), 0) / totalDays;
-    const avgB = dailyTotals.reduce((sum, item) => sum + (item.kgB || 0), 0) / totalDays;
-    const avgC = dailyTotals.reduce((sum, item) => sum + (item.kgC || 0), 0) / totalDays;
-    const avgCNoSeed = dailyTotals.reduce((sum, item) => sum + (item.kgCNoSeed || 0), 0) / totalDays;
-    const totalAverage = avgA + avgB + avgC + avgCNoSeed;
+    if (!dayCount) {
+      return {
+        name,
+        value: 0,
+        percentA: 0,
+        percentB: 0,
+        percentC: 0,
+        percentCNoSeed: 0,
+        dayCount: 0
+      };
+    }
+
+    const dailyPercentA = dailyEntries.map((day) => (day.total > 0 ? (day.kgA / day.total) * 100 : 0));
+    const dailyPercentB = dailyEntries.map((day) => (day.total > 0 ? (day.kgB / day.total) * 100 : 0));
+    const dailyPercentC = dailyEntries.map((day) => (day.total > 0 ? (day.kgC / day.total) * 100 : 0));
+    const dailyPercentCNoSeed = dailyEntries.map((day) => (day.total > 0 ? (day.kgCNoSeed / day.total) * 100 : 0));
+
+    const averageDailyTotal = dailyEntries.reduce((sum, day) => sum + day.total, 0) / dayCount;
+    const percentA = dailyPercentA.reduce((sum, value) => sum + value, 0) / dayCount;
+    const percentB = dailyPercentB.reduce((sum, value) => sum + value, 0) / dayCount;
+    const percentC = dailyPercentC.reduce((sum, value) => sum + value, 0) / dayCount;
+    const percentCNoSeed = dailyPercentCNoSeed.reduce((sum, value) => sum + value, 0) / dayCount;
 
     return {
       name,
-      value: totalAverage,
-      avgA,
-      avgB,
-      avgC,
-      avgCNoSeed,
-      percentA: totalAverage > 0 ? (avgA / totalAverage) * 100 : 0,
-      percentB: totalAverage > 0 ? (avgB / totalAverage) * 100 : 0,
-      percentC: totalAverage > 0 ? (avgC / totalAverage) * 100 : 0,
-      percentCNoSeed: totalAverage > 0 ? (avgCNoSeed / totalAverage) * 100 : 0
+      value: averageDailyTotal,
+      percentA,
+      percentB,
+      percentC,
+      percentCNoSeed,
+      dayCount
     };
   });
 
   return warehouseSummaries
     .filter((entry) => entry.value > 0)
     .sort((left, right) => {
-      const leftMax = Math.max(left.percentA, left.percentB, left.percentC, left.percentCNoSeed);
-      const rightMax = Math.max(right.percentA, right.percentB, right.percentC, right.percentCNoSeed);
-
-      if (rightMax !== leftMax) return rightMax - leftMax;
       if (right.percentA !== left.percentA) return right.percentA - left.percentA;
       if (right.percentB !== left.percentB) return right.percentB - left.percentB;
-      if (right.percentC !== left.percentC) return right.percentC - left.percentC;
-      if (right.percentCNoSeed !== left.percentCNoSeed) return right.percentCNoSeed - left.percentCNoSeed;
       return right.value - left.value;
     });
 }
