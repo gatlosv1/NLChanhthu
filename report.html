@@ -194,34 +194,36 @@
         </section>
 
         <section class="report-grid">
-          <article class="chart-card chart-large">
-            <div class="chart-header">
-              <h2>Trung bình / Tổng năng xuất theo Tổ (Năng xuất tách múi)</h2>
-            </div>
-            <div class="chart-wrapper">
-              <canvas id="trendChart"></canvas>
-            </div>
-          </article>
-
-          <article class="chart-card">
-            <div class="chart-header">
-              <h2>Theo loại BTP (Phần trăm BTP)</h2>
-            </div>
-            <div class="chart-wrapper small-chart">
-              <canvas id="processChart"></canvas>
-            </div>
-          </article>
-
-          <article class="chart-card">
-            <div class="chart-header">
-              <h2>Theo tổ</h2>
-            </div>
-            <div class="team-chart-scroll">
-              <div class="team-chart-inner">
-                <canvas id="teamChart"></canvas>
+          <div class="report-charts-row">
+            <article class="chart-card chart-large">
+              <div class="chart-header">
+                <h2>Trung bình / Tổng năng xuất theo Tổ (Năng xuất tách múi)</h2>
               </div>
-            </div>
-          </article>
+              <div class="chart-wrapper">
+                <canvas id="trendChart"></canvas>
+              </div>
+            </article>
+
+            <article class="chart-card chart-card--donut">
+              <div class="chart-header">
+                <h2>Theo loại BTP (Phần trăm BTP)</h2>
+              </div>
+              <div class="chart-wrapper small-chart chart-wrapper--donut">
+                <canvas id="processChart"></canvas>
+              </div>
+            </article>
+
+            <article class="chart-card">
+              <div class="chart-header">
+                <h2>BTP theo kho</h2>
+              </div>
+              <div class="team-chart-scroll">
+                <div class="team-chart-inner">
+                  <canvas id="teamChart"></canvas>
+                </div>
+              </div>
+            </article>
+          </div>
 
           <article class="chart-card chart-wide">
             <div class="chart-header">

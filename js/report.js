@@ -704,6 +704,63 @@ function buildTeamTrendChartData(rows, filters) {
   return { labels: labels.map((day) => day.label), datasets };
 }
 
+// Tạo dữ liệu biểu đồ đường theo từng công đoạn trong khoảng ngày đã chọn
+// Mỗi đường = 1 công đoạn, các ngày không có dữ liệu sẽ để null để đường bị ngắt
+function buildProcessTrendChartData(rows, filters) {
+  const start = parseDateInput(filters.from) || new Date();
+  const end = parseDateInput(filters.to) || new Date();
+  const labels = [];
+  let current = new Date(start);
+
+  while (current <= end) {
+    labels.push({ key: formatDateInput(current), label: formatShortDate(current) });
+    current.setDate(current.getDate() + 1);
+  }
+
+  const processMap = new Map();
+
+  rows.forEach((row) => {
+    const date = getRowDateValue(row);
+    if (!date) return;
+
+    const rowDateKey = formatDateInput(date);
+    if (date < start || date > end) return;
+
+    const processName = getRowProcess(row) || 'Chưa phân loại';
+    if (!processMap.has(processName)) {
+      processMap.set(processName, new Map());
+    }
+
+    const bucket = processMap.get(processName);
+    const value = getRowProductivityValue(row);
+    bucket.set(rowDateKey, (bucket.get(rowDateKey) || 0) + value);
+  });
+
+  const palette = ['#1267d6', '#1da76e', '#f57c1f', '#6f42c1', '#ef4444', '#0ea5e9', '#14b8a6', '#f59e0b', '#22c55e', '#ec4899'];
+
+  return {
+    labels: labels.map((day) => day.label),
+    datasets: Array.from(processMap.keys()).map((processName, index) => {
+      const values = processMap.get(processName) || new Map();
+      return {
+        label: processName,
+        data: labels.map((day) => {
+          const value = values.get(day.key);
+          return value === undefined || value === null ? null : value;
+        }),
+        borderColor: palette[index % palette.length],
+        backgroundColor: palette[index % palette.length],
+        borderWidth: 2,
+        tension: 0,
+        spanGaps: false,
+        pointRadius: (ctx) => (ctx.raw == null ? 0 : 4),
+        pointHoverRadius: (ctx) => (ctx.raw == null ? 0 : 5),
+        fill: false
+      };
+    })
+  };
+}
+
 // Bảng màu riêng cho từng tổ trên biểu đồ
 const TEAM_COLORS = ['#1267d6', '#1da76e', '#f57c1f', '#6f42c1', '#ef4444', '#14b8a6', '#f59e0b', '#8b5cf6', '#0ea5e9', '#22c55e'];
 
@@ -774,7 +831,7 @@ function destroyChart(chart) {
 
 // Vẽ lại toàn bộ 4 biểu đồ của trang báo cáo
 // Dữ liệu truyền vào đã được lọc sẵn
-function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData = null) {
+function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData = null, processTrendData = null) {
   const trendCtx = document.getElementById('trendChart');
   const processCtx = document.getElementById('processChart');
   const teamCtx = document.getElementById('teamChart');
@@ -960,35 +1017,58 @@ function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData =
     });
   }
 
+  // Biểu đồ "Theo công đoạn" chuyển sang line chart
+  // Mỗi dataset là 1 công đoạn; các ngày không có dữ liệu được để null để đường tự ngắt
   if (shiftCtx) {
+    const chartLabels = processTrendData?.labels || shiftData.map((entry) => entry.name);
+    const chartDatasets = processTrendData?.datasets && processTrendData.datasets.length
+      ? processTrendData.datasets
+      : [
+          {
+            label: 'Công đoạn',
+            data: shiftData.map((entry) => entry.value),
+            borderColor: '#1267d6',
+            backgroundColor: 'rgba(18, 103, 214, 0.15)',
+            tension: 0,
+            borderWidth: 2,
+            pointRadius: 4,
+            fill: false
+          }
+        ];
+
     shiftChart = new Chart(shiftCtx, {
-      type: 'bar',
+      type: 'line',
       data: {
-        labels: shiftData.map((entry) => entry.name),
-        datasets: [{
-          label: 'Tổng BTP',
-          data: shiftData.map((entry) => entry.value),
-          backgroundColor: ['#1267d6', '#1da76e', '#f57c1f', '#6f42c1', '#f59e0b', '#0ea5e9', '#14b8a6', '#ef4444']
-        }]
+        labels: chartLabels,
+        datasets: chartDatasets
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { display: false },
+          legend: { position: 'bottom' },
           tooltip: {
             callbacks: {
-              label: (context) => `${context.label}: ${formatNumber(context.parsed.y, 2)}`
+              title: (items) => {
+                const index = items[0]?.dataIndex ?? 0;
+                return `Ngày: ${chartLabels[index] || ''}`;
+              },
+              label: (context) => {
+                const processName = context.dataset.label || 'Công đoạn';
+                const value = context.parsed.y ?? 0;
+                return `${processName}: ${formatNumber(value, 2)}`;
+              }
             }
           }
         },
         scales: {
-          x: {
-            title: { display: true, text: 'Công đoạn' }
-          },
           y: {
             beginAtZero: true,
-            title: { display: true, text: 'Tổng BTP' }
+            title: { display: true, text: 'Năng suất' }
+          },
+          x: {
+            title: { display: true, text: 'Ngày' }
           }
         }
       }
@@ -1041,11 +1121,12 @@ async function renderCurrentReport() {
   const processData = aggregateProductionBtpBreakdown(productionRows);
   const teamData = aggregateWarehouseAverageRanked(productionRows);
   const shiftData = aggregateByProcess(filteredRows);
+  const processTrendData = buildProcessTrendChartData(nhapLieuRows, filters);
   const teamTrendData = buildTeamTrendChartData(congTachMuiRows, filters);
 
   renderMetrics(filteredRows);
   renderDailyTable(dailyData);
-  drawCharts(dailyData, processData, teamData, shiftData, teamTrendData);
+  drawCharts(dailyData, processData, teamData, shiftData, teamTrendData, processTrendData);
 
   if (reportTimestampEl) {
     const now = new Date();
