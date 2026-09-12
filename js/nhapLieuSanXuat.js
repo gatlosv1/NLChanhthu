@@ -5,6 +5,7 @@ import { resolveInitialRole } from './roleUtils.js';
 import { requirePageAccess } from './pageAccess.js';
 import { showToast } from './utils.js';
 import { logActivity } from './activityLog.js';
+import { shouldSyncDateInputValue } from './dateInputUtils.js';
 import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
 const COLLECTION = 'nhapLieuSanXuat';
@@ -32,6 +33,7 @@ let catalog = { processes: ['Đóng gói 1'], types: ['IQF'] };
 let congTachMuiProcesses = [];
 let stopRows;
 let manuallySelectedShift = false;
+let manuallySelectedDate = false;
 
 function vietnamNow() {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -245,7 +247,31 @@ async function exportExcel() {
     if (exportBtn) exportBtn.disabled = false;
   }
 }
-function refreshClock() { const now = vietnamNow(); const [shiftLabel, shift] = shiftInfo(now); const realtimeText = now.toLocaleString('vi-VN'); const clock = byId('realtimeClock'); const topClock = byId('topRealtimeClock'); if (clock) clock.textContent = realtimeText; if (topClock) topClock.textContent = realtimeText; productionDate.value = dateValue(now); if (!manuallySelectedShift) activeShift.value = shift; shiftBtp.setAttribute('placeholder', `BTP ${shiftLabel}`); shiftPeople.setAttribute('placeholder', `Số người ${shiftLabel}`); shiftHours.setAttribute('placeholder', `Số giờ ${shiftLabel}`); }
+function refreshClock() {
+  const now = vietnamNow();
+  const [shiftLabel, shift] = shiftInfo(now);
+  const realtimeText = now.toLocaleString('vi-VN');
+  const clock = byId('realtimeClock');
+  const topClock = byId('topRealtimeClock');
+
+  if (clock) clock.textContent = realtimeText;
+  if (topClock) topClock.textContent = realtimeText;
+
+  const todayValue = dateValue(now);
+  if (shouldSyncDateInputValue({ currentValue: productionDate.value, fallbackValue: todayValue, manuallySelected: manuallySelectedDate })) {
+    productionDate.value = todayValue;
+  }
+
+  if (!manuallySelectedShift) activeShift.value = shift;
+  shiftBtp.setAttribute('placeholder', `BTP ${shiftLabel}`);
+  shiftPeople.setAttribute('placeholder', `Số người ${shiftLabel}`);
+  shiftHours.setAttribute('placeholder', `Số giờ ${shiftLabel}`);
+}
+
+productionDate.addEventListener('change', () => {
+  manuallySelectedDate = true;
+});
+
 byId('addRowBtn').addEventListener('click', addOfficialRow);
 exportBtn?.addEventListener('click', exportExcel);
 byId('deleteRowBtn').addEventListener('click', async () => {
