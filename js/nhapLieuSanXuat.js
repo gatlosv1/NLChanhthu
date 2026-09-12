@@ -16,6 +16,7 @@ const byId = (id) => document.getElementById(id);
 const productionDate = byId('productionDate');
 const processOne = byId('processOne');
 const processTwo = byId('processTwo');
+processTwo.disabled = true;
 const itemType = byId('itemType');
 const note = byId('note');
 const activeShift = byId('activeShift');
