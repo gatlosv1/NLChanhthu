@@ -949,9 +949,7 @@ function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData =
   }
 
   if (teamCtx) {
-    const teamColors = ['#1267d6', '#1da76e', '#f57c1f', '#6f42c1', '#f59e0b', '#10b981', '#ec4899', '#64748b'];
     const teamLabels = teamData.map((entry) => entry.name);
-    const teamValues = teamData.map((entry) => entry.value);
     const chartHeight = Math.max(280, teamLabels.length * 38 + 40);
     const teamChartInner = teamCtx.closest('.team-chart-inner');
 
@@ -968,30 +966,80 @@ function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData =
       type: 'bar',
       data: {
         labels: teamLabels,
-        datasets: [{
-          label: 'Tổng BTP trung bình',
-          data: teamValues,
-          backgroundColor: teamLabels.map((_, index) => teamColors[index % teamColors.length]),
-          borderRadius: 6,
-          borderSkipped: false,
-          barThickness: 24,
-          maxBarThickness: 32
-        }]
+        datasets: [
+          {
+            label: 'BTP A',
+            data: teamData.map((entry) => Number(entry.percentA || 0)),
+            backgroundColor: '#1D4ED8',
+            borderWidth: 0,
+            borderRadius: 4,
+            borderSkipped: false,
+            barThickness: 24,
+            maxBarThickness: 32,
+            stack: 'quality'
+          },
+          {
+            label: 'BTP B',
+            data: teamData.map((entry) => Number(entry.percentB || 0)),
+            backgroundColor: '#14B8A6',
+            borderWidth: 0,
+            borderRadius: 4,
+            borderSkipped: false,
+            barThickness: 24,
+            maxBarThickness: 32,
+            stack: 'quality'
+          },
+          {
+            label: 'BTP C có hạt',
+            data: teamData.map((entry) => Number(entry.percentC || 0)),
+            backgroundColor: '#F97316',
+            borderWidth: 0,
+            borderRadius: 4,
+            borderSkipped: false,
+            barThickness: 24,
+            maxBarThickness: 32,
+            stack: 'quality'
+          },
+          {
+            label: 'BTP C không hạt',
+            data: teamData.map((entry) => Number(entry.percentCNoSeed || 0)),
+            backgroundColor: '#C4B5FD',
+            borderWidth: 0,
+            borderRadius: 4,
+            borderSkipped: false,
+            barThickness: 24,
+            maxBarThickness: 32,
+            stack: 'quality'
+          }
+        ]
       },
       options: {
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
         animation: false,
+        elements: {
+          bar: {
+            borderRadius: 4,
+            borderSkipped: false
+          }
+        },
+        datasets: {
+          bar: {
+            categoryPercentage: 0.75,
+            barPercentage: 0.9
+          }
+        },
         plugins: {
-          legend: { display: false },
+          legend: { position: 'bottom' },
           tooltip: {
             callbacks: {
               title: (items) => items[0]?.label || '',
-              label: (context) => `Tổng BTP trung bình: ${formatNumber(context.parsed.x, 2)}`,
+              label: (context) => `${context.dataset.label}: ${formatNumber(context.parsed.x || 0, 1)}%`,
               afterLabel: (context) => {
                 const item = teamData[context.dataIndex] || {};
                 return [
+                  `Tổng: ${formatNumber((Number(item.percentA || 0) + Number(item.percentB || 0) + Number(item.percentC || 0) + Number(item.percentCNoSeed || 0)), 1)}%`,
                   `A: ${formatNumber(item.percentA || 0, 1)}%`,
                   `B: ${formatNumber(item.percentB || 0, 1)}%`,
                   `C hạt: ${formatNumber(item.percentC || 0, 1)}%`,
@@ -1003,10 +1051,16 @@ function drawCharts(dailyData, processData, teamData, shiftData, teamTrendData =
         },
         scales: {
           x: {
-            beginAtZero: true,
-            title: { display: true, text: 'Tổng BTP trung bình' }
+            stacked: true,
+            min: 0,
+            max: 100,
+            title: { display: true, text: '% BTP' },
+            ticks: {
+              callback: (value) => `${value}%`
+            }
           },
           y: {
+            stacked: true,
             title: { display: true, text: 'Kho' },
             ticks: {
               autoSkip: false
