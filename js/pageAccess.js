@@ -20,6 +20,17 @@ export const DEFAULT_PAGE_ACCESS = {
   devManager: true
 };
 
+const DEFAULT_ROLE_PAGE_PERMISSIONS = {
+  dev: ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history', 'devManager'],
+  admin: ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history'],
+  staff: ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'history']
+};
+
+export function getDefaultPagePermissionsForRole(role = 'staff') {
+  const normalizedRole = role === 'dev' ? 'dev' : role === 'admin' ? 'admin' : 'staff';
+  return [...(DEFAULT_ROLE_PAGE_PERMISSIONS[normalizedRole] || DEFAULT_ROLE_PAGE_PERMISSIONS.staff)];
+}
+
 // Lấy cấu hình bật tắt trang từ Firestore
 // Nếu lỗi thì trả về cấu hình mặc định
 export async function getPageAccessConfig() {
@@ -97,8 +108,12 @@ export async function requirePageAccess(user, pageKey) {
     return { profile, role };
   }
 
-  // Staff chỉ vào được trang có trong danh sách quyền
-  const permissions = Array.isArray(profile?.pagePermissions) ? profile.pagePermissions : [];
+  // Staff chỉ vào được trang có trong danh sách quyền.
+  // Nếu profile cũ hoặc chưa có pagePermissions thì dùng quyền mặc định theo vai trò.
+  const permissions = Array.isArray(profile?.pagePermissions) && profile.pagePermissions.length
+    ? profile.pagePermissions
+    : getDefaultPagePermissionsForRole(role);
+
   if (!permissions.includes(pageKey)) {
     showPermissionWarning();
     throw new Error('Bạn không có quyền truy cập trang này.');
