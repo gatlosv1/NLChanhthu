@@ -554,8 +554,8 @@ async function ensureAdminCanWrite(actionLabel = 'thêm và đồng bộ dữ li
     return false;
   }
 
-  if (!(currentRole === 'admin' || currentRole === 'dev')) {
-    showToast('Chỉ admin/dev mới được thêm hoặc sửa dữ liệu trên trang này.', 'info');
+  if (!canEditProductionRows(authUser, currentRole)) {
+    showToast('Bạn không có quyền thêm hoặc sửa dữ liệu trên trang này.', 'info');
     return false;
   }
 
