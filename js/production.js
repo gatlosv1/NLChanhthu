@@ -1,7 +1,7 @@
 ﻿// Nhập các hàm liên quan đến auth, Firestore và UI helper.
-import { getCurrentUser, watchAuthState, waitForAuth } from './auth.js?v=20260804-8';
+import { getCurrentUser, watchAuthState, waitForAuth } from './auth.js?v=20260913-1';
 // Kết nối tới Firestore trong Firebase.
-import { db } from './firebase.js?v=20260804-8';
+import { db } from './firebase.js?v=20260913-1';
 // Lấy thông tin hồ sơ người dùng từ Firestore.
 import { getUserProfile } from './firestore.js';
 // Xác định vai trò admin/staff dựa trên email hoặc hồ sơ.
@@ -20,7 +20,7 @@ import {
   query
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 // Các hàm hỗ trợ hiển thị loading, toast và thông báo.
-import { hideLoading, showLoading, showToast } from './utils.js?v=20260804-8';
+import { hideLoading, showLoading, showToast } from './utils.js?v=20260913-1';
 import { ensureDefaultSettings, getSettingOptions, listenToSettings, SETTING_KEYS } from './settings.js';
 import { canDeleteProductionRows, canEditProductionDate, canEditProductionRows } from './productionPermissions.js';
 import {
@@ -28,7 +28,7 @@ import {
   canPersistProductionRow,
   getAllRowsForPersistence,
   normalizeProductionRowForPersistence
-} from './productionDataUtils.mjs?v=20260804-8';
+} from './productionDataUtils.mjs?v=20260913-1';
 import { logActivity } from './activityLog.js';
 
 // Lấy các phần tử DOM từ HTML để code có thể thao tác với form, bảng và nút bấm.
