@@ -1,0 +1,25 @@
+.dashboard-page .d-flex > main,
+.dashboard-page main.flex-grow-1 {
+	min-width: 0 !important;
+	max-width: 100%;
+	overflow-x: hidden;
+}
+
+.table-card { width: 100%; max-width: 100%; overflow: visible; }
+#congTachMuiTable { display: block; width: 100%; max-width: 100%; min-width: 0; min-height: 0; height: min(58vh, 700px); max-height: 58vh; overflow: auto; position: relative; border-radius: 0.9rem; border: 1px solid #e9dfb6; }
+#congTachMuiTable.table-scroll { overflow: auto; }
+#congTachMuiTable .tabulator { width: max-content !important; min-width: 100% !important; max-width: none !important; font-size: .82rem; }
+#congTachMuiTable .tabulator-tableholder { width: 100%; max-width: 100%; height: auto !important; max-height: none !important; overflow-x: auto !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; scrollbar-gutter: stable; }
+#congTachMuiTable::-webkit-scrollbar, #congTachMuiTable .tabulator-tableholder::-webkit-scrollbar { height: 12px; width: 12px; }
+#congTachMuiTable::-webkit-scrollbar-track, #congTachMuiTable .tabulator-tableholder::-webkit-scrollbar-track { background: #e9edf2; border-radius: 6px; }
+#congTachMuiTable::-webkit-scrollbar-thumb, #congTachMuiTable .tabulator-tableholder::-webkit-scrollbar-thumb { background: #8b98a8; border-radius: 6px; }
+#congTachMuiTable .tabulator-header { position: sticky; top: 0; z-index: 2; background: #fff4cf; }
+#congTachMuiTable .tabulator-header .tabulator-col { background: #fff4cf; color: #172033; font-weight: 700; border-right: 1px solid #d8bf69; }
+#congTachMuiTable .tabulator-header .tabulator-col .tabulator-col-content { min-height: 58px; display: flex; align-items: center; justify-content: center; padding: 6px 4px; }
+#congTachMuiTable .tabulator-header .tabulator-col .tabulator-col-title { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.15; text-align: center; word-break: normal; }
+#congTachMuiTable .tabulator-header .tabulator-col:nth-child(2) { background: #cfe5be; }
+#congTachMuiTable .tabulator-header .tabulator-col:nth-child(n+4):nth-child(-n+6) { background: #12a9d1; color: #071b2a; }
+#congTachMuiTable .tabulator-header .tabulator-col:nth-child(n+11):nth-child(-n+11), #congTachMuiTable .tabulator-header .tabulator-col:nth-child(n+16):nth-child(-n+16), #congTachMuiTable .tabulator-header .tabulator-col:nth-child(n+21):nth-child(-n+21) { color: #df2020; }
+#congTachMuiTable .tabulator-cell[tabulator-field="productionDate"], #congTachMuiTable .tabulator-cell[tabulator-field="totalBtp"], #congTachMuiTable .tabulator-cell[tabulator-field="totalTime"], #congTachMuiTable .tabulator-cell[tabulator-field="totalProductivity"], #congTachMuiTable .tabulator-cell[tabulator-field="morningProductivity"], #congTachMuiTable .tabulator-cell[tabulator-field="afternoonProductivity"], #congTachMuiTable .tabulator-cell[tabulator-field="eveningProductivity"] { background: #f1f3f5; color: #64748b; }
+#catalogPanel { border-left: 4px solid #f3c74d !important; }
+@media (max-width: 991px) { #congTachMuiTable { overflow-x: auto; } }
