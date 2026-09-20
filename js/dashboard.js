@@ -1,6 +1,6 @@
 ﻿import { watchAuthState, getCurrentUser } from './auth.js';
 import { createOrUpdateUserProfile, getUserProfile, updateUserProfile, deleteUserProfile, getAllUsersProfiles } from './firestore.js';
-import { auth } from './firebase.js';
+import { auth, firebaseConfig } from './firebase.js';
 import { sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import { hideLoading, showLoading, showToast } from './utils.js';
 import { resolveInitialRole } from './roleUtils.js';
@@ -45,7 +45,7 @@ const ROLE_DEFAULT_PERMISSIONS = {
   staff: ['view', 'add']
 };
 
-const FIREBASE_API_KEY = 'AIzaSyAFQQ5yvXsA5B3etXDM_k0g6-HcEjDEpGo';
+const FIREBASE_API_KEY = firebaseConfig.apiKey;
 let currentRole = 'staff';
 let activeUsersLoadToken = 0;
 let congTachMuiTeams = [];

@@ -10,8 +10,8 @@ const currentHostname = typeof window !== 'undefined' ? window.location.hostname
 const isLocalHost = currentHostname === 'localhost' || currentHostname === '127.0.0.1' || currentHostname === '0.0.0.0';
 const authDomain = isLocalHost ? currentHostname : defaultAuthDomain;
 
-const fallbackFirebaseConfig = {
-  apiKey: '',
+const firebaseConfig = {
+  apiKey: 'AIzaSyCj2J9EKYMqFAq4F9AUkjH2AXW-q7vXNDw',
   authDomain,
   projectId: 'quanlynlchanhthu',
   storageBucket: 'quanlynlchanhthu.firebasestorage.app',
@@ -20,21 +20,6 @@ const fallbackFirebaseConfig = {
   databaseURL: 'https://quanlynlchanhthu-default-rtdb.asia-southeast1.firebasedatabase.app',
   measurementId: 'G-M2FGGW25WL'
 };
-
-let firebaseConfig = { ...fallbackFirebaseConfig };
-
-try {
-  const localConfigModule = await import('./firebase.local.js');
-  if (localConfigModule.firebaseConfig) {
-    firebaseConfig = {
-      ...fallbackFirebaseConfig,
-      ...localConfigModule.firebaseConfig,
-      authDomain: localConfigModule.firebaseConfig.authDomain || authDomain
-    };
-  }
-} catch (error) {
-  console.warn('Firebase local config not found. Create js/firebase.local.js to keep your keys out of GitHub.', error);
-}
 
 let app;
 let analytics = null;
@@ -61,7 +46,7 @@ try {
   rtdb = app ? getDatabase(app) : null;
 }
 
-export { app, analytics, auth, db, storage, rtdb };
+export { app, analytics, auth, db, storage, rtdb, firebaseConfig };
 export default app;
 
 

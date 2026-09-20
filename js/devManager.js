@@ -1,5 +1,5 @@
 import { watchAuthState } from './auth.js';
-import { db } from './firebase.js';
+import { db, firebaseConfig } from './firebase.js';
 import { createOrUpdateUserProfile, getAllUsersProfiles, getUserProfile } from './firestore.js';
 import { resolveInitialRole } from './roleUtils.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
@@ -124,7 +124,7 @@ createDevForm?.addEventListener('submit', async (event) => {
   devStatus.textContent = `Đang tạo tài khoản ${normalizedRole}...`;
 
   try {
-    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=AIzaSyAFQQ5yvXsA5B3etXDM_k0g6-HcEjDEpGo`, {
+    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, returnSecureToken: true })
