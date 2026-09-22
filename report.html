@@ -112,16 +112,40 @@
 
               <div class="col-md-8">
                 <label class="form-label">Chọn nội dung gửi</label>
-                <div class="row g-2">
+                <div class="row g-2 report-toggle-grid">
                   <div class="col-md-6">
-                    <div class="form-check"><input class="form-check-input" type="checkbox" value="kpi" id="reportOptKpi" checked /><label class="form-check-label" for="reportOptKpi">KPI tổng quan</label></div>
-                    <div class="form-check"><input class="form-check-input" type="checkbox" value="trend" id="reportOptTrend" checked /><label class="form-check-label" for="reportOptTrend">Biểu đồ xu hướng</label></div>
-                    <div class="form-check"><input class="form-check-input" type="checkbox" value="btpBreakdown" id="reportOptBtpBreakdown" checked /><label class="form-check-label" for="reportOptBtpBreakdown">Theo loại BTP</label></div>
+                    <label class="report-toggle-item" for="reportOptKpi">
+                      <input class="report-toggle-input" type="checkbox" value="kpi" id="reportOptKpi" checked />
+                      <span class="report-toggle-track"><span class="report-toggle-thumb"></span></span>
+                      <span class="report-toggle-label">KPI tổng quan</span>
+                    </label>
+                    <label class="report-toggle-item" for="reportOptTrend">
+                      <input class="report-toggle-input" type="checkbox" value="trend" id="reportOptTrend" checked />
+                      <span class="report-toggle-track"><span class="report-toggle-thumb"></span></span>
+                      <span class="report-toggle-label">Biểu đồ xu hướng</span>
+                    </label>
+                    <label class="report-toggle-item" for="reportOptBtpBreakdown">
+                      <input class="report-toggle-input" type="checkbox" value="btpBreakdown" id="reportOptBtpBreakdown" checked />
+                      <span class="report-toggle-track"><span class="report-toggle-thumb"></span></span>
+                      <span class="report-toggle-label">Theo loại BTP</span>
+                    </label>
                   </div>
                   <div class="col-md-6">
-                    <div class="form-check"><input class="form-check-input" type="checkbox" value="team" id="reportOptTeam" checked /><label class="form-check-label" for="reportOptTeam">Biểu đồ theo Tổ</label></div>
-                    <div class="form-check"><input class="form-check-input" type="checkbox" value="shift" id="reportOptShift" checked /><label class="form-check-label" for="reportOptShift">Biểu đồ theo Ca</label></div>
-                    <div class="form-check"><input class="form-check-input" type="checkbox" value="dailyTable" id="reportOptDailyTable" checked /><label class="form-check-label" for="reportOptDailyTable">Bảng chi tiết theo ngày</label></div>
+                    <label class="report-toggle-item" for="reportOptTeam">
+                      <input class="report-toggle-input" type="checkbox" value="team" id="reportOptTeam" checked />
+                      <span class="report-toggle-track"><span class="report-toggle-thumb"></span></span>
+                      <span class="report-toggle-label">Biểu đồ theo Tổ</span>
+                    </label>
+                    <label class="report-toggle-item" for="reportOptShift">
+                      <input class="report-toggle-input" type="checkbox" value="shift" id="reportOptShift" checked />
+                      <span class="report-toggle-track"><span class="report-toggle-thumb"></span></span>
+                      <span class="report-toggle-label">Biểu đồ theo Ca</span>
+                    </label>
+                    <label class="report-toggle-item" for="reportOptDailyTable">
+                      <input class="report-toggle-input" type="checkbox" value="dailyTable" id="reportOptDailyTable" checked />
+                      <span class="report-toggle-track"><span class="report-toggle-thumb"></span></span>
+                      <span class="report-toggle-label">Bảng chi tiết theo ngày</span>
+                    </label>
                   </div>
                 </div>
               </div>

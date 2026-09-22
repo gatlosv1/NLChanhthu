@@ -48,122 +48,75 @@
       };
     </script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+    <!-- Firebase SDK (thay config thật của bạn) -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
     <style>
       :root {
         --bg-page: #f4f8f4;
-        --card: rgba(255, 255, 255, 0.9);
+        --card: rgba(255, 255, 255, 0.95);
         --line: rgba(148, 163, 184, 0.2);
-        --brand: #15803d;
-        --accent: #2563eb;
-        --warning: #f59e0b;
-        --danger: #dc2626;
       }
-
-      html {
-        scroll-behavior: smooth;
-      }
-
-      body {
-        background: linear-gradient(180deg, #effaf1 0%, #f7fafc 100%);
-      }
-
+      html { scroll-behavior: smooth; }
+      body { background: linear-gradient(180deg, #effaf1 0%, #f7fafc 100%); }
       .glass-card {
         background: var(--card);
         border: 1px solid var(--line);
         box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
         backdrop-filter: blur(12px);
       }
-
       .sticky-header {
-        position: sticky;
-        top: 0;
-        z-index: 30;
+        position: sticky; top: 0; z-index: 30;
         background: rgba(255, 255, 255, 0.82);
         backdrop-filter: blur(12px);
         border-bottom: 1px solid rgba(148, 163, 184, 0.2);
       }
-
       .company-logo {
-        width: 52px;
-        height: 52px;
-        border-radius: 18px;
+        width: 52px; height: 52px; border-radius: 18px;
         background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
         box-shadow: 0 12px 24px rgba(21, 128, 61, 0.2);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        flex-shrink: 0;
+        color: white; display: flex; align-items: center; justify-content: center;
+        font-weight: 800; letter-spacing: 0.08em; flex-shrink: 0;
       }
-
-      .table-scroll {
-        overflow-x: auto;
+      .table-scroll { overflow-x: auto; }
+      .cell-input, .lot-input, .text-input, .big-input {
+        width: 100%; border-radius: 0.75rem; border: 1px solid #dbe4ea;
+        background: #f8fafc; color: #0f172a; padding: 0.7rem 0.8rem;
+        font-size: 0.9rem; transition: all 0.2s ease;
       }
-
-      .kg-input,
-      .material-input,
-      .lot-input,
-      .text-input {
-        width: 100%;
-        border-radius: 0.7rem;
-        border: 1px solid #dbe4ea;
-        background: #f8fafc;
-        color: #0f172a;
-        padding: 0.65rem 0.75rem;
-        font-size: 0.9rem;
-        transition: all 0.2s ease;
+      .big-input {
+        font-size: 2.2rem; font-weight: 800; text-align: center;
+        padding: 1.1rem 1rem; letter-spacing: 0.02em;
+        border-width: 2px; border-color: #86efac;
+        background: #f0fdf4;
       }
-
-      .kg-input:focus,
-      .material-input:focus,
-      .lot-input:focus,
-      .text-input:focus,
-      .select-input:focus {
-        outline: none;
-        border-color: rgba(37, 99, 235, 0.75);
-        box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+      .big-input:focus {
+        outline: none; border-color: #16a34a;
+        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
         background: white;
       }
-
+      .cell-input:focus, .lot-input:focus, .text-input:focus {
+        outline: none; border-color: rgba(37, 99, 235, 0.75);
+        box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15); background: white;
+      }
       .summary-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 2.2rem;
-        padding: 0.2rem 0.5rem;
-        border-radius: 999px;
-        background: #eff6ff;
-        color: #1d4ed8;
-        font-size: 0.74rem;
-        font-weight: 700;
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 2.3rem; padding: 0.2rem 0.5rem; border-radius: 999px;
+        background: #eff6ff; color: #1d4ed8; font-size: 0.72rem; font-weight: 700;
       }
-
-      .metric-value {
-        font-variant-numeric: tabular-nums;
+      .metric-value { font-variant-numeric: tabular-nums; }
+      .active-cell {
+        background: #dcfce7 !important;
+        outline: 2px solid #16a34a;
+        outline-offset: -2px;
       }
-
+      .active-row { background: #f0fdf4 !important; }
       @media print {
-        body {
-          background: white !important;
-        }
-
-        .print-hidden,
-        .hide-on-print {
-          display: none !important;
-        }
-
-        .print-card {
-          box-shadow: none !important;
-          border: 1px solid #e2e8f0 !important;
-        }
-
-        header,
-        .sticky-header {
-          position: static !important;
-          border-bottom: 1px solid #cbd5e1 !important;
-        }
+        body { background: white !important; }
+        .hide-on-print { display: none !important; }
+        .print-card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
+        .sticky-header { position: static !important; }
       }
     </style>
   </head>
@@ -190,23 +143,22 @@
     </header>
 
     <main class="mx-auto max-w-7xl px-3 py-5 sm:px-4 lg:px-6">
-      <div class="mb-6 text-center">
-        <h1 class="text-2xl font-black uppercase tracking-tight text-slate-900 sm:text-3xl md:text-4xl">
+      <div class="mb-5 text-center">
+        <h1 class="text-2xl font-black uppercase tracking-tight text-slate-900 sm:text-3xl">
           PHIẾU CÂN TAY NHẬP NGUYÊN LIỆU
         </h1>
       </div>
 
-      <div class="grid grid-cols-1 gap-5 xl:grid-cols-[1.7fr_0.9fr]">
+      <div class="grid grid-cols-1 gap-5 xl:grid-cols-[1.65fr_0.95fr]">
         <section class="space-y-5">
-          <div class="glass-card print-card animate-fade-in rounded-3xl p-4 sm:p-5">
+          <!-- Thông tin chung -->
+          <div class="glass-card print-card rounded-3xl p-4 sm:p-5">
             <div class="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Thông tin chung</p>
                 <h2 class="mt-1 text-lg font-bold text-slate-900">Phiếu nhập nguyên liệu</h2>
               </div>
-              <div class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
-                Real-time
-              </div>
+              <div class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">Real-time</div>
             </div>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -214,94 +166,97 @@
                 <span class="mb-1.5 block text-sm font-medium text-slate-700">Ngày tháng</span>
                 <input id="dateTimeInput" type="datetime-local" class="text-input" />
               </label>
-
-              <label class="block md:col-span-1">
+              <label class="block">
                 <span class="mb-1.5 block text-sm font-medium text-slate-700">Biển số xe <span class="text-red-500">*</span></span>
-                <input id="plateNumber" type="text" class="text-input" placeholder="Ví dụ: 47A-12345" required />
+                <input id="plateNumber" type="text" class="text-input" placeholder="Ví dụ: 51M-783.59" required />
               </label>
-
               <label class="block">
                 <span class="mb-1.5 block text-sm font-medium text-slate-700">Phiếu TTCH</span>
                 <input id="ttchSlip" type="number" min="0" step="0.1" class="text-input" placeholder="0" />
               </label>
-
               <div class="block">
                 <span class="mb-1.5 block text-sm font-medium text-slate-700">Tổng cân tay xe</span>
-                <input id="totalTruckWeight" type="text" readonly class="text-input cursor-not-allowed bg-slate-100 text-slate-700 font-semibold" value="0" />
+                <input id="totalTruckWeight" type="text" readonly class="text-input cursor-not-allowed bg-slate-100 font-semibold" value="0" />
               </div>
-
               <div class="block">
                 <span class="mb-1.5 block text-sm font-medium text-slate-700">% Hao hụt</span>
                 <input id="lossPercent" type="text" readonly class="text-input cursor-not-allowed bg-amber-50 text-amber-700 font-semibold" value="0%" />
               </div>
+            </div>
 
-              <div class="md:col-span-2 xl:col-span-4">
-                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
-                  <label class="block">
-                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Lot QC 1</span>
-                    <input id="lot1" type="text" class="lot-input" value="DM" />
-                  </label>
-                  <label class="block">
-                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Lot QC 2</span>
-                    <input id="lot2" type="text" class="lot-input" value="DK" />
-                  </label>
-                  <label class="block">
-                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Lot QC 3</span>
-                    <input id="lot3" type="text" class="lot-input" value="" />
-                  </label>
-                  <label class="block">
-                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Lot QC 4</span>
-                    <input id="lot4" type="text" class="lot-input" value="" />
-                  </label>
-                  <label class="block">
-                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Lot QC 5</span>
-                    <input id="lot5" type="text" class="lot-input" value="DM" />
-                  </label>
-                  <label class="block">
-                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Lot QC 6</span>
-                    <input id="lot6" type="text" class="lot-input" value="DK" />
-                  </label>
-                  <label class="block">
-                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Lot QC 7</span>
-                    <input id="lot7" type="text" class="lot-input" value="" />
-                  </label>
-                  <label class="block">
-                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Lot QC 8</span>
-                    <input id="lot8" type="text" class="lot-input" value="" />
-                  </label>
-                </div>
-              </div>
+            <div class="mt-5">
+              <div class="mb-2 text-sm font-semibold text-slate-700">Lot QC</div>
+              <div id="lotContainer" class="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8"></div>
             </div>
           </div>
 
-          <div class="glass-card print-card animate-fade-in rounded-3xl p-4 sm:p-5">
+          <!-- Ô NHẬP DUY NHẤT -->
+          <div class="glass-card print-card rounded-3xl p-4 sm:p-5 hide-on-print">
+            <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Nhập nhanh (1 ô)</p>
+                <h2 class="mt-1 text-lg font-bold text-slate-900">Nhập theo hàng – tự chuyển ô</h2>
+              </div>
+              <div id="cursorInfo" class="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-800">
+                Dòng 1 • KG 1
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 lg:grid-cols-[140px_180px_1fr_auto]">
+              <label class="block">
+                <span class="mb-1.5 block text-sm font-medium text-slate-700">Mã đang dùng</span>
+                <input id="currentMa" type="text" list="materialCodeList" class="text-input text-center font-bold uppercase text-lg" value="DK" placeholder="DK" />
+              </label>
+
+              <label class="block">
+                <span class="mb-1.5 block text-sm font-medium text-slate-700">Kho</span>
+                <input id="currentKho" type="text" class="text-input text-center font-semibold" value="GIA PHÚC-BI MÃO" placeholder="Tên kho / nguồn" />
+              </label>
+
+              <label class="block">
+                <span class="mb-1.5 block text-sm font-medium text-slate-700">Nhập khối lượng (KG)</span>
+                <input id="bigInput" type="number" min="0" step="0.1" class="big-input" placeholder="0.0" autofocus />
+              </label>
+
+              <div class="flex flex-col justify-end gap-2">
+                <button id="enterBtn" type="button" class="rounded-xl bg-brand-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-200 hover:bg-brand-700">
+                  Nhập (Enter)
+                </button>
+                <button id="nextRowBtn" type="button" class="rounded-xl border border-sky-200 bg-sky-50 px-5 py-2.5 text-xs font-semibold text-sky-700 hover:bg-sky-100">
+                  Xuống dòng
+                </button>
+              </div>
+            </div>
+
+            <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600">
+              <span>• Enter = lưu &amp; chuyển ô tiếp theo</span>
+              <span>• Đổi mã rồi Enter → dòng mới dùng mã mới</span>
+              <span>• Nút "Xuống dòng" = tạo dòng mới giữ nguyên mã</span>
+              <button id="undoBtn" type="button" class="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 font-semibold text-amber-700 hover:bg-amber-100">
+                Xóa giá trị cuối
+              </button>
+            </div>
+          </div>
+
+          <!-- Bảng database -->
+          <div class="glass-card print-card rounded-3xl p-4 sm:p-5">
             <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Nhập chi tiết cân</p>
-                <h2 class="mt-1 text-lg font-bold text-slate-900">Danh sách nguyên liệu trong xe</h2>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Bảng dữ liệu</p>
+                <h2 class="mt-1 text-lg font-bold text-slate-900">Danh sách đã nhập</h2>
               </div>
               <div class="flex flex-wrap gap-2 hide-on-print">
-                <button id="addColumnBtn" type="button" class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100">
-                  + Thêm cột KG
-                </button>
-                <button id="removeColumnBtn" type="button" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
-                  - Bớt cột KG
-                </button>
-                <button id="addRowBtn" type="button" class="rounded-xl bg-brand-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-brand-700">
-                  + Thêm dòng
-                </button>
+                <button id="addColumnBtn" type="button" class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-100">+ Thêm cột KG</button>
+                <button id="removeColumnBtn" type="button" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">- Bớt cột KG</button>
+                <button id="addRowBtn" type="button" class="rounded-xl bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-700">+ Thêm dòng trống</button>
               </div>
             </div>
 
             <div class="table-scroll">
               <table class="min-w-full border-separate border-spacing-y-2 text-sm">
                 <thead>
-                  <tr class="text-left text-slate-600">
-                    <th class="min-w-[130px] rounded-l-xl bg-slate-100 px-3 py-3 font-semibold">Mã</th>
-                    <th id="weightColumnHeaders" class="bg-slate-100 px-3 py-3 font-semibold"></th>
-                    <th class="min-w-[110px] bg-slate-100 px-3 py-3 font-semibold">Tổng dòng</th>
-                    <th class="min-w-[120px] bg-slate-100 px-3 py-3 font-semibold">Kho</th>
-                    <th class="min-w-[100px] rounded-r-xl bg-slate-100 px-3 py-3 text-center font-semibold hide-on-print">Xóa</th>
+                  <tr id="tableHeaderRow" class="text-left text-slate-600">
+                    <!-- headers rendered by JS -->
                   </tr>
                 </thead>
                 <tbody id="detailRowsBody"></tbody>
@@ -311,7 +266,7 @@
         </section>
 
         <aside class="space-y-5">
-          <div class="glass-card print-card animate-fade-in rounded-3xl p-4 sm:p-5">
+          <div class="glass-card print-card rounded-3xl p-4 sm:p-5">
             <div class="flex items-center justify-between gap-3">
               <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Tổng hợp tự động</p>
@@ -321,22 +276,15 @@
             <div id="summaryContainer" class="mt-4 space-y-4"></div>
           </div>
 
-          <div class="glass-card print-card animate-fade-in rounded-3xl p-4 sm:p-5 hide-on-print">
+          <div class="glass-card print-card rounded-3xl p-4 sm:p-5 hide-on-print">
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Thao tác</p>
-            <div class="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
-              <button id="saveBtn" type="button" class="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700">
-                Lưu phiếu
-              </button>
-              <button id="printBtn" type="button" class="rounded-xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-900">
-                In phiếu
-              </button>
-              <button id="excelBtn" type="button" class="rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-amber-200 transition hover:bg-amber-600">
-                Xuất Excel
-              </button>
-              <button id="resetBtn" type="button" class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-                Làm mới
-              </button>
+            <div class="mt-4 grid grid-cols-1 gap-2.5">
+              <button id="saveBtn" type="button" class="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 hover:bg-emerald-700">Lưu phiếu (Firebase + Local)</button>
+              <button id="printBtn" type="button" class="rounded-xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900">In phiếu</button>
+              <button id="excelBtn" type="button" class="rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-amber-200 hover:bg-amber-600">Xuất Excel theo mẫu</button>
+              <button id="resetBtn" type="button" class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Làm mới</button>
             </div>
+            <p id="firebaseStatus" class="mt-3 text-center text-[11px] text-slate-500">Firebase: chưa kết nối (điền config)</p>
           </div>
         </aside>
       </div>
@@ -345,28 +293,53 @@
     <datalist id="materialCodeList"></datalist>
 
     <script>
-      const STORAGE_KEY = 'chanhthu_can_tay_nguyen_lieu_v1';
+      /* =========================================================
+         CẤU HÌNH FIREBASE – thay bằng config thật của bạn
+         ========================================================= */
+      const FIREBASE_CONFIG = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT.firebaseapp.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+      };
+
+      let db = null;
+      try {
+        if (FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY") {
+          firebase.initializeApp(FIREBASE_CONFIG);
+          db = firebase.firestore();
+          document.getElementById('firebaseStatus').textContent = 'Firebase: đã kết nối';
+          document.getElementById('firebaseStatus').classList.add('text-emerald-600');
+        }
+      } catch (e) {
+        console.warn('Firebase chưa cấu hình:', e);
+      }
+
+      const STORAGE_KEY = 'chanhthu_can_tay_v3';
       const materialCatalog = [
         'RT', 'RD', 'RC', 'RK', 'R9', 'RN', 'RTA', 'RTB',
         'DT', 'DD', 'DC', 'DK', 'D9', 'DN', 'DA', 'DB',
         'MSKA', 'MSKB'
       ];
-
       const groupConfig = {
         'RI-6': ['RT', 'RD', 'RC', 'RK', 'R9', 'RN', 'RTA', 'RTB'],
         'DONA': ['DT', 'DD', 'DC', 'DK', 'D9', 'DN', 'DA', 'DB'],
         'Musaking': ['MSKA', 'MSKB']
       };
 
+      // State chính
       const state = {
-        weightCols: 6,
-        rows: [
-          { id: generateRowId(), ma: 'RT', weights: [0, 0, 0, 0, 0, 0], kho: 'Kho 1' },
-          { id: generateRowId(), ma: 'DD', weights: [0, 0, 0, 0, 0, 0], kho: 'Kho 1' }
-        ]
+        weightCols: 9,
+        rows: [],
+        // Con trỏ nhập
+        cursorRow: 0,      // index dòng đang nhập
+        cursorCol: 0,      // index cột KG đang nhập
+        lastMa: 'DK'       // mã vừa dùng (để giữ khi xuống dòng)
       };
 
-      const elements = {
+      const els = {
         dateTimeInput: document.getElementById('dateTimeInput'),
         plateNumber: document.getElementById('plateNumber'),
         ttchSlip: document.getElementById('ttchSlip'),
@@ -374,8 +347,16 @@
         lossPercent: document.getElementById('lossPercent'),
         detailRowsBody: document.getElementById('detailRowsBody'),
         summaryContainer: document.getElementById('summaryContainer'),
-        weightColumnHeaders: document.getElementById('weightColumnHeaders'),
+        tableHeaderRow: document.getElementById('tableHeaderRow'),
+        lotContainer: document.getElementById('lotContainer'),
         materialCodeList: document.getElementById('materialCodeList'),
+        currentMa: document.getElementById('currentMa'),
+        currentKho: document.getElementById('currentKho'),
+        bigInput: document.getElementById('bigInput'),
+        cursorInfo: document.getElementById('cursorInfo'),
+        enterBtn: document.getElementById('enterBtn'),
+        nextRowBtn: document.getElementById('nextRowBtn'),
+        undoBtn: document.getElementById('undoBtn'),
         saveBtn: document.getElementById('saveBtn'),
         printBtn: document.getElementById('printBtn'),
         excelBtn: document.getElementById('excelBtn'),
@@ -385,531 +366,698 @@
         removeColumnBtn: document.getElementById('removeColumnBtn')
       };
 
-      function generateRowId() {
-        return `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+      function genId() {
+        return `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
       }
-
-      function formatNumber(value) {
-        const numeric = Number(value) || 0;
-        return numeric.toLocaleString('vi-VN', {
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 2
-        });
+      function normalizeCode(v) { return String(v || '').trim().toUpperCase(); }
+      function sanitize(v) {
+        const n = Number(v);
+        return Number.isFinite(n) && n >= 0 ? n : 0;
       }
-
-      function formatPercent(value) {
-        const numeric = Number(value) || 0;
-        return `${numeric.toFixed(2)}%`;
+      function fmt(v) {
+        return (Number(v) || 0).toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
       }
-
-      function sanitizeNumberInput(rawValue) {
-        const numeric = Number(rawValue);
-        if (!Number.isFinite(numeric)) return 0;
-        return Math.max(0, numeric);
+      function escapeHtml(v) {
+        return String(v ?? '')
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
       }
-
-      function normalizeCode(value) {
-        return String(value || '').trim().toUpperCase();
-      }
-
-      function getGroupName(code) {
-        const normalized = normalizeCode(code);
-        for (const [groupName, codes] of Object.entries(groupConfig)) {
-          if (codes.includes(normalized)) {
-            return groupName;
-          }
+      function getGroup(code) {
+        const c = normalizeCode(code);
+        for (const [g, codes] of Object.entries(groupConfig)) {
+          if (codes.includes(c)) return g;
         }
         return null;
       }
-
-      function calculateRowTotal(row) {
-        return (row.weights || []).reduce((sum, value) => sum + sanitizeNumberInput(value), 0);
+      function rowTotal(row) {
+        return (row.weights || []).reduce((s, v) => s + sanitize(v), 0);
+      }
+      function truckTotal() {
+        return state.rows.reduce((s, r) => s + rowTotal(r), 0);
+      }
+      function lossPercent() {
+        const t = truckTotal();
+        const ttch = sanitize(els.ttchSlip.value);
+        if (!t || !ttch) return 0;
+        return (1 - ttch / t) * 100;
       }
 
-      function calculateTruckTotal() {
-        return state.rows.reduce((sum, row) => sum + calculateRowTotal(row), 0);
-      }
-
-      function calculateLossPercent() {
-        const truckTotal = calculateTruckTotal();
-        const ttchSlip = sanitizeNumberInput(elements.ttchSlip.value);
-
-        if (!truckTotal || truckTotal <= 0) {
-          return 0;
-        }
-
-        return Math.max(-100, ((1 - ttchSlip / truckTotal) * 100));
+      /* ---------- Render ---------- */
+      function renderLots() {
+        els.lotContainer.innerHTML = Array.from({ length: 8 }, (_, i) => {
+          const n = i + 1;
+          const def = n === 1 ? 'DM' : n === 2 ? 'DK' : n === 5 ? 'DM' : n === 6 ? 'DK' : '';
+          return `
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-2.5">
+              <div class="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">Lot QC ${n}</div>
+              <div class="grid grid-cols-2 gap-1.5">
+                <input id="lot${n}Short" type="text" class="lot-input text-center font-semibold text-xs" value="${def}" placeholder="DM" maxlength="12" />
+                <input id="lot${n}Detail" type="text" class="lot-input text-xs" placeholder="D009LD..." />
+              </div>
+            </div>`;
+        }).join('');
       }
 
       function renderMaterialOptions() {
-        elements.materialCodeList.innerHTML = materialCatalog
-          .map((code) => `<option value="${code}"></option>`)
-          .join('');
+        els.materialCodeList.innerHTML = materialCatalog.map(c => `<option value="${c}"></option>`).join('');
       }
 
-      function renderWeightHeaders() {
-        const headers = Array.from({ length: state.weightCols }, (_, index) => {
-          const label = `KG ${index + 1}`;
-          return `<th class="bg-slate-100 px-2 py-3 text-center font-semibold"><span class="inline-flex rounded-md bg-white px-2 py-1 text-xs text-slate-700 shadow-sm">${label}</span></th>`;
-        }).join('');
-        elements.weightColumnHeaders.innerHTML = headers;
+      function renderHeaders() {
+        const kgHeaders = Array.from({ length: state.weightCols }, (_, i) =>
+          `<th class="min-w-[72px] bg-slate-100 px-1.5 py-3 text-center font-semibold">
+            <span class="inline-flex rounded-md bg-white px-2 py-1 text-[10px] font-bold text-slate-700 shadow-sm">KG ${i + 1}</span>
+          </th>`
+        ).join('');
+
+        els.tableHeaderRow.innerHTML = `
+          <th class="min-w-[50px] rounded-l-xl bg-slate-100 px-2 py-3 text-center font-semibold">#</th>
+          <th class="min-w-[110px] bg-slate-100 px-3 py-3 font-semibold">Mã</th>
+          ${kgHeaders}
+          <th class="min-w-[100px] bg-slate-100 px-3 py-3 font-semibold">Tổng</th>
+          <th class="min-w-[150px] bg-slate-100 px-3 py-3 font-semibold">Kho</th>
+          <th class="min-w-[90px] rounded-r-xl bg-slate-100 px-3 py-3 text-center font-semibold hide-on-print">Xóa</th>
+        `;
       }
 
       function renderRows() {
-        elements.detailRowsBody.innerHTML = state.rows.map((row, rowIndex) => {
-          const rowTotal = calculateRowTotal(row);
-          const weightCells = Array.from({ length: state.weightCols }, (_, weightIndex) => {
-            const value = Number(row.weights[weightIndex] ?? 0);
+        if (!state.rows.length) {
+          state.rows.push({
+            id: genId(),
+            ma: normalizeCode(els.currentMa.value) || 'DK',
+            weights: Array.from({ length: state.weightCols }, () => 0),
+            kho: 'GIA PHÚC-BI MÃO'
+          });
+          state.cursorRow = 0;
+          state.cursorCol = 0;
+        }
+
+        els.detailRowsBody.innerHTML = state.rows.map((row, ri) => {
+          const total = rowTotal(row);
+          const isActiveRow = ri === state.cursorRow;
+          const weightCells = Array.from({ length: state.weightCols }, (_, ci) => {
+            const isActive = isActiveRow && ci === state.cursorCol;
             return `
-              <td class="align-middle px-1.5 py-1">
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value="${value}"
-                  class="kg-input text-center"
-                  data-row-id="${row.id}"
-                  data-weight-index="${weightIndex}"
-                  aria-label="Lần cân ${weightIndex + 1} cho dòng ${rowIndex + 1}"
-                />
-              </td>
-            `;
+              <td class="align-middle px-1 py-1 ${isActive ? 'active-cell' : ''}">
+                <div class="rounded-lg px-2 py-2 text-center text-sm font-medium ${isActive ? 'bg-emerald-100 text-emerald-800 font-bold' : 'bg-white text-slate-700'}">
+                  ${fmt(row.weights[ci] || 0)}
+                </div>
+              </td>`;
           }).join('');
 
           return `
-            <tr class="animate-fade-in align-top">
-              <td class="rounded-l-xl bg-white px-2 py-2 shadow-sm">
-                <input
-                  type="text"
-                  list="materialCodeList"
-                  value="${escapeHtml(row.ma)}"
-                  class="material-input"
-                  data-row-id="${row.id}"
-                  data-field="ma"
-                  placeholder="Nhập mã"
-                  aria-label="Mã nguyên liệu dòng ${rowIndex + 1}"
-                />
+            <tr class="align-top ${isActiveRow ? 'active-row' : ''}">
+              <td class="rounded-l-xl bg-white px-2 py-2 text-center text-xs font-bold text-slate-500 shadow-sm">${ri + 1}</td>
+              <td class="bg-white px-2 py-2 shadow-sm">
+                <span class="inline-flex rounded-lg bg-slate-100 px-2.5 py-1.5 text-sm font-bold text-slate-800">${escapeHtml(row.ma || '—')}</span>
               </td>
               ${weightCells}
               <td class="bg-white px-2 py-2 text-center font-bold shadow-sm">
-                <span class="metric-value rounded-lg bg-emerald-50 px-3 py-2 text-emerald-700">${formatNumber(rowTotal)}</span>
+                <span class="metric-value rounded-lg bg-emerald-50 px-2.5 py-1.5 text-emerald-700">${fmt(total)}</span>
               </td>
               <td class="bg-white px-2 py-2 shadow-sm">
-                <input
-                  type="text"
-                  class="text-input"
-                  value="${escapeHtml(row.kho)}"
-                  data-row-id="${row.id}"
-                  data-field="kho"
-                  placeholder="Kho"
-                  aria-label="Kho hàng dòng ${rowIndex + 1}"
-                />
+                <input type="text" class="cell-input text-xs" value="${escapeHtml(row.kho)}"
+                  data-row-id="${row.id}" data-field="kho" placeholder="Kho" />
               </td>
               <td class="rounded-r-xl bg-white px-2 py-2 text-center shadow-sm hide-on-print">
-                <button
-                  type="button"
-                  class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100"
-                  data-action="delete-row"
-                  data-row-id="${row.id}"
-                >
-                  Xóa
-                </button>
+                <button type="button" class="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-[10px] font-semibold text-red-600 hover:bg-red-100"
+                  data-action="delete-row" data-row-id="${row.id}">Xóa</button>
               </td>
-            </tr>
-          `;
+            </tr>`;
         }).join('');
-      }
-
-      function escapeHtml(value) {
-        return String(value ?? '')
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#039;');
       }
 
       function renderSummary() {
-        const totalsByGroup = {};
-
-        for (const groupName of Object.keys(groupConfig)) {
-          totalsByGroup[groupName] = {};
-          for (const code of groupConfig[groupName]) {
-            totalsByGroup[groupName][code] = 0;
-          }
-        }
-
-        state.rows.forEach((row) => {
+        const totals = {};
+        Object.keys(groupConfig).forEach(g => {
+          totals[g] = {};
+          groupConfig[g].forEach(c => totals[g][c] = 0);
+        });
+        state.rows.forEach(row => {
           const code = normalizeCode(row.ma);
-          const groupName = getGroupName(code);
-          if (!groupName) return;
-          const rowTotal = calculateRowTotal(row);
-          totalsByGroup[groupName][code] = (totalsByGroup[groupName][code] || 0) + rowTotal;
+          const g = getGroup(code);
+          if (!g) return;
+          totals[g][code] = (totals[g][code] || 0) + rowTotal(row);
         });
 
-        const groupCards = Object.entries(groupConfig).map(([groupName, codes]) => {
-          const rowsHtml = codes.map((code) => {
-            const value = totalsByGroup[groupName][code] || 0;
-            return `
-              <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2">
-                <div class="flex items-center gap-2.5">
-                  <span class="summary-badge">${code}</span>
-                  <span class="text-xs text-slate-600">${code}</span>
-                </div>
-                <span class="metric-value text-sm font-bold text-slate-800">${formatNumber(value)}</span>
+        els.summaryContainer.innerHTML = Object.entries(groupConfig).map(([g, codes]) => {
+          const rowsHtml = codes.map(c => `
+            <div class="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2">
+              <div class="flex items-center gap-2">
+                <span class="summary-badge">${c}</span>
               </div>
-            `;
-          }).join('');
-
-          const total = codes.reduce((sum, code) => sum + (totalsByGroup[groupName][code] || 0), 0);
-
+              <span class="metric-value text-sm font-bold text-slate-800">${fmt(totals[g][c] || 0)}</span>
+            </div>`).join('');
+          const groupSum = codes.reduce((s, c) => s + (totals[g][c] || 0), 0);
           return `
             <div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-              <div class="mb-2 flex items-center justify-between gap-2">
-                <h3 class="text-sm font-bold uppercase tracking-wide text-slate-700">${groupName}</h3>
-                <span class="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold text-emerald-700">Tổng</span>
+              <div class="mb-2 flex items-center justify-between">
+                <h3 class="text-sm font-bold uppercase tracking-wide text-slate-700">${g}</h3>
+                <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Tổng</span>
               </div>
-              <div class="space-y-2">${rowsHtml}</div>
-              <div class="mt-3 rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-bold text-white">
-                <div class="flex items-center justify-between gap-2">
-                  <span>Tổng ${groupName}</span>
-                  <span class="metric-value">${formatNumber(total)}</span>
-                </div>
+              <div class="space-y-1.5">${rowsHtml}</div>
+              <div class="mt-2.5 rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white flex justify-between">
+                <span>Tổng ${g}</span>
+                <span class="metric-value">${fmt(groupSum)}</span>
               </div>
-            </div>
-          `;
+            </div>`;
         }).join('');
+      }
 
-        elements.summaryContainer.innerHTML = groupCards;
+      function updateCursorInfo() {
+        els.cursorInfo.textContent = `Dòng ${state.cursorRow + 1} • KG ${state.cursorCol + 1}`;
       }
 
       function updateTotals() {
-        const truckTotal = calculateTruckTotal();
-        elements.totalTruckWeight.value = formatNumber(truckTotal);
-
-        const ttch = sanitizeNumberInput(elements.ttchSlip.value);
-        const loss = calculateLossPercent();
-        const effectiveLoss = ttch && truckTotal ? loss : 0;
-        elements.lossPercent.value = formatPercent(effectiveLoss);
-
-        if (ttch > truckTotal && truckTotal > 0) {
-          elements.lossPercent.classList.add('text-red-600', 'bg-red-50');
+        const total = truckTotal();
+        els.totalTruckWeight.value = fmt(total);
+        const ttch = sanitize(els.ttchSlip.value);
+        const loss = total && ttch ? lossPercent() : 0;
+        els.lossPercent.value = `${loss.toFixed(2)}%`;
+        if (ttch > total && total > 0) {
+          els.lossPercent.classList.add('text-red-600', 'bg-red-50');
+          els.lossPercent.classList.remove('text-amber-700', 'bg-amber-50');
         } else {
-          elements.lossPercent.classList.remove('text-red-600', 'bg-red-50');
-          elements.lossPercent.classList.add('text-amber-700', 'bg-amber-50');
+          els.lossPercent.classList.remove('text-red-600', 'bg-red-50');
+          els.lossPercent.classList.add('text-amber-700', 'bg-amber-50');
+        }
+        renderSummary();
+        updateCursorInfo();
+      }
+
+      function renderAll() {
+        renderMaterialOptions();
+        renderHeaders();
+        renderRows();
+        updateTotals();
+      }
+
+      /* ---------- Logic nhập 1 ô ---------- */
+      function ensureRowExists() {
+        const khoVal = (els.currentKho?.value || '').trim() || state.rows[state.rows.length - 1]?.kho || 'GIA PHÚC-BI MÃO';
+        while (state.rows.length <= state.cursorRow) {
+          state.rows.push({
+            id: genId(),
+            ma: normalizeCode(els.currentMa.value) || state.lastMa || 'DK',
+            weights: Array.from({ length: state.weightCols }, () => 0),
+            kho: khoVal
+          });
+        }
+        // Đồng bộ mã + kho dòng hiện tại
+        const ma = normalizeCode(els.currentMa.value);
+        if (ma) {
+          state.rows[state.cursorRow].ma = ma;
+          state.lastMa = ma;
+        }
+        if (els.currentKho?.value !== undefined) {
+          state.rows[state.cursorRow].kho = (els.currentKho.value || '').trim() || state.rows[state.cursorRow].kho;
+        }
+      }
+
+      function doEnter() {
+        ensureRowExists();
+        const value = sanitize(els.bigInput.value);
+        const row = state.rows[state.cursorRow];
+
+        // Ghi giá trị vào ô hiện tại
+        row.weights[state.cursorCol] = value;
+        row.ma = normalizeCode(els.currentMa.value) || state.lastMa || 'DK';
+        row.kho = (els.currentKho?.value || '').trim() || row.kho || '';
+        state.lastMa = row.ma;
+
+        // Chuyển sang ô tiếp theo
+        if (state.cursorCol < state.weightCols - 1) {
+          state.cursorCol += 1;
+        } else {
+          // Hết cột → xuống dòng mới, giữ mã + kho
+          state.cursorRow += 1;
+          state.cursorCol = 0;
+          ensureRowExists();
+          state.rows[state.cursorRow].ma = normalizeCode(els.currentMa.value) || state.lastMa;
+          state.rows[state.cursorRow].kho = (els.currentKho?.value || '').trim() || state.rows[state.cursorRow].kho;
         }
 
-        renderSummary();
+        els.bigInput.value = '';
+        els.bigInput.focus();
+        renderAll();
+        saveLocal();
+        showToast(`Đã nhập ${fmt(value)} KG`, 'success');
       }
 
-      function ensureMinWeightColumns() {
-        state.rows.forEach((row) => {
-          while (row.weights.length < state.weightCols) {
-            row.weights.push(0);
-          }
-          if (row.weights.length > state.weightCols) {
-            row.weights = row.weights.slice(0, state.weightCols);
-          }
-        });
+      function doNextRow() {
+        ensureRowExists();
+        // Xuống dòng mới, giữ nguyên mã + kho hiện tại
+        state.cursorRow += 1;
+        state.cursorCol = 0;
+        ensureRowExists();
+        state.rows[state.cursorRow].ma = normalizeCode(els.currentMa.value) || state.lastMa;
+        state.rows[state.cursorRow].kho = (els.currentKho?.value || '').trim() || state.rows[state.cursorRow].kho;
+        els.bigInput.value = '';
+        els.bigInput.focus();
+        renderAll();
+        saveLocal();
       }
 
-      function saveCurrentState() {
-        const payload = {
-          dateTime: elements.dateTimeInput.value,
-          plateNumber: elements.plateNumber.value,
-          ttchSlip: elements.ttchSlip.value,
-          lots: Array.from({ length: 8 }, (_, index) => document.getElementById(`lot${index + 1}`).value),
-          weightCols: state.weightCols,
-          rows: state.rows,
-          savedAt: new Date().toISOString()
-        };
+      function doUndo() {
+        if (!state.rows.length) return;
 
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        // Xóa giá trị ở ô hiện tại hoặc lùi lại
+        const row = state.rows[state.cursorRow];
+        if (row && row.weights[state.cursorCol] > 0) {
+          row.weights[state.cursorCol] = 0;
+        } else if (state.cursorCol > 0) {
+          state.cursorCol -= 1;
+          row.weights[state.cursorCol] = 0;
+        } else if (state.cursorRow > 0) {
+          state.cursorRow -= 1;
+          state.cursorCol = state.weightCols - 1;
+          const prev = state.rows[state.cursorRow];
+          if (prev) prev.weights[state.cursorCol] = 0;
+        }
+        renderAll();
+        saveLocal();
+        els.bigInput.focus();
       }
 
-      function restoreState() {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (!saved) {
-          setDefaultLots();
+      /* ---------- Thêm / xóa cột / dòng ---------- */
+      function addColumn() {
+        if (state.weightCols >= 12) {
+          showToast('Tối đa 12 cột KG', 'warning');
           return;
         }
-
-        try {
-          const parsed = JSON.parse(saved);
-          if (parsed.dateTime) elements.dateTimeInput.value = parsed.dateTime;
-          if (parsed.plateNumber) elements.plateNumber.value = parsed.plateNumber;
-          if (parsed.ttchSlip !== undefined) elements.ttchSlip.value = parsed.ttchSlip;
-          if (Array.isArray(parsed.lots)) {
-            parsed.lots.forEach((value, index) => {
-              const field = document.getElementById(`lot${index + 1}`);
-              if (field) field.value = value || '';
-            });
-          }
-          if (parsed.weightCols) {
-            state.weightCols = Math.min(10, Math.max(5, Number(parsed.weightCols) || 6));
-          }
-          if (Array.isArray(parsed.rows) && parsed.rows.length) {
-            state.rows = parsed.rows.map((row) => ({
-              id: row.id || generateRowId(),
-              ma: row.ma || '',
-              kho: row.kho || '',
-              weights: Array.isArray(row.weights) ? row.weights.slice(0, state.weightCols).map((item) => sanitizeNumberInput(item)) : Array.from({ length: state.weightCols }, () => 0)
-            }));
-          } else {
-            state.rows = [
-              { id: generateRowId(), ma: 'RT', weights: Array.from({ length: state.weightCols }, () => 0), kho: 'Kho 1' },
-              { id: generateRowId(), ma: 'DD', weights: Array.from({ length: state.weightCols }, () => 0), kho: 'Kho 1' }
-            ];
-          }
-        } catch (error) {
-          console.warn('Không thể đọc dữ liệu lưu trữ trước đó:', error);
-          setDefaultLots();
+        state.weightCols += 1;
+        state.rows.forEach(r => r.weights.push(0));
+        renderAll();
+        saveLocal();
+      }
+      function removeColumn() {
+        if (state.weightCols <= 5) {
+          showToast('Tối thiểu 5 cột KG', 'warning');
+          return;
         }
+        state.weightCols -= 1;
+        state.rows.forEach(r => r.weights = r.weights.slice(0, state.weightCols));
+        if (state.cursorCol >= state.weightCols) state.cursorCol = state.weightCols - 1;
+        renderAll();
+        saveLocal();
       }
-
-      function setDefaultLots() {
-        const defaultLots = { 1: 'DM', 2: 'DK', 5: 'DM', 6: 'DK' };
-        Object.entries(defaultLots).forEach(([index, value]) => {
-          const field = document.getElementById(`lot${index}`);
-          if (field) field.value = value;
-        });
-      }
-
-      function syncDateTimeDefault() {
-        const now = new Date();
-        const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-        elements.dateTimeInput.value = elements.dateTimeInput.value || localDate;
-      }
-
       function addBlankRow() {
         state.rows.push({
-          id: generateRowId(),
-          ma: '',
+          id: genId(),
+          ma: normalizeCode(els.currentMa.value) || state.lastMa || '',
           weights: Array.from({ length: state.weightCols }, () => 0),
           kho: ''
         });
         renderAll();
+        saveLocal();
       }
-
-      function removeRow(rowId) {
+      function deleteRow(id) {
         if (state.rows.length <= 1) {
-          showToast('Cần ít nhất 1 dòng dữ liệu để cân.', 'warning');
+          showToast('Cần ít nhất 1 dòng', 'warning');
           return;
         }
-        state.rows = state.rows.filter((row) => row.id !== rowId);
+        const idx = state.rows.findIndex(r => r.id === id);
+        state.rows = state.rows.filter(r => r.id !== id);
+        if (state.cursorRow >= state.rows.length) state.cursorRow = state.rows.length - 1;
+        if (state.cursorRow < 0) state.cursorRow = 0;
         renderAll();
+        saveLocal();
       }
 
-      function addColumn() {
-        if (state.weightCols >= 10) {
-          showToast('Đã đạt tối đa 10 cột KG.', 'warning');
-          return;
-        }
-        state.weightCols += 1;
-        state.rows = state.rows.map((row) => ({
-          ...row,
-          weights: [...(row.weights || []), 0]
+      /* ---------- Lưu / Khôi phục ---------- */
+      function getLots() {
+        return Array.from({ length: 8 }, (_, i) => ({
+          short: document.getElementById(`lot${i + 1}Short`)?.value || '',
+          detail: document.getElementById(`lot${i + 1}Detail`)?.value || ''
         }));
-        renderAll();
       }
 
-      function removeColumn() {
-        if (state.weightCols <= 5) {
-          showToast('Đã đạt tối thiểu 5 cột KG.', 'warning');
+      function saveLocal() {
+        const payload = {
+          dateTime: els.dateTimeInput.value,
+          plateNumber: els.plateNumber.value,
+          ttchSlip: els.ttchSlip.value,
+          lots: getLots(),
+          weightCols: state.weightCols,
+          rows: state.rows,
+          cursorRow: state.cursorRow,
+          cursorCol: state.cursorCol,
+          lastMa: state.lastMa,
+          currentMa: els.currentMa.value,
+          currentKho: els.currentKho ? els.currentKho.value : '',
+          savedAt: new Date().toISOString()
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      }
+
+      async function saveFirebase() {
+        if (!db) {
+          showToast('Chưa cấu hình Firebase. Đã lưu local.', 'warning');
           return;
         }
-        state.weightCols -= 1;
-        state.rows = state.rows.map((row) => ({
-          ...row,
-          weights: (row.weights || []).slice(0, state.weightCols)
-        }));
-        renderAll();
+        if (!els.plateNumber.value.trim()) {
+          showToast('Nhập biển số xe trước khi lưu Firebase', 'error');
+          return;
+        }
+        const id = `${els.plateNumber.value.trim().replace(/\s+/g, '_')}_${(els.dateTimeInput.value || '').slice(0, 10)}`;
+        const payload = {
+          dateTime: els.dateTimeInput.value,
+          plateNumber: els.plateNumber.value,
+          ttchSlip: sanitize(els.ttchSlip.value),
+          lots: getLots(),
+          weightCols: state.weightCols,
+          rows: state.rows,
+          totalTruck: truckTotal(),
+          lossPercent: lossPercent(),
+          updatedAt: new Date().toISOString()
+        };
+        try {
+          await db.collection('phieu_can_tay').doc(id).set(payload, { merge: true });
+          showToast('Đã lưu Firebase thành công', 'success');
+        } catch (err) {
+          console.error(err);
+          showToast('Lỗi lưu Firebase: ' + err.message, 'error');
+        }
       }
 
-      function showToast(message, type = 'info') {
-        const existing = document.getElementById('toast');
-        if (existing) existing.remove();
+      function restoreLocal() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          // Khởi tạo 1 dòng trống
+          state.rows = [{
+            id: genId(),
+            ma: 'DK',
+            weights: Array.from({ length: state.weightCols }, () => 0),
+            kho: 'GIA PHÚC-BI MÃO'
+          }];
+          return;
+        }
+        try {
+          const p = JSON.parse(raw);
+          if (p.dateTime) els.dateTimeInput.value = p.dateTime;
+          if (p.plateNumber) els.plateNumber.value = p.plateNumber;
+          if (p.ttchSlip !== undefined) els.ttchSlip.value = p.ttchSlip;
+          if (p.currentMa) els.currentMa.value = p.currentMa;
+          if (p.currentKho && els.currentKho) els.currentKho.value = p.currentKho;
+          if (p.lastMa) state.lastMa = p.lastMa;
+          if (p.weightCols) state.weightCols = Math.min(12, Math.max(5, p.weightCols));
+          if (Array.isArray(p.lots)) {
+            p.lots.forEach((lot, i) => {
+              const s = document.getElementById(`lot${i + 1}Short`);
+              const d = document.getElementById(`lot${i + 1}Detail`);
+              if (s) s.value = lot.short || '';
+              if (d) d.value = lot.detail || '';
+            });
+          }
+          if (Array.isArray(p.rows) && p.rows.length) {
+            state.rows = p.rows.map(r => ({
+              id: r.id || genId(),
+              ma: r.ma || '',
+              kho: r.kho || '',
+              weights: Array.isArray(r.weights)
+                ? r.weights.slice(0, state.weightCols).map(sanitize)
+                : Array.from({ length: state.weightCols }, () => 0)
+            }));
+          }
+          state.cursorRow = Math.min(p.cursorRow || 0, state.rows.length - 1);
+          state.cursorCol = Math.min(p.cursorCol || 0, state.weightCols - 1);
+        } catch (e) {
+          console.warn(e);
+        }
+      }
 
-        const toast = document.createElement('div');
-        toast.id = 'toast';
-        const palette = {
+      /* ---------- Xuất Excel (cấu trúc gần với mẫu) ---------- */
+      async function exportExcel() {
+        if (!els.plateNumber.value.trim()) {
+          showToast('Nhập biển số xe trước khi xuất', 'error');
+          els.plateNumber.focus();
+          return;
+        }
+
+        showToast('Đang tạo file Excel theo mẫu...', 'info');
+
+        try {
+          // 1. Load file mẫu (cùng thư mục với HTML, hoặc đường dẫn tương đối)
+          const templatePaths = [
+            'exel/Mẫu xuống xe.xlsx',
+            'exel/Mau_xuong_xe.xlsx',
+            './exel/Mẫu xuống xe.xlsx',
+            './exel/Mau_xuong_xe.xlsx',
+            'Mau_xuong_xe.xlsx',
+            './Mau_xuong_xe.xlsx',
+            'Mẫu xuống xe.xlsx'
+          ];
+
+          let buffer = null;
+          let lastError = null;
+          for (const path of templatePaths) {
+            try {
+              const res = await fetch(path);
+              if (res.ok) {
+                buffer = await res.arrayBuffer();
+                break;
+              }
+            } catch (e) {
+              lastError = e;
+            }
+          }
+
+          if (!buffer) {
+            showToast('Không tìm thấy file mẫu. Kiểm tra đường dẫn: exel/Mẫu xuống xe.xlsx', 'error');
+            console.error('Template not found', lastError);
+            return;
+          }
+
+          // 2. Đọc template bằng ExcelJS (giữ style/màu)
+          const workbook = new ExcelJS.Workbook();
+          await workbook.xlsx.load(buffer);
+
+          const chiTiet = workbook.getWorksheet('CHI TIET') || workbook.worksheets[2] || workbook.worksheets[0];
+          if (!chiTiet) {
+            showToast('Không tìm thấy sheet CHI TIET trong mẫu', 'error');
+            return;
+          }
+
+          const lots = getLots();
+          const ttch = sanitize(els.ttchSlip.value);
+          const dateVal = els.dateTimeInput.value
+            ? els.dateTimeInput.value.replace('T', ' ')
+            : new Date().toLocaleString('sv-SE').replace('T', ' ');
+
+          // --- Điền thông tin chung ---
+          // M4 = Ngày tháng (ghi đè công thức NOW nếu cần)
+          chiTiet.getCell('M4').value = dateVal;
+          // C5 = Biển số xe
+          chiTiet.getCell('C5').value = els.plateNumber.value.trim();
+          // M5 = Phiếu TTCH
+          chiTiet.getCell('M5').value = ttch || 0;
+
+          // Lot QC ngắn: C6, C7, C8, C9, H6, H7, H8, H9
+          const lotShortCells = ['C6', 'C7', 'C8', 'C9', 'H6', 'H7', 'H8', 'H9'];
+          lots.forEach((lot, i) => {
+            if (lotShortCells[i]) {
+              chiTiet.getCell(lotShortCells[i]).value = lot.short || '';
+            }
+          });
+
+          // --- Xóa dữ liệu cũ vùng chi tiết (dòng 14–75) ---
+          for (let r = 14; r <= 75; r++) {
+            // Cột A = Mã
+            chiTiet.getCell(`A${r}`).value = null;
+            // Cột B–L = KG (11 cột trong mẫu)
+            for (let c = 2; c <= 12; c++) {
+              chiTiet.getCell(r, c).value = null;
+            }
+            // Cột N = Kho
+            chiTiet.getCell(`N${r}`).value = null;
+            // Cột M giữ công thức SUM nếu có, hoặc ghi tổng
+          }
+
+          // --- Điền dữ liệu cân ---
+          // Mẫu dùng cột B–L (11 cột KG). Lấy min(weightCols, 11)
+          const maxKgCols = Math.min(state.weightCols, 11);
+          const dataRows = state.rows.filter(r => normalizeCode(r.ma) || rowTotal(r) > 0);
+
+          dataRows.forEach((row, idx) => {
+            const excelRow = 14 + idx;
+            if (excelRow > 75) return; // vượt vùng mẫu
+
+            chiTiet.getCell(`A${excelRow}`).value = normalizeCode(row.ma) || '';
+
+            for (let ci = 0; ci < maxKgCols; ci++) {
+              const val = sanitize(row.weights[ci]);
+              // Cột B = 2, C = 3, ...
+              chiTiet.getCell(excelRow, 2 + ci).value = val > 0 ? val : null;
+            }
+
+            // Tổng dòng (cột M = 13) – ghi giá trị để chắc chắn
+            chiTiet.getCell(`M${excelRow}`).value = rowTotal(row) || 0;
+            // Kho (cột N = 14)
+            chiTiet.getCell(`N${excelRow}`).value = row.kho || '';
+          });
+
+          // Ghi tổng cân tay xe (M6) bằng giá trị thực (công thức gốc vẫn có thể giữ)
+          // Mẫu: M6 = I80+I83+C89 (tổng từ SUMIF) → để công thức tự chạy sau khi mở Excel
+          // Không ghi đè M6 để giữ logic mẫu
+
+          // --- Xuất file ---
+          const outBuffer = await workbook.xlsx.writeBuffer();
+          const blob = new Blob([outBuffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          const plate = els.plateNumber.value.trim().replace(/\s+/g, '-').toUpperCase();
+          a.href = url;
+          a.download = `phieu-can-tay-${plate}.xlsx`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+
+          showToast('Xuất Excel theo mẫu thành công (giữ format)', 'success');
+        } catch (err) {
+          console.error(err);
+          showToast('Lỗi xuất Excel: ' + (err.message || err), 'error');
+        }
+      }
+
+      /* ---------- Helpers ---------- */
+      function showToast(msg, type = 'info') {
+        const old = document.getElementById('toast');
+        if (old) old.remove();
+        const t = document.createElement('div');
+        t.id = 'toast';
+        const colors = {
           info: 'bg-slate-900 text-white',
           success: 'bg-emerald-600 text-white',
           warning: 'bg-amber-500 text-white',
           error: 'bg-red-600 text-white'
         };
-
-        toast.className = `fixed right-4 top-20 z-50 rounded-xl px-4 py-3 text-sm font-medium shadow-lg ${palette[type] || palette.info}`;
-        toast.textContent = message;
-        document.body.appendChild(toast);
-
-        setTimeout(() => {
-          toast.remove();
-        }, 2200);
+        t.className = `fixed right-4 top-20 z-50 rounded-xl px-4 py-3 text-sm font-medium shadow-lg ${colors[type] || colors.info}`;
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 2200);
       }
 
-      function validateBeforeSaving() {
-        const plate = elements.plateNumber.value.trim();
-        if (!plate) {
-          showToast('Vui lòng nhập biển số xe trước khi lưu phiếu.', 'error');
-          elements.plateNumber.focus();
-          return false;
-        }
-
-        for (const row of state.rows) {
-          const rowTotal = calculateRowTotal(row);
-          if (row.ma && rowTotal < 0) {
-            showToast('Không được nhập số âm trong các lần cân.', 'error');
-            return false;
-          }
-        }
-
-        return true;
-      }
-
-      function handleTableInput(event) {
-        const target = event.target;
-        const rowId = target.dataset.rowId;
-        if (!rowId) return;
-
-        const row = state.rows.find((item) => item.id === rowId);
-        if (!row) return;
-
-        if (target.dataset.field === 'ma') {
-          row.ma = normalizeCode(target.value);
-          renderSummary();
-          return;
-        }
-
-        if (target.dataset.field === 'kho') {
-          row.kho = target.value;
-          return;
-        }
-
-        if (target.dataset.weightIndex !== undefined) {
-          const index = Number(target.dataset.weightIndex);
-          const numericValue = sanitizeNumberInput(target.value);
-          row.weights[index] = numericValue;
-          renderRows();
-          updateTotals();
-          saveCurrentState();
-        }
-      }
-
-      function handleTableClick(event) {
-        const action = event.target.dataset.action;
-        const rowId = event.target.dataset.rowId;
-        if (action === 'delete-row' && rowId) {
-          removeRow(rowId);
-          saveCurrentState();
-        }
-      }
-
-      function buildWorkbookRows() {
-        const totalTruck = calculateTruckTotal();
-        const ttch = sanitizeNumberInput(elements.ttchSlip.value);
-        const lossRate = calculateLossPercent();
-        const lots = Array.from({ length: 8 }, (_, index) => document.getElementById(`lot${index + 1}`).value || '');
-
-        const rows = [
-          ['CÔNG TY CỔ PHẦN TẬP ĐOÀN XUẤT NHẬP KHẨU TRÁI CÂY CHÁNH THU'],
-          ['Thôn Nam Kỳ, Xã Ea Drơng, Huyện Cư M\'Gar, Tỉnh Đắk Lắk'],
-          ['PHIẾU CÂN TAY NHẬP NGUYÊN LIỆU'],
-          [`Ngày giờ: ${elements.dateTimeInput.value || ''}`],
-          [`Biển số xe: ${elements.plateNumber.value || ''}`],
-          [`Phiếu TTCH: ${ttch}`],
-          ['Lot QC', 'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8'],
-          ['Giá trị', lots[0], lots[1], lots[2], lots[3], lots[4], lots[5], lots[6], lots[7]],
-          [],
-          ['Mã', ...Array.from({ length: state.weightCols }, (_, index) => `KG ${index + 1}`), 'Tổng dòng', 'Kho'],
-          ...state.rows.map((row) => [
-            row.ma,
-            ...row.weights.map((value) => value),
-            calculateRowTotal(row),
-            row.kho || ''
-          ]),
-          [],
-          ['Tổng cân tay xe', totalTruck],
-          ['Hao hụt %', `${lossRate.toFixed(2)}%`],
-          []
-        ];
-
-        return rows;
-      }
-
-      function exportExcel() {
-        if (!elements.plateNumber.value.trim()) {
-          showToast('Vui lòng nhập biển số xe trước khi xuất Excel.', 'error');
-          elements.plateNumber.focus();
-          return;
-        }
-
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.aoa_to_sheet(buildWorkbookRows());
-        XLSX.utils.book_append_sheet(wb, ws, 'Phiếu cân tay');
-        XLSX.writeFile(wb, `phieu-can-tay-${(elements.plateNumber.value || 'nguyen-lieu').replace(/\s+/g, '-').toUpperCase()}.xlsx`);
-        showToast('Xuất Excel thành công.', 'success');
-      }
-
-      function renderAll() {
-        renderMaterialOptions();
-        renderWeightHeaders();
-        renderRows();
-        updateTotals();
+      function syncDate() {
+        const now = new Date();
+        const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        if (!els.dateTimeInput.value) els.dateTimeInput.value = local;
       }
 
       function resetForm() {
-        state.weightCols = 6;
-        state.rows = [
-          { id: generateRowId(), ma: 'RT', weights: [0, 0, 0, 0, 0, 0], kho: 'Kho 1' },
-          { id: generateRowId(), ma: 'DD', weights: [0, 0, 0, 0, 0, 0], kho: 'Kho 1' }
-        ];
-        elements.plateNumber.value = '';
-        elements.ttchSlip.value = '';
-        setDefaultLots();
-        syncDateTimeDefault();
+        state.weightCols = 9;
+        state.rows = [{
+          id: genId(),
+          ma: 'DK',
+          weights: Array.from({ length: 9 }, () => 0),
+          kho: 'GIA PHÚC-BI MÃO'
+        }];
+        state.cursorRow = 0;
+        state.cursorCol = 0;
+        state.lastMa = 'DK';
+        els.currentMa.value = 'DK';
+        if (els.currentKho) els.currentKho.value = 'GIA PHÚC-BI MÃO';
+        els.plateNumber.value = '';
+        els.ttchSlip.value = '';
+        els.bigInput.value = '';
+        syncDate();
+        renderLots();
         renderAll();
-        saveCurrentState();
-        showToast('Đã làm mới dữ liệu phiếu.', 'success');
+        saveLocal();
+        showToast('Đã làm mới phiếu', 'success');
       }
 
+      /* ---------- Events ---------- */
       function attachEvents() {
-        elements.addRowBtn.addEventListener('click', addBlankRow);
-        elements.addColumnBtn.addEventListener('click', addColumn);
-        elements.removeColumnBtn.addEventListener('click', removeColumn);
-        elements.detailRowsBody.addEventListener('input', handleTableInput);
-        elements.detailRowsBody.addEventListener('click', handleTableClick);
-        elements.ttchSlip.addEventListener('input', () => {
-          updateTotals();
-          saveCurrentState();
+        els.enterBtn.addEventListener('click', doEnter);
+        els.nextRowBtn.addEventListener('click', doNextRow);
+        els.undoBtn.addEventListener('click', doUndo);
+
+        els.bigInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            doEnter();
+          }
         });
-        elements.plateNumber.addEventListener('input', () => {
-          saveCurrentState();
+
+        els.currentMa.addEventListener('change', () => {
+          state.lastMa = normalizeCode(els.currentMa.value) || state.lastMa;
+          if (state.rows[state.cursorRow]) {
+            state.rows[state.cursorRow].ma = state.lastMa;
+            renderAll();
+          }
+          saveLocal();
         });
-        elements.dateTimeInput.addEventListener('input', () => {
-          saveCurrentState();
+
+        if (els.currentKho) {
+          els.currentKho.addEventListener('input', () => {
+            if (state.rows[state.cursorRow]) {
+              state.rows[state.cursorRow].kho = (els.currentKho.value || '').trim();
+              renderRows();
+            }
+            saveLocal();
+          });
+        }
+
+        els.addColumnBtn.addEventListener('click', addColumn);
+        els.removeColumnBtn.addEventListener('click', removeColumn);
+        els.addRowBtn.addEventListener('click', addBlankRow);
+
+        els.detailRowsBody.addEventListener('input', (e) => {
+          const t = e.target;
+          if (t.dataset.field === 'kho' && t.dataset.rowId) {
+            const row = state.rows.find(r => r.id === t.dataset.rowId);
+            if (row) {
+              row.kho = t.value;
+              saveLocal();
+            }
+          }
         });
-        Array.from({ length: 8 }, (_, index) => document.getElementById(`lot${index + 1}`)).forEach((lotInput) => {
-          lotInput.addEventListener('input', saveCurrentState);
+        els.detailRowsBody.addEventListener('click', (e) => {
+          if (e.target.dataset.action === 'delete-row') {
+            deleteRow(e.target.dataset.rowId);
+          }
         });
-        elements.saveBtn.addEventListener('click', () => {
-          if (!validateBeforeSaving()) return;
-          saveCurrentState();
-          showToast('Đã lưu phiếu thành công.', 'success');
+
+        [els.dateTimeInput, els.plateNumber, els.ttchSlip].forEach(el => {
+          el.addEventListener('input', () => {
+            updateTotals();
+            saveLocal();
+          });
         });
-        elements.printBtn.addEventListener('click', () => window.print());
-        elements.excelBtn.addEventListener('click', exportExcel);
-        elements.resetBtn.addEventListener('click', resetForm);
+
+        for (let i = 1; i <= 8; i++) {
+          const s = document.getElementById(`lot${i}Short`);
+          const d = document.getElementById(`lot${i}Detail`);
+          if (s) s.addEventListener('input', saveLocal);
+          if (d) d.addEventListener('input', saveLocal);
+        }
+
+        els.saveBtn.addEventListener('click', async () => {
+          if (!els.plateNumber.value.trim()) {
+            showToast('Nhập biển số xe trước khi lưu', 'error');
+            els.plateNumber.focus();
+            return;
+          }
+          saveLocal();
+          await saveFirebase();
+          showToast('Đã lưu phiếu', 'success');
+        });
+
+        els.printBtn.addEventListener('click', () => window.print());
+        els.excelBtn.addEventListener('click', exportExcel);
+        els.resetBtn.addEventListener('click', resetForm);
+        window.addEventListener('beforeunload', saveLocal);
       }
 
       function init() {
-        setDefaultLots();
-        syncDateTimeDefault();
-        renderAll();
-        restoreState();
+        renderLots();
+        syncDate();
+        restoreLocal();
         renderAll();
         attachEvents();
-        saveCurrentState();
+        els.bigInput.focus();
       }
 
       init();
