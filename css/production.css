@@ -68,6 +68,20 @@ body {
   box-shadow: 0 0 0 0.2rem rgba(47, 111, 237, 0.15);
 }
 
+.action-button-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.action-btn {
+  min-width: 108px;
+  padding: 0.45rem 0.75rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 .card {
   border: 1px solid #e7edf7;
 }

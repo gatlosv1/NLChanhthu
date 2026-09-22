@@ -1,4 +1,4 @@
-import { getCurrentUser, watchAuthState } from './auth.js';
+  import { getCurrentUser, watchAuthState } from './auth.js';
 import { rtdb, db } from './firebase.js';
 import { endAt, equalTo, get, limitToLast, onChildAdded, orderByChild, orderByKey, query, ref, remove } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';

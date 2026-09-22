@@ -162,6 +162,19 @@
   box-shadow: none;
 }
 
+.dashboard-page .form-select option {
+  color: #0f172a;
+  background: #ffffff;
+  padding: 0.6rem 0.75rem;
+}
+
+.dashboard-page .form-select option:checked,
+.dashboard-page .form-select option:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  font-weight: 600;
+}
+
 .dashboard-page .form-control:focus,
 .dashboard-page .form-select:focus,
 .dashboard-page input:focus,

@@ -246,10 +246,50 @@
   min-height: 42px;
 }
 
-.dashboard-page .row.text-center .h5 {
-  margin-top: 0.25rem;
+.action-button-group {
+  width: auto;
+  margin-left: auto;
+  align-items: center;
+}
+
+.action-btn {
+  min-width: 120px;
+  padding: 0.45rem 0.8rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.summary-section {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.04);
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.summary-item {
+  padding: 1rem 1.1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  text-align: center;
+}
+
+.summary-label {
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+.summary-value {
   color: #0f172a;
-  font-weight: 700;
+  font-size: clamp(1.25rem, 2vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
 }
 
 .dashboard-page .table-card {
@@ -259,10 +299,11 @@
 #nhapLieuSanXuatTable {
   display: block;
   width: 100%;
-  min-height: 450px;
+  height: 440px;
+  max-height: 440px;
   border-radius: 14px;
   overflow: hidden;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #dbeafe;
   background: #fff;
 }
 
@@ -271,15 +312,21 @@
   border-radius: 14px;
   font-size: 0.8rem;
   background: #fff;
+  height: 100%;
+}
+
+#nhapLieuSanXuatTable .tabulator-tableholder {
+  height: calc(100% - 42px) !important;
+  overflow-y: auto !important;
 }
 
 #nhapLieuSanXuatTable .tabulator-header {
-  background: #eff6ff;
+  background: #eaf3ff;
   border-bottom: 1px solid #dbeafe;
 }
 
 #nhapLieuSanXuatTable .tabulator-header .tabulator-col {
-  background: #eff6ff;
+  background: #eaf3ff;
   border-right: 1px solid #dbeafe;
   color: #1e293b;
   font-weight: 700;
@@ -323,6 +370,10 @@
   .dashboard-page .toolbar-actions {
     justify-content: flex-start;
   }
+
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
+  }
 }
 
 @media (max-width: 576px) {
@@ -342,5 +393,9 @@
   .dashboard-page .toolbar-actions .last-updated {
     flex: 1 1 auto;
     justify-content: center;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
   }
 }

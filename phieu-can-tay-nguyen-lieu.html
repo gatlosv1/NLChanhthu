@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Phiếu cân tay nguyên liệu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: '#f0fdf4',
+                100: '#dcfce7',
+                500: '#16a34a',
+                600: '#15803d',
+                700: '#166534',
+                900: '#14532d'
+              },
+              accent: {
+                50: '#eff6ff',
+                100: '#dbeafe',
+                500: '#3b82f6',
+                600: '#2563eb',
+                700: '#1d4ed8'
+              }
+            },
+            boxShadow: {
+              soft: '0 18px 35px rgba(15, 23, 42, 0.08)'
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.25s ease-in-out',
+              'float-slow': 'floatSlow 4s ease-in-out infinite'
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: 0, transform: 'translateY(8px)' },
+                '100%': { opacity: 1, transform: 'translateY(0)' }
+              },
+              floatSlow: {
+                '0%, 100%': { transform: 'translateY(0px)' },
+                '50%': { transform: 'translateY(-5px)' }
+              }
+            }
+          }
+        }
+      };
+    </script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <style>
+      :root {
+        --bg-page: #f4f8f4;
+        --card: rgba(255, 255, 255, 0.9);
+        --line: rgba(148, 163, 184, 0.2);
+        --brand: #15803d;
+        --accent: #2563eb;
+        --warning: #f59e0b;
+        --danger: #dc2626;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        background: linear-gradient(180deg, #effaf1 0%, #f7fafc 100%);
+      }
+
+      .glass-card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+        backdrop-filter: blur(12px);
+      }
+
+      .sticky-header {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        background: rgba(255, 255, 255, 0.82);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      }
+
+      .company-logo {
+        width: 52px;
+        height: 52px;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+        box-shadow: 0 12px 24px rgba(21, 128, 61, 0.2);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        flex-shrink: 0;
+      }
+
+      .table-scroll {
+        overflow-x: auto;
+      }
+
+      .kg-input,
+      .material-input,
+      .lot-input,
+      .text-input {
+        width: 100%;
+        border-radius: 0.7rem;
+        border: 1px solid #dbe4ea;
+        background: #f8fafc;
+        color: #0f172a;
+        padding: 0.65rem 0.75rem;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+      }
+
+      .kg-input:focus,
+      .material-input:focus,
+      .lot-input:focus,
+      .text-input:focus,
+      .select-input:focus {
+        outline: none;
+        border-color: rgba(37, 99, 235, 0.75);
+        box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+        background: white;
+      }
+
+      .summary-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.2rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: 0.74rem;
+        font-weight: 700;
+      }
+
+      .metric-value {
+        font-variant-numeric: tabular-nums;
+      }
+
+      @media print {
+        body {
+          background: white !important;
+        }
+
+        .print-hidden,
+        .hide-on-print {
+          display: none !important;
+        }
+
+        .print-card {
+          box-shadow: none !important;
+          border: 1px solid #e2e8f0 !important;
+        }
+
+        header,
+        .sticky-header {
+          position: static !important;
+          border-bottom: 1px solid #cbd5e1 !important;
+        }
+      }
+    </style>
+  </head>
+  <body class="min-h-screen text-slate-800 antialiased">
+    <header class="sticky-header">
+      <div class="mx-auto max-w-7xl px-3 py-3 sm:px-4 lg:px-6">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex min-w-0 items-center gap-3">
+            <div class="company-logo animate-float-slow">CT</div>
+            <div class="min-w-0">
+              <div class="truncate text-[11px] font-semibold uppercase tracking-[0.02em] text-emerald-800 sm:text-xs md:text-sm">
+                CÔNG TY CỔ PHẦN TẬP ĐOÀN XUẤT NHẬP KHẨU TRÁI CÂY CHÁNH THU
+              </div>
+              <div class="truncate text-[10px] text-slate-600 sm:text-xs">
+                Thôn Nam Kỳ, Xã Ea Drơng, Huyện Cư M'Gar, Tỉnh Đắk Lắk
+              </div>
+            </div>
+          </div>
+          <div class="hidden rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[10px] font-semibold text-emerald-700 sm:block">
+            Phiếu cân tay nguyên liệu
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-3 py-5 sm:px-4 lg:px-6">
+      <div class="mb-6 text-center">
+        <h1 class="text-2xl font-black uppercase tracking-tight text-slate-900 sm:text-3xl md:text-4xl">
+          PHIẾU CÂN TAY NHẬP NGUYÊN LIỆU
+        </h1>
+      </div>
+
+      <div class="grid grid-cols-1 gap-5 xl:grid-cols-[1.7fr_0.9fr]">
+        <section class="space-y-5">
+          <div class="glass-card print-card animate-fade-in rounded-3xl p-4 sm:p-5">
+            <div class="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Thông tin chung</p>
+                <h2 class="mt-1 text-lg font-bold text-slate-900">Phiếu nhập nguyên liệu</h2>
+              </div>
+              <div class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+                Real-time
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <label class="block">
+                <span class="mb-1.5 block text-sm font-medium text-slate-700">Ngày tháng</span>
+                <input id="dateTimeInput" type="datetime-local" class="text-input" />
+              </label>
+
+              <label class="block md:col-span-1">
+                <span class="mb-1.5 block text-sm font-medium text-slate-700">Biển số xe <span class="text-red-500">*</span></span>
+                <input id="plateNumber" type="text" class="text-input" placeholder="Ví dụ: 47A-12345" required />
+              </label>
+
+              <label class="block">
+                <span class="mb-1.5 block text-sm font-medium text-slate-700">Phiếu TTCH</span>
+                <input id="ttchSlip" type="number" min="0" step="0.1" class="text-input" placeholder="0" />
+              </label>
+
+              <div class="block">
+                <span class="mb-1.5 block text-sm font-medium text-slate-700">Tổng cân tay xe</span>
+                <input id="totalTruckWeight" type="text" readonly class="text-input cursor-not-allowed bg-slate-100 text-slate-700 font-semibold" value="0" />
+              </div>
+
+              <div class="block">
+                <span class="mb-1.5 block text-sm font-medium text-slate-700">% Hao hụt</span>
+                <input id="lossPercent" type="text" readonly class="text-input cursor-not-allowed bg-amber-50 text-amber-700 font-semibold" value="0%" />
+              </div>
+
+              <div class="md:col-span-2 xl:col-span-4">
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
+                  <label class="block">
+                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Lot QC 1</span>
+                    <input id="lot1" type="text" class="lot-input" value="DM" />
+                  </label>
+                  <label class="block">
+                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Lot QC 2</span>
+                    <input id="lot2" type="text" class="lot-input" value="DK" />
+                  </label>
+                  <label class="block">
+                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Lot QC 3</span>
+                    <input id="lot3" type="text" class="lot-input" value="" />
+                  </label>
+                  <label class="block">
+                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Lot QC 4</span>
+                    <input id="lot4" type="text" class="lot-input" value="" />
+                  </label>
+                  <label class="block">
+                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Lot QC 5</span>
+                    <input id="lot5" type="text" class="lot-input" value="DM" />
+                  </label>
+                  <label class="block">
+                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Lot QC 6</span>
+                    <input id="lot6" type="text" class="lot-input" value="DK" />
+                  </label>
+                  <label class="block">
+                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Lot QC 7</span>
+                    <input id="lot7" type="text" class="lot-input" value="" />
+                  </label>
+                  <label class="block">
+                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Lot QC 8</span>
+                    <input id="lot8" type="text" class="lot-input" value="" />
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card print-card animate-fade-in rounded-3xl p-4 sm:p-5">
+            <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Nhập chi tiết cân</p>
+                <h2 class="mt-1 text-lg font-bold text-slate-900">Danh sách nguyên liệu trong xe</h2>
+              </div>
+              <div class="flex flex-wrap gap-2 hide-on-print">
+                <button id="addColumnBtn" type="button" class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100">
+                  + Thêm cột KG
+                </button>
+                <button id="removeColumnBtn" type="button" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                  - Bớt cột KG
+                </button>
+                <button id="addRowBtn" type="button" class="rounded-xl bg-brand-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-brand-700">
+                  + Thêm dòng
+                </button>
+              </div>
+            </div>
+
+            <div class="table-scroll">
+              <table class="min-w-full border-separate border-spacing-y-2 text-sm">
+                <thead>
+                  <tr class="text-left text-slate-600">
+                    <th class="min-w-[130px] rounded-l-xl bg-slate-100 px-3 py-3 font-semibold">Mã</th>
+                    <th id="weightColumnHeaders" class="bg-slate-100 px-3 py-3 font-semibold"></th>
+                    <th class="min-w-[110px] bg-slate-100 px-3 py-3 font-semibold">Tổng dòng</th>
+                    <th class="min-w-[120px] bg-slate-100 px-3 py-3 font-semibold">Kho</th>
+                    <th class="min-w-[100px] rounded-r-xl bg-slate-100 px-3 py-3 text-center font-semibold hide-on-print">Xóa</th>
+                  </tr>
+                </thead>
+                <tbody id="detailRowsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <aside class="space-y-5">
+          <div class="glass-card print-card animate-fade-in rounded-3xl p-4 sm:p-5">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Tổng hợp tự động</p>
+                <h2 class="mt-1 text-lg font-bold text-slate-900">Bảng tổng nguyên liệu</h2>
+              </div>
+            </div>
+            <div id="summaryContainer" class="mt-4 space-y-4"></div>
+          </div>
+
+          <div class="glass-card print-card animate-fade-in rounded-3xl p-4 sm:p-5 hide-on-print">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Thao tác</p>
+            <div class="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
+              <button id="saveBtn" type="button" class="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700">
+                Lưu phiếu
+              </button>
+              <button id="printBtn" type="button" class="rounded-xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-900">
+                In phiếu
+              </button>
+              <button id="excelBtn" type="button" class="rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-amber-200 transition hover:bg-amber-600">
+                Xuất Excel
+              </button>
+              <button id="resetBtn" type="button" class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                Làm mới
+              </button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <datalist id="materialCodeList"></datalist>
+
+    <script>
+      const STORAGE_KEY = 'chanhthu_can_tay_nguyen_lieu_v1';
+      const materialCatalog = [
+        'RT', 'RD', 'RC', 'RK', 'R9', 'RN', 'RTA', 'RTB',
+        'DT', 'DD', 'DC', 'DK', 'D9', 'DN', 'DA', 'DB',
+        'MSKA', 'MSKB'
+      ];
+
+      const groupConfig = {
+        'RI-6': ['RT', 'RD', 'RC', 'RK', 'R9', 'RN', 'RTA', 'RTB'],
+        'DONA': ['DT', 'DD', 'DC', 'DK', 'D9', 'DN', 'DA', 'DB'],
+        'Musaking': ['MSKA', 'MSKB']
+      };
+
+      const state = {
+        weightCols: 6,
+        rows: [
+          { id: generateRowId(), ma: 'RT', weights: [0, 0, 0, 0, 0, 0], kho: 'Kho 1' },
+          { id: generateRowId(), ma: 'DD', weights: [0, 0, 0, 0, 0, 0], kho: 'Kho 1' }
+        ]
+      };
+
+      const elements = {
+        dateTimeInput: document.getElementById('dateTimeInput'),
+        plateNumber: document.getElementById('plateNumber'),
+        ttchSlip: document.getElementById('ttchSlip'),
+        totalTruckWeight: document.getElementById('totalTruckWeight'),
+        lossPercent: document.getElementById('lossPercent'),
+        detailRowsBody: document.getElementById('detailRowsBody'),
+        summaryContainer: document.getElementById('summaryContainer'),
+        weightColumnHeaders: document.getElementById('weightColumnHeaders'),
+        materialCodeList: document.getElementById('materialCodeList'),
+        saveBtn: document.getElementById('saveBtn'),
+        printBtn: document.getElementById('printBtn'),
+        excelBtn: document.getElementById('excelBtn'),
+        resetBtn: document.getElementById('resetBtn'),
+        addRowBtn: document.getElementById('addRowBtn'),
+        addColumnBtn: document.getElementById('addColumnBtn'),
+        removeColumnBtn: document.getElementById('removeColumnBtn')
+      };
+
+      function generateRowId() {
+        return `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+      }
+
+      function formatNumber(value) {
+        const numeric = Number(value) || 0;
+        return numeric.toLocaleString('vi-VN', {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2
+        });
+      }
+
+      function formatPercent(value) {
+        const numeric = Number(value) || 0;
+        return `${numeric.toFixed(2)}%`;
+      }
+
+      function sanitizeNumberInput(rawValue) {
+        const numeric = Number(rawValue);
+        if (!Number.isFinite(numeric)) return 0;
+        return Math.max(0, numeric);
+      }
+
+      function normalizeCode(value) {
+        return String(value || '').trim().toUpperCase();
+      }
+
+      function getGroupName(code) {
+        const normalized = normalizeCode(code);
+        for (const [groupName, codes] of Object.entries(groupConfig)) {
+          if (codes.includes(normalized)) {
+            return groupName;
+          }
+        }
+        return null;
+      }
+
+      function calculateRowTotal(row) {
+        return (row.weights || []).reduce((sum, value) => sum + sanitizeNumberInput(value), 0);
+      }
+
+      function calculateTruckTotal() {
+        return state.rows.reduce((sum, row) => sum + calculateRowTotal(row), 0);
+      }
+
+      function calculateLossPercent() {
+        const truckTotal = calculateTruckTotal();
+        const ttchSlip = sanitizeNumberInput(elements.ttchSlip.value);
+
+        if (!truckTotal || truckTotal <= 0) {
+          return 0;
+        }
+
+        return Math.max(-100, ((1 - ttchSlip / truckTotal) * 100));
+      }
+
+      function renderMaterialOptions() {
+        elements.materialCodeList.innerHTML = materialCatalog
+          .map((code) => `<option value="${code}"></option>`)
+          .join('');
+      }
+
+      function renderWeightHeaders() {
+        const headers = Array.from({ length: state.weightCols }, (_, index) => {
+          const label = `KG ${index + 1}`;
+          return `<th class="bg-slate-100 px-2 py-3 text-center font-semibold"><span class="inline-flex rounded-md bg-white px-2 py-1 text-xs text-slate-700 shadow-sm">${label}</span></th>`;
+        }).join('');
+        elements.weightColumnHeaders.innerHTML = headers;
+      }
+
+      function renderRows() {
+        elements.detailRowsBody.innerHTML = state.rows.map((row, rowIndex) => {
+          const rowTotal = calculateRowTotal(row);
+          const weightCells = Array.from({ length: state.weightCols }, (_, weightIndex) => {
+            const value = Number(row.weights[weightIndex] ?? 0);
+            return `
+              <td class="align-middle px-1.5 py-1">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value="${value}"
+                  class="kg-input text-center"
+                  data-row-id="${row.id}"
+                  data-weight-index="${weightIndex}"
+                  aria-label="Lần cân ${weightIndex + 1} cho dòng ${rowIndex + 1}"
+                />
+              </td>
+            `;
+          }).join('');
+
+          return `
+            <tr class="animate-fade-in align-top">
+              <td class="rounded-l-xl bg-white px-2 py-2 shadow-sm">
+                <input
+                  type="text"
+                  list="materialCodeList"
+                  value="${escapeHtml(row.ma)}"
+                  class="material-input"
+                  data-row-id="${row.id}"
+                  data-field="ma"
+                  placeholder="Nhập mã"
+                  aria-label="Mã nguyên liệu dòng ${rowIndex + 1}"
+                />
+              </td>
+              ${weightCells}
+              <td class="bg-white px-2 py-2 text-center font-bold shadow-sm">
+                <span class="metric-value rounded-lg bg-emerald-50 px-3 py-2 text-emerald-700">${formatNumber(rowTotal)}</span>
+              </td>
+              <td class="bg-white px-2 py-2 shadow-sm">
+                <input
+                  type="text"
+                  class="text-input"
+                  value="${escapeHtml(row.kho)}"
+                  data-row-id="${row.id}"
+                  data-field="kho"
+                  placeholder="Kho"
+                  aria-label="Kho hàng dòng ${rowIndex + 1}"
+                />
+              </td>
+              <td class="rounded-r-xl bg-white px-2 py-2 text-center shadow-sm hide-on-print">
+                <button
+                  type="button"
+                  class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                  data-action="delete-row"
+                  data-row-id="${row.id}"
+                >
+                  Xóa
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      function renderSummary() {
+        const totalsByGroup = {};
+
+        for (const groupName of Object.keys(groupConfig)) {
+          totalsByGroup[groupName] = {};
+          for (const code of groupConfig[groupName]) {
+            totalsByGroup[groupName][code] = 0;
+          }
+        }
+
+        state.rows.forEach((row) => {
+          const code = normalizeCode(row.ma);
+          const groupName = getGroupName(code);
+          if (!groupName) return;
+          const rowTotal = calculateRowTotal(row);
+          totalsByGroup[groupName][code] = (totalsByGroup[groupName][code] || 0) + rowTotal;
+        });
+
+        const groupCards = Object.entries(groupConfig).map(([groupName, codes]) => {
+          const rowsHtml = codes.map((code) => {
+            const value = totalsByGroup[groupName][code] || 0;
+            return `
+              <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2">
+                <div class="flex items-center gap-2.5">
+                  <span class="summary-badge">${code}</span>
+                  <span class="text-xs text-slate-600">${code}</span>
+                </div>
+                <span class="metric-value text-sm font-bold text-slate-800">${formatNumber(value)}</span>
+              </div>
+            `;
+          }).join('');
+
+          const total = codes.reduce((sum, code) => sum + (totalsByGroup[groupName][code] || 0), 0);
+
+          return `
+            <div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <h3 class="text-sm font-bold uppercase tracking-wide text-slate-700">${groupName}</h3>
+                <span class="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold text-emerald-700">Tổng</span>
+              </div>
+              <div class="space-y-2">${rowsHtml}</div>
+              <div class="mt-3 rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-bold text-white">
+                <div class="flex items-center justify-between gap-2">
+                  <span>Tổng ${groupName}</span>
+                  <span class="metric-value">${formatNumber(total)}</span>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        elements.summaryContainer.innerHTML = groupCards;
+      }
+
+      function updateTotals() {
+        const truckTotal = calculateTruckTotal();
+        elements.totalTruckWeight.value = formatNumber(truckTotal);
+
+        const ttch = sanitizeNumberInput(elements.ttchSlip.value);
+        const loss = calculateLossPercent();
+        const effectiveLoss = ttch && truckTotal ? loss : 0;
+        elements.lossPercent.value = formatPercent(effectiveLoss);
+
+        if (ttch > truckTotal && truckTotal > 0) {
+          elements.lossPercent.classList.add('text-red-600', 'bg-red-50');
+        } else {
+          elements.lossPercent.classList.remove('text-red-600', 'bg-red-50');
+          elements.lossPercent.classList.add('text-amber-700', 'bg-amber-50');
+        }
+
+        renderSummary();
+      }
+
+      function ensureMinWeightColumns() {
+        state.rows.forEach((row) => {
+          while (row.weights.length < state.weightCols) {
+            row.weights.push(0);
+          }
+          if (row.weights.length > state.weightCols) {
+            row.weights = row.weights.slice(0, state.weightCols);
+          }
+        });
+      }
+
+      function saveCurrentState() {
+        const payload = {
+          dateTime: elements.dateTimeInput.value,
+          plateNumber: elements.plateNumber.value,
+          ttchSlip: elements.ttchSlip.value,
+          lots: Array.from({ length: 8 }, (_, index) => document.getElementById(`lot${index + 1}`).value),
+          weightCols: state.weightCols,
+          rows: state.rows,
+          savedAt: new Date().toISOString()
+        };
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      }
+
+      function restoreState() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) {
+          setDefaultLots();
+          return;
+        }
+
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed.dateTime) elements.dateTimeInput.value = parsed.dateTime;
+          if (parsed.plateNumber) elements.plateNumber.value = parsed.plateNumber;
+          if (parsed.ttchSlip !== undefined) elements.ttchSlip.value = parsed.ttchSlip;
+          if (Array.isArray(parsed.lots)) {
+            parsed.lots.forEach((value, index) => {
+              const field = document.getElementById(`lot${index + 1}`);
+              if (field) field.value = value || '';
+            });
+          }
+          if (parsed.weightCols) {
+            state.weightCols = Math.min(10, Math.max(5, Number(parsed.weightCols) || 6));
+          }
+          if (Array.isArray(parsed.rows) && parsed.rows.length) {
+            state.rows = parsed.rows.map((row) => ({
+              id: row.id || generateRowId(),
+              ma: row.ma || '',
+              kho: row.kho || '',
+              weights: Array.isArray(row.weights) ? row.weights.slice(0, state.weightCols).map((item) => sanitizeNumberInput(item)) : Array.from({ length: state.weightCols }, () => 0)
+            }));
+          } else {
+            state.rows = [
+              { id: generateRowId(), ma: 'RT', weights: Array.from({ length: state.weightCols }, () => 0), kho: 'Kho 1' },
+              { id: generateRowId(), ma: 'DD', weights: Array.from({ length: state.weightCols }, () => 0), kho: 'Kho 1' }
+            ];
+          }
+        } catch (error) {
+          console.warn('Không thể đọc dữ liệu lưu trữ trước đó:', error);
+          setDefaultLots();
+        }
+      }
+
+      function setDefaultLots() {
+        const defaultLots = { 1: 'DM', 2: 'DK', 5: 'DM', 6: 'DK' };
+        Object.entries(defaultLots).forEach(([index, value]) => {
+          const field = document.getElementById(`lot${index}`);
+          if (field) field.value = value;
+        });
+      }
+
+      function syncDateTimeDefault() {
+        const now = new Date();
+        const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        elements.dateTimeInput.value = elements.dateTimeInput.value || localDate;
+      }
+
+      function addBlankRow() {
+        state.rows.push({
+          id: generateRowId(),
+          ma: '',
+          weights: Array.from({ length: state.weightCols }, () => 0),
+          kho: ''
+        });
+        renderAll();
+      }
+
+      function removeRow(rowId) {
+        if (state.rows.length <= 1) {
+          showToast('Cần ít nhất 1 dòng dữ liệu để cân.', 'warning');
+          return;
+        }
+        state.rows = state.rows.filter((row) => row.id !== rowId);
+        renderAll();
+      }
+
+      function addColumn() {
+        if (state.weightCols >= 10) {
+          showToast('Đã đạt tối đa 10 cột KG.', 'warning');
+          return;
+        }
+        state.weightCols += 1;
+        state.rows = state.rows.map((row) => ({
+          ...row,
+          weights: [...(row.weights || []), 0]
+        }));
+        renderAll();
+      }
+
+      function removeColumn() {
+        if (state.weightCols <= 5) {
+          showToast('Đã đạt tối thiểu 5 cột KG.', 'warning');
+          return;
+        }
+        state.weightCols -= 1;
+        state.rows = state.rows.map((row) => ({
+          ...row,
+          weights: (row.weights || []).slice(0, state.weightCols)
+        }));
+        renderAll();
+      }
+
+      function showToast(message, type = 'info') {
+        const existing = document.getElementById('toast');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast';
+        const palette = {
+          info: 'bg-slate-900 text-white',
+          success: 'bg-emerald-600 text-white',
+          warning: 'bg-amber-500 text-white',
+          error: 'bg-red-600 text-white'
+        };
+
+        toast.className = `fixed right-4 top-20 z-50 rounded-xl px-4 py-3 text-sm font-medium shadow-lg ${palette[type] || palette.info}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+          toast.remove();
+        }, 2200);
+      }
+
+      function validateBeforeSaving() {
+        const plate = elements.plateNumber.value.trim();
+        if (!plate) {
+          showToast('Vui lòng nhập biển số xe trước khi lưu phiếu.', 'error');
+          elements.plateNumber.focus();
+          return false;
+        }
+
+        for (const row of state.rows) {
+          const rowTotal = calculateRowTotal(row);
+          if (row.ma && rowTotal < 0) {
+            showToast('Không được nhập số âm trong các lần cân.', 'error');
+            return false;
+          }
+        }
+
+        return true;
+      }
+
+      function handleTableInput(event) {
+        const target = event.target;
+        const rowId = target.dataset.rowId;
+        if (!rowId) return;
+
+        const row = state.rows.find((item) => item.id === rowId);
+        if (!row) return;
+
+        if (target.dataset.field === 'ma') {
+          row.ma = normalizeCode(target.value);
+          renderSummary();
+          return;
+        }
+
+        if (target.dataset.field === 'kho') {
+          row.kho = target.value;
+          return;
+        }
+
+        if (target.dataset.weightIndex !== undefined) {
+          const index = Number(target.dataset.weightIndex);
+          const numericValue = sanitizeNumberInput(target.value);
+          row.weights[index] = numericValue;
+          renderRows();
+          updateTotals();
+          saveCurrentState();
+        }
+      }
+
+      function handleTableClick(event) {
+        const action = event.target.dataset.action;
+        const rowId = event.target.dataset.rowId;
+        if (action === 'delete-row' && rowId) {
+          removeRow(rowId);
+          saveCurrentState();
+        }
+      }
+
+      function buildWorkbookRows() {
+        const totalTruck = calculateTruckTotal();
+        const ttch = sanitizeNumberInput(elements.ttchSlip.value);
+        const lossRate = calculateLossPercent();
+        const lots = Array.from({ length: 8 }, (_, index) => document.getElementById(`lot${index + 1}`).value || '');
+
+        const rows = [
+          ['CÔNG TY CỔ PHẦN TẬP ĐOÀN XUẤT NHẬP KHẨU TRÁI CÂY CHÁNH THU'],
+          ['Thôn Nam Kỳ, Xã Ea Drơng, Huyện Cư M\'Gar, Tỉnh Đắk Lắk'],
+          ['PHIẾU CÂN TAY NHẬP NGUYÊN LIỆU'],
+          [`Ngày giờ: ${elements.dateTimeInput.value || ''}`],
+          [`Biển số xe: ${elements.plateNumber.value || ''}`],
+          [`Phiếu TTCH: ${ttch}`],
+          ['Lot QC', 'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8'],
+          ['Giá trị', lots[0], lots[1], lots[2], lots[3], lots[4], lots[5], lots[6], lots[7]],
+          [],
+          ['Mã', ...Array.from({ length: state.weightCols }, (_, index) => `KG ${index + 1}`), 'Tổng dòng', 'Kho'],
+          ...state.rows.map((row) => [
+            row.ma,
+            ...row.weights.map((value) => value),
+            calculateRowTotal(row),
+            row.kho || ''
+          ]),
+          [],
+          ['Tổng cân tay xe', totalTruck],
+          ['Hao hụt %', `${lossRate.toFixed(2)}%`],
+          []
+        ];
+
+        return rows;
+      }
+
+      function exportExcel() {
+        if (!elements.plateNumber.value.trim()) {
+          showToast('Vui lòng nhập biển số xe trước khi xuất Excel.', 'error');
+          elements.plateNumber.focus();
+          return;
+        }
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(buildWorkbookRows());
+        XLSX.utils.book_append_sheet(wb, ws, 'Phiếu cân tay');
+        XLSX.writeFile(wb, `phieu-can-tay-${(elements.plateNumber.value || 'nguyen-lieu').replace(/\s+/g, '-').toUpperCase()}.xlsx`);
+        showToast('Xuất Excel thành công.', 'success');
+      }
+
+      function renderAll() {
+        renderMaterialOptions();
+        renderWeightHeaders();
+        renderRows();
+        updateTotals();
+      }
+
+      function resetForm() {
+        state.weightCols = 6;
+        state.rows = [
+          { id: generateRowId(), ma: 'RT', weights: [0, 0, 0, 0, 0, 0], kho: 'Kho 1' },
+          { id: generateRowId(), ma: 'DD', weights: [0, 0, 0, 0, 0, 0], kho: 'Kho 1' }
+        ];
+        elements.plateNumber.value = '';
+        elements.ttchSlip.value = '';
+        setDefaultLots();
+        syncDateTimeDefault();
+        renderAll();
+        saveCurrentState();
+        showToast('Đã làm mới dữ liệu phiếu.', 'success');
+      }
+
+      function attachEvents() {
+        elements.addRowBtn.addEventListener('click', addBlankRow);
+        elements.addColumnBtn.addEventListener('click', addColumn);
+        elements.removeColumnBtn.addEventListener('click', removeColumn);
+        elements.detailRowsBody.addEventListener('input', handleTableInput);
+        elements.detailRowsBody.addEventListener('click', handleTableClick);
+        elements.ttchSlip.addEventListener('input', () => {
+          updateTotals();
+          saveCurrentState();
+        });
+        elements.plateNumber.addEventListener('input', () => {
+          saveCurrentState();
+        });
+        elements.dateTimeInput.addEventListener('input', () => {
+          saveCurrentState();
+        });
+        Array.from({ length: 8 }, (_, index) => document.getElementById(`lot${index + 1}`)).forEach((lotInput) => {
+          lotInput.addEventListener('input', saveCurrentState);
+        });
+        elements.saveBtn.addEventListener('click', () => {
+          if (!validateBeforeSaving()) return;
+          saveCurrentState();
+          showToast('Đã lưu phiếu thành công.', 'success');
+        });
+        elements.printBtn.addEventListener('click', () => window.print());
+        elements.excelBtn.addEventListener('click', exportExcel);
+        elements.resetBtn.addEventListener('click', resetForm);
+      }
+
+      function init() {
+        setDefaultLots();
+        syncDateTimeDefault();
+        renderAll();
+        restoreState();
+        renderAll();
+        attachEvents();
+        saveCurrentState();
+      }
+
+      init();
+    </script>
+  </body>
+</html>
