@@ -27,6 +27,7 @@ let currentProfile = {};
 let catalog = { teams: [{ id: 'dong-goi', name: 'Tổ Đóng gói' }] };
 let stopRows;
 let manuallySelectedShift = false;
+let manuallySelectedDate = false;
 
 function vietnamNow() {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -263,7 +264,8 @@ async function exportExcel() {
     if (exportBtn) exportBtn.disabled = false;
   }
 }
-function refreshClock() { const now = vietnamNow(); const [shiftLabel, shift] = shiftInfo(now); const realtimeText = now.toLocaleString('vi-VN'); const clock = byId('realtimeClock'); const topClock = byId('topRealtimeClock'); if (clock) clock.textContent = realtimeText; if (topClock) topClock.textContent = realtimeText; productionDate.value = dateValue(now); if (!manuallySelectedShift) activeShift.value = shift; shiftBtp.setAttribute('placeholder', `BTP ${shiftLabel}`); shiftPeople.setAttribute('placeholder', `Số người ${shiftLabel}`); shiftHours.setAttribute('placeholder', `Số giờ ${shiftLabel}`); }
+function refreshClock() { const now = vietnamNow(); const [shiftLabel, shift] = shiftInfo(now); const realtimeText = now.toLocaleString('vi-VN'); const clock = byId('realtimeClock'); const topClock = byId('topRealtimeClock'); if (clock) clock.textContent = realtimeText; if (topClock) topClock.textContent = realtimeText; if (!productionDate.value || !manuallySelectedDate) productionDate.value = dateValue(now); if (!manuallySelectedShift) activeShift.value = shift; shiftBtp.setAttribute('placeholder', `BTP ${shiftLabel}`); shiftPeople.setAttribute('placeholder', `Số người ${shiftLabel}`); shiftHours.setAttribute('placeholder', `Số giờ ${shiftLabel}`); }
+productionDate.addEventListener('change', () => { manuallySelectedDate = true; });
 byId('addRowBtn').addEventListener('click', addOfficialRow);
 exportBtn?.addEventListener('click', exportExcel);
 byId('deleteRowBtn').addEventListener('click', async () => {
