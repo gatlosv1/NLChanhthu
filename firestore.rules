@@ -122,6 +122,20 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /handWeighingDrafts/{ownerId} {
+      allow read: if isOwner(ownerId) || isAdmin();
+      allow create: if isAdmin() || (
+        isOwner(ownerId)
+        && request.resource.data.ownerId == request.auth.uid
+      );
+      allow update: if isAdmin() || (
+        isOwner(ownerId)
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId
+      );
+      allow delete: if isAdmin() || isOwner(ownerId);
+    }
+
     match /activityLogArchive/{archiveDate} {
       allow read, write: if isAdmin();
     }

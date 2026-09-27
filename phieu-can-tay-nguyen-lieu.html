@@ -176,6 +176,15 @@
               <div class="mb-2 text-sm font-semibold text-slate-700">Lot QC</div>
               <div id="lotContainer" class="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8"></div>
             </div>
+
+            <div id="draftAccessPanel" class="mt-5 hidden items-end gap-3 border-t border-slate-200 pt-4 sm:flex">
+              <label class="block min-w-0 flex-1">
+                <span class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Phiếu đang nhập</span>
+                <select id="draftOwnerSelect" class="text-input"></select>
+              </label>
+              <button id="adminEditBtn" type="button" class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">Sửa phiếu</button>
+              <span id="draftSyncStatus" class="pb-3 text-xs font-medium text-slate-500"></span>
+            </div>
           </div>
 
           <!-- Ô NHẬP DUY NHẤT -->
@@ -226,6 +235,19 @@
             </div>
           </div>
 
+          <!-- Thao tác -->
+          <div class="glass-card rounded-2xl p-3 sm:px-4 hide-on-print">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Thao tác</p>
+              <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                <button id="saveBtn" type="button" class="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-emerald-200 hover:bg-emerald-700">Lưu phiếu</button>
+                <button id="printBtn" type="button" class="rounded-xl bg-slate-800 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-900">In phiếu</button>
+                <button id="excelBtn" type="button" class="rounded-xl bg-amber-500 px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-amber-200 hover:bg-amber-600">Xuất Excel</button>
+                <button id="resetBtn" type="button" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Làm mới</button>
+              </div>
+            </div>
+          </div>
+
           <!-- Bảng dữ liệu -->
           <div class="glass-card print-card rounded-3xl p-4 sm:p-5">
             <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -262,25 +284,20 @@
             <div id="summaryContainer" class="mt-4 space-y-4"></div>
           </div>
 
-          <div class="glass-card print-card rounded-3xl p-4 sm:p-5 hide-on-print">
-            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Thao tác</p>
-            <div class="mt-4 grid grid-cols-1 gap-2.5">
-              <button id="saveBtn" type="button" class="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 hover:bg-emerald-700">Lưu phiếu (Local)</button>
-              <button id="printBtn" type="button" class="rounded-xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900">In phiếu</button>
-              <button id="excelBtn" type="button" class="rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-amber-200 hover:bg-amber-600">Xuất Excel theo mẫu</button>
-              <button id="resetBtn" type="button" class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Làm mới</button>
-            </div>
-            <p class="mt-3 text-center text-[11px] text-slate-500">
-              Xuất Excel sẽ điền đúng ô theo file mẫu (CHI TIET)
-            </p>
-          </div>
         </aside>
       </div>
     </main>
 
     <datalist id="materialCodeList"></datalist>
 
-    <script>
+    <script type="module">
+      import { db } from './js/firebase.js';
+      import { waitForAuth } from './js/auth.js';
+      import { ensureUserDocument } from './js/userService.js';
+      import { requirePageAccess } from './js/pageAccess.js';
+      import { getAllUsersProfiles } from './js/firestore.js';
+      import { doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+
       const STORAGE_KEY = 'chanhthu_can_tay_v4';
 
       // Danh mục mã – khớp với file mẫu
@@ -341,11 +358,17 @@
       };
 
       const state = {
-        weightCols: 9,          // tối đa 11 cột B→L trong mẫu
+        weightCols: 11,         // tối đa 11 cột B→L trong mẫu
         rows: [],
         cursorRow: 0,
         cursorCol: 0,
-        lastMa: 'DK'
+        lastMa: 'DK',
+        user: null,
+        role: 'staff',
+        activeOwnerId: '',
+        activeOwnerName: '',
+        canEdit: false,
+        cloudSaveTimer: null
       };
 
       const els = {
@@ -372,7 +395,11 @@
         resetBtn: document.getElementById('resetBtn'),
         addRowBtn: document.getElementById('addRowBtn'),
         addColumnBtn: document.getElementById('addColumnBtn'),
-        removeColumnBtn: document.getElementById('removeColumnBtn')
+        removeColumnBtn: document.getElementById('removeColumnBtn'),
+        draftAccessPanel: document.getElementById('draftAccessPanel'),
+        draftOwnerSelect: document.getElementById('draftOwnerSelect'),
+        adminEditBtn: document.getElementById('adminEditBtn'),
+        draftSyncStatus: document.getElementById('draftSyncStatus')
       };
 
       function genId() {
@@ -465,11 +492,12 @@
           const isActiveRow = ri === state.cursorRow;
           const weightCells = Array.from({ length: state.weightCols }, (_, ci) => {
             const isActive = isActiveRow && ci === state.cursorCol;
+            const value = sanitize(row.weights[ci]);
             return `
               <td class="align-middle px-1 py-1 ${isActive ? 'active-cell' : ''}">
-                <div class="rounded-lg px-2 py-2 text-center text-sm font-medium ${isActive ? 'bg-emerald-100 text-emerald-800 font-bold' : 'bg-white text-slate-700'}">
-                  ${fmt(row.weights[ci] || 0)}
-                </div>
+                ${state.canEdit
+                  ? `<input type="number" min="0" step="0.1" class="cell-input px-2 py-2 text-center text-sm font-medium" value="${value}" data-row-id="${row.id}" data-field="weight" data-col="${ci}" aria-label="KG ${ci + 1}" />`
+                  : `<div class="rounded-lg px-2 py-2 text-center text-sm font-medium ${isActive ? 'bg-emerald-100 text-emerald-800 font-bold' : 'bg-white text-slate-700'}">${fmt(value)}</div>`}
               </td>`;
           }).join('');
 
@@ -477,19 +505,21 @@
             <tr class="align-top ${isActiveRow ? 'active-row' : ''}">
               <td class="rounded-l-xl bg-white px-2 py-2 text-center text-xs font-bold text-slate-500 shadow-sm">${ri + 1}</td>
               <td class="bg-white px-2 py-2 shadow-sm">
-                <span class="inline-flex rounded-lg bg-slate-100 px-2.5 py-1.5 text-sm font-bold text-slate-800">${escapeHtml(row.ma || '—')}</span>
+                ${state.canEdit
+                  ? `<input type="text" list="materialCodeList" class="cell-input text-center text-sm font-bold uppercase" value="${escapeHtml(row.ma)}" data-row-id="${row.id}" data-field="ma" aria-label="Mã dòng ${ri + 1}" />`
+                  : `<span class="inline-flex rounded-lg bg-slate-100 px-2.5 py-1.5 text-sm font-bold text-slate-800">${escapeHtml(row.ma || '—')}</span>`}
               </td>
               ${weightCells}
               <td class="bg-white px-2 py-2 text-center font-bold shadow-sm">
                 <span class="metric-value rounded-lg bg-emerald-50 px-2.5 py-1.5 text-emerald-700">${fmt(total)}</span>
               </td>
               <td class="bg-white px-2 py-2 shadow-sm">
-                <input type="text" class="cell-input text-xs" value="${escapeHtml(row.kho)}"
-                  data-row-id="${row.id}" data-field="kho" placeholder="Kho" />
+                ${state.canEdit
+                  ? `<input type="text" class="cell-input text-xs" value="${escapeHtml(row.kho)}" data-row-id="${row.id}" data-field="kho" placeholder="Kho" />`
+                  : `<span class="text-xs text-slate-600">${escapeHtml(row.kho || '—')}</span>`}
               </td>
               <td class="rounded-r-xl bg-white px-2 py-2 text-center shadow-sm hide-on-print">
-                <button type="button" class="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-[10px] font-semibold text-red-600 hover:bg-red-100"
-                  data-action="delete-row" data-row-id="${row.id}">Xóa</button>
+                ${state.canEdit ? `<button type="button" class="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-[10px] font-semibold text-red-600 hover:bg-red-100" data-action="delete-row" data-row-id="${row.id}">Xóa</button>` : ''}
               </td>
             </tr>`;
         }).join('');
@@ -693,8 +723,8 @@
         }));
       }
 
-      function saveLocal() {
-        const payload = {
+      function getDraftPayload() {
+        return {
           dateTime: els.dateTimeInput.value,
           plateNumber: els.plateNumber.value,
           ttchSlip: els.ttchSlip.value,
@@ -708,12 +738,20 @@
           currentKho: els.currentKho ? els.currentKho.value : '',
           savedAt: new Date().toISOString()
         };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
       }
 
-      function restoreLocal() {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) {
+      function getLocalStorageKey(ownerId = state.activeOwnerId) {
+        return `${STORAGE_KEY}_${ownerId || 'guest'}`;
+      }
+
+      function saveLocal() {
+        const payload = getDraftPayload();
+        localStorage.setItem(getLocalStorageKey(), JSON.stringify(payload));
+        scheduleCloudSave(payload);
+      }
+
+      function applyDraft(payload) {
+        if (!payload) {
           state.rows = [{
             id: genId(),
             ma: 'DK',
@@ -723,7 +761,7 @@
           return;
         }
         try {
-          const p = JSON.parse(raw);
+          const p = payload;
           if (p.dateTime) els.dateTimeInput.value = p.dateTime;
           if (p.plateNumber) els.plateNumber.value = p.plateNumber;
           if (p.ttchSlip !== undefined) els.ttchSlip.value = p.ttchSlip;
@@ -753,6 +791,66 @@
           state.cursorCol = Math.min(p.cursorCol || 0, state.weightCols - 1);
         } catch (e) {
           console.warn(e);
+        }
+      }
+
+      function scheduleCloudSave(payload) {
+        if (!state.user || !state.activeOwnerId) return;
+        clearTimeout(state.cloudSaveTimer);
+        els.draftSyncStatus.textContent = 'Đang lưu...';
+        state.cloudSaveTimer = setTimeout(async () => {
+          try {
+            await setDoc(doc(db, 'handWeighingDrafts', state.activeOwnerId), {
+              ...payload,
+              ownerId: state.activeOwnerId,
+              ownerName: state.activeOwnerName,
+              ownerEmail: state.activeOwnerId === state.user.uid ? state.user.email || '' : '',
+              updatedBy: state.user.uid,
+              updatedAt: serverTimestamp()
+            }, { merge: true });
+            els.draftSyncStatus.textContent = 'Đã đồng bộ';
+          } catch (error) {
+            console.error(error);
+            els.draftSyncStatus.textContent = 'Chưa đồng bộ được';
+          }
+        }, 500);
+      }
+
+      async function loadDraft(ownerId, ownerName = '') {
+        state.activeOwnerId = ownerId;
+        state.activeOwnerName = ownerName;
+        state.canEdit = state.role !== 'admin' && state.role !== 'dev';
+        state.cursorRow = 0;
+        state.cursorCol = 0;
+        els.draftSyncStatus.textContent = 'Đang tải...';
+
+        try {
+          const snapshot = await getDoc(doc(db, 'handWeighingDrafts', ownerId));
+          if (snapshot.exists()) {
+            applyDraft(snapshot.data());
+            els.draftSyncStatus.textContent = 'Đã tải phiếu đang nhập';
+          } else {
+            const raw = localStorage.getItem(getLocalStorageKey(ownerId));
+            applyDraft(raw ? JSON.parse(raw) : null);
+            els.draftSyncStatus.textContent = 'Phiếu mới';
+          }
+        } catch (error) {
+          console.error(error);
+          const raw = localStorage.getItem(getLocalStorageKey(ownerId));
+          applyDraft(raw ? JSON.parse(raw) : null);
+          els.draftSyncStatus.textContent = 'Đang dùng bản lưu trên máy';
+        }
+
+        applyEditState();
+        renderAll();
+      }
+
+      function applyEditState() {
+        const isPrivileged = state.role === 'admin' || state.role === 'dev';
+        if (isPrivileged) {
+          els.adminEditBtn.textContent = state.canEdit ? 'Dừng sửa' : 'Sửa phiếu';
+          els.adminEditBtn.classList.toggle('bg-emerald-600', state.canEdit);
+          els.adminEditBtn.classList.toggle('text-white', state.canEdit);
         }
       }
 
@@ -880,11 +978,11 @@
       }
 
       function resetForm() {
-        state.weightCols = 9;
+        state.weightCols = 11;
         state.rows = [{
           id: genId(),
           ma: 'DK',
-          weights: Array.from({ length: 9 }, () => 0),
+          weights: Array.from({ length: 11 }, () => 0),
           kho: 'GIA PHÚC-BI MÃO'
         }];
         state.cursorRow = 0;
@@ -938,12 +1036,15 @@
         els.removeColumnBtn.addEventListener('click', removeColumn);
         els.addRowBtn.addEventListener('click', addBlankRow);
 
-        els.detailRowsBody.addEventListener('input', (e) => {
+        els.detailRowsBody.addEventListener('change', (e) => {
           const t = e.target;
-          if (t.dataset.field === 'kho' && t.dataset.rowId) {
+          if (t.dataset.rowId) {
             const row = state.rows.find(r => r.id === t.dataset.rowId);
             if (row) {
-              row.kho = t.value;
+              if (t.dataset.field === 'kho') row.kho = t.value;
+              if (t.dataset.field === 'ma') row.ma = normalizeCode(t.value);
+              if (t.dataset.field === 'weight') row.weights[Number(t.dataset.col)] = sanitize(t.value);
+              renderAll();
               saveLocal();
             }
           }
@@ -975,22 +1076,58 @@
             return;
           }
           saveLocal();
-          showToast('Đã lưu phiếu (Local)', 'success');
+          showToast('Đã lưu và đồng bộ phiếu', 'success');
         });
 
         els.printBtn.addEventListener('click', () => window.print());
         els.excelBtn.addEventListener('click', exportExcel);
         els.resetBtn.addEventListener('click', resetForm);
+        els.draftOwnerSelect.addEventListener('change', () => {
+          const option = els.draftOwnerSelect.selectedOptions[0];
+          loadDraft(option.value, option.dataset.name || option.textContent.trim());
+        });
+        els.adminEditBtn.addEventListener('click', () => {
+          state.canEdit = !state.canEdit;
+          applyEditState();
+          renderAll();
+        });
         window.addEventListener('beforeunload', saveLocal);
       }
 
-      function init() {
+      async function init() {
         renderLots();
         syncDate();
-        restoreLocal();
-        renderAll();
-        attachEvents();
-        els.bigInput.focus();
+        try {
+          state.user = await waitForAuth();
+          if (!state.user) {
+            window.location.href = './login.html';
+            return;
+          }
+          const profile = await ensureUserDocument();
+          const access = await requirePageAccess(state.user, 'phieuCanTay');
+          state.role = access.role || profile?.role || 'staff';
+
+          if (state.role === 'admin' || state.role === 'dev') {
+            const users = await getAllUsersProfiles();
+            els.draftAccessPanel.classList.remove('hidden');
+            els.draftOwnerSelect.innerHTML = users
+              .sort((a, b) => String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), 'vi'))
+              .map(user => `<option value="${escapeHtml(user.id)}" data-name="${escapeHtml(user.name || user.email || user.id)}">${escapeHtml(user.name || user.email || user.id)}</option>`)
+              .join('');
+          } else {
+            els.draftAccessPanel.classList.add('hidden');
+          }
+
+          const selected = els.draftOwnerSelect.selectedOptions[0];
+          const ownerId = selected?.value || state.user.uid;
+          const ownerName = selected?.dataset.name || profile?.name || state.user.email || 'Nhân viên';
+          await loadDraft(ownerId, ownerName);
+          attachEvents();
+          if (state.canEdit) els.bigInput.focus();
+        } catch (error) {
+          console.error(error);
+          showToast(error.message || 'Không thể tải dữ liệu tài khoản', 'error');
+        }
       }
 
       init();
