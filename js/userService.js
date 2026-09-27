@@ -5,9 +5,9 @@ import { resolveInitialRole } from './roleUtils.js';
 // Danh sách trang được vào mặc định
 // Phân theo từng vai trò
 const DEFAULT_PAGE_ACCESS = {
-  dev: ['dashboard', 'profile', 'label', 'labelTrang', 'phieuCanTay', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history', 'devManager'],
-  admin: ['dashboard', 'profile', 'label', 'labelTrang', 'phieuCanTay', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history'],
-  staff: ['dashboard', 'profile', 'label', 'labelTrang', 'phieuCanTay', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'history']
+  dev: ['dashboard', 'profile', 'label', 'labelTrang', 'phieuCanTay', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'traceability', 'settings', 'history', 'devManager'],
+  admin: ['dashboard', 'profile', 'label', 'labelTrang', 'phieuCanTay', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'traceability', 'settings', 'history'],
+  staff: ['dashboard', 'profile', 'label', 'labelTrang', 'phieuCanTay', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'traceability', 'history']
 };
 
 // Đảm bảo user luôn có hồ sơ Firestore
@@ -25,6 +25,7 @@ export async function ensureUserDocument() {
     email: authUser.email,
     role: resolvedRole,
     department: resolvedRole === 'dev' ? 'Developer' : resolvedRole === 'admin' ? 'Quản trị' : (existing?.department || 'Chưa phân phòng'),
+    departmentId: existing?.departmentId || '',
     pagePermissions: defaultPagePermissions,
     permissions: resolvedRole === 'dev'
       ? ['view', 'add', 'edit', 'delete', 'export', 'import', 'manageUsers', 'manageSettings', 'viewAllHistory', 'maintenance']

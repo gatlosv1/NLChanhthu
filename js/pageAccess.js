@@ -17,15 +17,16 @@ export const DEFAULT_PAGE_ACCESS = {
   nhapLieuSanXuat: true,
   report: true,
   congTachMui: true,
+  traceability: true,
   settings: true,
   history: true,
   devManager: true
 };
 
 const DEFAULT_ROLE_PAGE_PERMISSIONS = {
-  dev: ['dashboard', 'profile', 'label', 'labelTrang', 'phieuCanTay', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history', 'devManager'],
-  admin: ['dashboard', 'profile', 'label', 'labelTrang', 'phieuCanTay', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history'],
-  staff: ['dashboard', 'profile', 'label', 'labelTrang', 'phieuCanTay', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'history']
+  dev: ['dashboard', 'profile', 'label', 'labelTrang', 'phieuCanTay', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'traceability', 'settings', 'history', 'devManager'],
+  admin: ['dashboard', 'profile', 'label', 'labelTrang', 'phieuCanTay', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'traceability', 'settings', 'history'],
+  staff: ['dashboard', 'profile', 'label', 'labelTrang', 'phieuCanTay', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'traceability', 'history']
 };
 
 export function getDefaultPagePermissionsForRole(role = 'staff') {

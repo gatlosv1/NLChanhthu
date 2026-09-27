@@ -153,3 +153,130 @@ exports.sendProductionReport = functions.region('asia-southeast1').https.onReque
     }
   });
 });
+
+/**
+ * Applies an immutable event's material-balance delta to its lot cache.
+ * The marker collection makes the update safe if Firestore retries the trigger.
+ */
+exports.onStageEventCreated = functions.region('asia-southeast1')
+  .firestore.document('stage_events/{eventId}')
+  .onCreate(async (snapshot, context) => {
+    const event = snapshot.data() || {};
+    const lotId = typeof event.lotId === 'string' ? event.lotId.trim() : '';
+    const quantityDeltaKg = Number(event.quantityDeltaKg);
+
+    if (!lotId) {
+      console.error('stage_events document is missing lotId', context.params.eventId);
+      return null;
+    }
+    if (!Number.isFinite(quantityDeltaKg)) {
+      console.error('stage_events document is missing a valid quantityDeltaKg', context.params.eventId);
+      return null;
+    }
+
+    const db = admin.firestore();
+    const lotRef = db.collection('lots').doc(lotId);
+    const appliedRef = db.collection('stage_event_cache_applications').doc(context.params.eventId);
+
+    await db.runTransaction(async (transaction) => {
+      const [lotSnapshot, appliedSnapshot] = await Promise.all([
+        transaction.get(lotRef),
+        transaction.get(appliedRef)
+      ]);
+
+      if (appliedSnapshot.exists) return;
+      if (!lotSnapshot.exists) {
+        throw new Error(`Lot ${lotId} does not exist for event ${context.params.eventId}`);
+      }
+
+      const currentQuantityKg = Number(lotSnapshot.get('currentQuantityKg') || 0);
+      const nextQuantityKg = currentQuantityKg + quantityDeltaKg;
+      if (nextQuantityKg < -0.000001) {
+        throw new Error(`Event ${context.params.eventId} would make lot ${lotId} quantity negative`);
+      }
+
+      transaction.update(lotRef, {
+        currentQuantityKg: nextQuantityKg,
+        quantityCacheUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastEventId: context.params.eventId,
+        lastStageId: event.stageId || null
+      });
+      transaction.create(appliedRef, {
+        eventId: context.params.eventId,
+        lotId,
+        quantityDeltaKg,
+        appliedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    });
+
+    return null;
+  });
+
+/**
+ * Trusted write boundary for append-only production events. Clients cannot
+ * write stage_events directly; their authenticated UID becomes operatorId.
+ */
+exports.recordStageEvent = functions.region('asia-southeast1').https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Bạn cần đăng nhập để ghi nhận công đoạn.');
+  }
+
+  const lotId = typeof data?.lotId === 'string' ? data.lotId.trim() : '';
+  const stageId = typeof data?.stageId === 'string' ? data.stageId.trim() : '';
+  const rejectReasonId = typeof data?.rejectReasonId === 'string' ? data.rejectReasonId.trim() : null;
+  const inputKg = Number(data?.inputKg);
+  const acceptedKg = Number(data?.acceptedKg);
+  const rejectedKg = Number(data?.rejectedKg);
+  const quantityDeltaKg = Number(data?.quantityDeltaKg ?? 0);
+
+  if (!lotId || !stageId) {
+    throw new functions.https.HttpsError('invalid-argument', 'lotId và stageId là bắt buộc.');
+  }
+  if (![inputKg, acceptedKg, rejectedKg, quantityDeltaKg].every(Number.isFinite)
+    || inputKg < 0 || acceptedKg < 0 || rejectedKg < 0) {
+    throw new functions.https.HttpsError('invalid-argument', 'Khối lượng phải là số hợp lệ không âm.');
+  }
+  if (acceptedKg + rejectedKg > inputKg + 0.000001) {
+    throw new functions.https.HttpsError('invalid-argument', 'Khối lượng đạt và loại không được vượt khối lượng vào.');
+  }
+
+  const db = admin.firestore();
+  const [lotSnapshot, stageSnapshot, rejectSnapshot, userSnapshot] = await Promise.all([
+    db.collection('lots').doc(lotId).get(),
+    db.collection('process_stages').doc(stageId).get(),
+    rejectReasonId ? db.collection('reject_reasons').doc(rejectReasonId).get() : Promise.resolve(null),
+    db.collection('users').doc(context.auth.uid).get()
+  ]);
+
+  if (!lotSnapshot.exists) {
+    throw new functions.https.HttpsError('not-found', `Không tìm thấy lô ${lotId}.`);
+  }
+  if (!stageSnapshot.exists) {
+    throw new functions.https.HttpsError('failed-precondition', `Công đoạn ${stageId} chưa được cấu hình.`);
+  }
+  if (rejectReasonId && !rejectSnapshot.exists) {
+    throw new functions.https.HttpsError('failed-precondition', `Lý do loại ${rejectReasonId} chưa được cấu hình.`);
+  }
+
+  const operator = userSnapshot.exists ? userSnapshot.data() : {};
+  const eventRef = db.collection('stage_events').doc();
+  await eventRef.create({
+    lotId,
+    stageId,
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    inputKg,
+    acceptedKg,
+    rejectedKg,
+    rejectReasonId,
+    quantityDeltaKg,
+    operatorId: context.auth.uid,
+    operatorName: operator.name || context.auth.token.name || '',
+    operatorEmail: context.auth.token.email || '',
+    rework: Boolean(data?.rework),
+    outputLotIds: Array.isArray(data?.outputLotIds)
+      ? data.outputLotIds.filter((id) => typeof id === 'string' && id.trim())
+      : []
+  });
+
+  return { eventId: eventRef.id };
+});

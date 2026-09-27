@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nhập liệu truy xuất xoài đông lạnh</title>
+    <link rel="stylesheet" href="./css/traceability.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="./dashboard.html" aria-label="Về dashboard">
+        <img src="./images/Logo.png" alt="Chánh Thu" />
+        <span>
+          <strong>CHÁNH THU</strong>
+          <small>Truy xuất sản xuất</small>
+        </span>
+      </a>
+      <div class="connection" id="connectionStatus" aria-live="polite">Đang kết nối</div>
+    </header>
+
+    <main class="app-main">
+      <section class="screen-heading">
+        <p id="departmentLabel">Đang tải bộ phận...</p>
+        <h1>Nhập công đoạn</h1>
+        <span id="operatorLabel">-</span>
+      </section>
+
+      <section class="scan-panel" aria-label="Tìm lô">
+        <label for="lotSearch">Quét hoặc nhập mã lô</label>
+        <div class="scan-controls">
+          <input id="lotSearch" type="search" inputmode="search" autocomplete="off" placeholder="Ví dụ: XM-20260927-001" />
+          <button id="findLotBtn" type="button">Tìm lô</button>
+        </div>
+        <p id="entryStatus" class="status" role="status" aria-live="polite">Chọn một lô trong danh sách chờ hoặc nhập mã lô.</p>
+      </section>
+
+      <section class="queue-panel" aria-labelledby="queueTitle">
+        <div class="section-title">
+          <div>
+            <p>Hàng chờ</p>
+            <h2 id="queueTitle">Lô cần xử lý</h2>
+          </div>
+          <span id="queueCount" class="count">0</span>
+        </div>
+        <div id="lotQueue" class="lot-queue" aria-live="polite"></div>
+      </section>
+
+      <section class="entry-panel" aria-labelledby="entryTitle">
+        <div class="section-title">
+          <div>
+            <p>Phiếu thao tác</p>
+            <h2 id="entryTitle">Chưa chọn lô</h2>
+          </div>
+          <span id="stageBadge" class="stage-badge">-</span>
+        </div>
+
+        <form id="stageEntryForm">
+          <div class="form-grid">
+            <label>
+              Mã lô
+              <input id="selectedLotCode" type="text" readonly />
+            </label>
+            <label>
+              Khối lượng vào (kg)
+              <input id="inputKg" type="number" min="0" step="0.01" readonly />
+            </label>
+            <label>
+              Khối lượng đạt (kg)
+              <input id="acceptedKg" type="number" min="0" step="0.01" inputmode="decimal" required disabled />
+            </label>
+            <label>
+              Khối lượng loại (kg)
+              <input id="rejectedKg" type="number" min="0" step="0.01" inputmode="decimal" value="0" required disabled />
+            </label>
+            <label class="span-all">
+              Lý do loại
+              <select id="rejectReason" disabled>
+                <option value="">Không có loại</option>
+              </select>
+            </label>
+            <label class="span-all checkbox-row">
+              <input id="createReworkLot" type="checkbox" disabled />
+              <span>Tạo lô rework từ phần loại có thể đi tiếp</span>
+            </label>
+            <label class="span-all">
+              Ghi chú
+              <textarea id="note" rows="3" placeholder="Ghi chú tình trạng lô, vệ sinh hoặc bất thường" disabled></textarea>
+            </label>
+          </div>
+          <button id="saveStageEvent" class="primary-action" type="submit" disabled>Lưu công đoạn</button>
+        </form>
+      </section>
+    </main>
+
+    <template id="queueEmptyTemplate">
+      <p class="queue-empty">Chưa có lô đang chờ tại bộ phận này.</p>
+    </template>
+    <script type="module" src="./js/traceabilityEntry.js"></script>
+  </body>
+</html>

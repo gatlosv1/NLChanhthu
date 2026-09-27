@@ -1,4 +1,5 @@
 ﻿import { watchAuthState, getCurrentUser } from './auth.js';
+import { ensureUserDocument } from './userService.js';
 import { createOrUpdateUserProfile, getUserProfile, updateUserProfile, deleteUserProfile, getAllUsersProfiles } from './firestore.js';
 import { auth, firebaseConfig } from './firebase.js';
 import { sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
@@ -37,9 +38,10 @@ const pagePermissionLabels = {
   label: 'In nhãn',
   labelTrang: 'In tem nhãn trắng',
   phieuCanTay: 'Phiếu cân tay nguyên liệu',
-  congTachMui: 'Năng xuất tách múi'
+  congTachMui: 'Năng xuất tách múi',
+  traceability: 'Truy xuất xoài đông lạnh'
 };
-const ALL_PAGE_PERMISSIONS = ['production', 'nhapLieuSanXuat', 'report', 'label', 'labelTrang', 'phieuCanTay', 'congTachMui'];
+const ALL_PAGE_PERMISSIONS = ['production', 'nhapLieuSanXuat', 'report', 'label', 'labelTrang', 'phieuCanTay', 'congTachMui', 'traceability'];
 const ALL_FEATURE_PERMISSIONS = ['view', 'add', 'edit', 'delete', 'export', 'import', 'manageUsers', 'manageSettings', 'viewAllHistory', 'maintenance'];
 const ROLE_DEFAULT_PERMISSIONS = {
   dev: ['view', 'add', 'edit', 'delete', 'export', 'import', 'manageUsers', 'manageSettings', 'viewAllHistory', 'maintenance'],
@@ -410,7 +412,7 @@ watchAuthState(async (user) => {
   activeUsersLoadToken += 1;
   showLoading();
   try {
-    const profile = await getUserProfile(user.uid);
+    const profile = await ensureUserDocument() || await getUserProfile(user.uid);
     renderProfile(user, profile);
     try {
       const catalogSnapshot = await getDoc(doc(db, 'settings', 'congTachMuiCatalog'));

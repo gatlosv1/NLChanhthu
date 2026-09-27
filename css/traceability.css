@@ -1,0 +1,106 @@
+:root {
+  --ink: #18332b;
+  --muted: #62756f;
+  --line: #d7e5df;
+  --surface: #ffffff;
+  --canvas: #eff7f3;
+  --green: #087f4f;
+  --green-dark: #05613d;
+  --green-soft: #dff6e9;
+  --amber: #d97706;
+  --danger: #b42318;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-width: 320px;
+  color: var(--ink);
+  background: var(--canvas);
+  font-family: "Segoe UI", Tahoma, sans-serif;
+}
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+button:disabled, input:disabled, select:disabled, textarea:disabled { cursor: not-allowed; opacity: .55; }
+
+.app-header {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px max(16px, calc((100vw - 1100px) / 2));
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; }
+.brand img { width: 56px; height: 56px; object-fit: contain; }
+.brand strong { display: block; font-size: 15px; letter-spacing: .04em; }
+.brand small { color: var(--muted); font-size: 12px; }
+.connection { color: var(--green-dark); font-size: 13px; font-weight: 700; }
+.connection--offline { color: var(--amber); }
+
+.app-main { width: min(100%, 720px); margin: 0 auto; padding: 16px; }
+.screen-heading { padding: 12px 0 18px; }
+.screen-heading p, .section-title p { margin: 0 0 4px; color: var(--muted); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+h1, h2 { margin: 0; letter-spacing: 0; }
+h1 { font-size: 28px; }
+h2 { font-size: 20px; }
+#operatorLabel { display: block; margin-top: 6px; color: var(--muted); font-size: 14px; }
+
+.scan-panel, .queue-panel, .entry-panel {
+  margin-bottom: 14px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.scan-panel label, .entry-panel label { display: grid; gap: 7px; color: var(--ink); font-size: 14px; font-weight: 700; }
+.scan-controls { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 8px; }
+input, select, textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  color: var(--ink);
+  border: 1px solid #aac6ba;
+  border-radius: 6px;
+  background: #fff;
+}
+textarea { min-height: 88px; resize: vertical; }
+input:focus, select:focus, textarea:focus { outline: 3px solid #b8ebd0; border-color: var(--green); }
+.scan-controls button, .primary-action {
+  min-height: 48px;
+  border: 0;
+  border-radius: 6px;
+  color: white;
+  background: var(--green);
+  font-weight: 800;
+}
+.scan-controls button { padding: 0 18px; }
+.primary-action { width: 100%; margin-top: 18px; font-size: 17px; }
+.scan-controls button:hover, .primary-action:hover { background: var(--green-dark); }
+.status { margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+.status--error { color: var(--danger); font-weight: 700; }
+.status--success { color: var(--green-dark); font-weight: 700; }
+
+.section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.count, .stage-badge { display: inline-flex; align-items: center; min-height: 30px; padding: 4px 10px; border-radius: 999px; color: var(--green-dark); background: var(--green-soft); font-size: 13px; font-weight: 800; }
+.lot-queue { display: grid; gap: 8px; }
+.lot-card {
+  width: 100%; min-height: 62px; display: grid; gap: 4px; padding: 10px 12px; text-align: left;
+  color: var(--ink); background: #f8fcfa; border: 1px solid var(--line); border-radius: 6px;
+}
+.lot-card:hover, .lot-card[aria-current="true"] { border-color: var(--green); background: var(--green-soft); }
+.lot-card strong { font-size: 16px; }
+.lot-card span { color: var(--muted); font-size: 13px; }
+.queue-empty { margin: 0; padding: 14px 0; color: var(--muted); text-align: center; }
+
+.form-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.checkbox-row { grid-template-columns: auto 1fr; align-items: center; }
+.checkbox-row input { width: 22px; min-height: 22px; accent-color: var(--green); }
+
+@media (min-width: 640px) {
+  .app-main { padding: 24px; }
+  .form-grid { grid-template-columns: 1fr 1fr; }
+  .span-all { grid-column: 1 / -1; }
+}

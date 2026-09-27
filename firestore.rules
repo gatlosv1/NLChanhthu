@@ -27,7 +27,7 @@ service cloud.firestore {
         && request.resource.data.role in ['admin', 'staff', 'dev']
         && request.resource.data.email is string
         && request.resource.data.keys().hasOnly([
-          'name', 'email', 'role', 'department', 'pagePermissions', 'teamId', 'avatar', 'createdAt', 'updatedAt', 'password'
+          'name', 'email', 'role', 'department', 'departmentId', 'pagePermissions', 'teamId', 'avatar', 'createdAt', 'updatedAt', 'password'
         ]);
 
       allow update: if (
@@ -35,7 +35,7 @@ service cloud.firestore {
           && request.resource.data.role == resource.data.role
           && request.resource.data.email == resource.data.email
           && request.resource.data.keys().hasOnly([
-            'name', 'email', 'role', 'department', 'pagePermissions', 'teamId', 'avatar', 'createdAt', 'updatedAt', 'password'
+            'name', 'email', 'role', 'department', 'departmentId', 'pagePermissions', 'teamId', 'avatar', 'createdAt', 'updatedAt', 'password'
           ])
         ) || isAdmin();
 
@@ -136,12 +136,40 @@ service cloud.firestore {
       allow delete: if isAdmin() || isOwner(ownerId);
     }
 
+    // Reference data for frozen-mango traceability. Operators may cache this data locally.
+    match /process_stages/{stageId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /reject_reasons/{reasonId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // Lots and their material-balance cache can only be changed by trusted server code.
+    match /lots/{lotId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // Append-only genealogy events. The Cloud Functions Admin SDK bypasses Rules.
+    match /stage_events/{eventId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // Idempotency markers for the quantity-cache trigger are server-private.
+    match /stage_event_cache_applications/{eventId} {
+      allow read, write: if false;
+    }
+
     match /activityLogArchive/{archiveDate} {
       allow read, write: if isAdmin();
     }
 
     match /{document=**} {
-      allow read, write: if isAdmin();
+      allow read, write: if false;
     }
   }
 }
