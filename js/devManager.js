@@ -18,6 +18,7 @@ const PAGE_CONFIG = {
   dashboard: 'Dashboard',
   profile: 'Profile',
   label: 'In nhãn',
+  labelTrang: 'In tem nhãn trắng',
   production: 'Phần trăm BTP',
   nhapLieuSanXuat: 'Năng suất sản xuất',
   report: 'Báo cáo',
@@ -31,6 +32,7 @@ const DEFAULT_PAGE_ACCESS = {
   dashboard: true,
   profile: true,
   label: true,
+  labelTrang: true,
   production: true,
   nhapLieuSanXuat: true,
   report: true,
@@ -113,8 +115,8 @@ createDevForm?.addEventListener('submit', async (event) => {
   const pagePermissions = normalizedRole === 'dev'
     ? Object.keys(PAGE_CONFIG)
     : normalizedRole === 'admin'
-      ? ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history']
-      : ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'history'];
+      ? ['dashboard', 'profile', 'label', 'labelTrang', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history']
+      : ['dashboard', 'profile', 'label', 'labelTrang', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'history'];
 
   if (!email) {
     showToast('Vui lòng nhập email dev.', 'error');

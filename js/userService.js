@@ -5,9 +5,9 @@ import { resolveInitialRole } from './roleUtils.js';
 // Danh sách trang được vào mặc định
 // Phân theo từng vai trò
 const DEFAULT_PAGE_ACCESS = {
-  dev: ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history', 'devManager'],
-  admin: ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history'],
-  staff: ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'history']
+  dev: ['dashboard', 'profile', 'label', 'labelTrang', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history', 'devManager'],
+  admin: ['dashboard', 'profile', 'label', 'labelTrang', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history'],
+  staff: ['dashboard', 'profile', 'label', 'labelTrang', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'history']
 };
 
 // Đảm bảo user luôn có hồ sơ Firestore

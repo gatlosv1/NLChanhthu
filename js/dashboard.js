@@ -35,9 +35,10 @@ const pagePermissionLabels = {
   nhapLieuSanXuat: 'Năng suất sản xuất',
   report: 'Báo cáo',
   label: 'In nhãn',
+  labelTrang: 'In tem nhãn trắng',
   congTachMui: 'Năng xuất tách múi'
 };
-const ALL_PAGE_PERMISSIONS = ['production', 'nhapLieuSanXuat', 'report', 'label', 'congTachMui'];
+const ALL_PAGE_PERMISSIONS = ['production', 'nhapLieuSanXuat', 'report', 'label', 'labelTrang', 'congTachMui'];
 const ALL_FEATURE_PERMISSIONS = ['view', 'add', 'edit', 'delete', 'export', 'import', 'manageUsers', 'manageSettings', 'viewAllHistory', 'maintenance'];
 const ROLE_DEFAULT_PERMISSIONS = {
   dev: ['view', 'add', 'edit', 'delete', 'export', 'import', 'manageUsers', 'manageSettings', 'viewAllHistory', 'maintenance'],

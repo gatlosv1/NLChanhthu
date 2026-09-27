@@ -11,6 +11,7 @@ export const DEFAULT_PAGE_ACCESS = {
   dashboard: true,
   profile: true,
   label: true,
+  labelTrang: true,
   production: true,
   nhapLieuSanXuat: true,
   report: true,
@@ -21,9 +22,9 @@ export const DEFAULT_PAGE_ACCESS = {
 };
 
 const DEFAULT_ROLE_PAGE_PERMISSIONS = {
-  dev: ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history', 'devManager'],
-  admin: ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history'],
-  staff: ['dashboard', 'profile', 'label', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'history']
+  dev: ['dashboard', 'profile', 'label', 'labelTrang', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history', 'devManager'],
+  admin: ['dashboard', 'profile', 'label', 'labelTrang', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history'],
+  staff: ['dashboard', 'profile', 'label', 'labelTrang', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'history']
 };
 
 export function getDefaultPagePermissionsForRole(role = 'staff') {
