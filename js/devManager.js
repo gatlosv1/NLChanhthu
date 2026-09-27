@@ -19,6 +19,7 @@ const PAGE_CONFIG = {
   profile: 'Profile',
   label: 'In nhãn',
   labelTrang: 'In tem nhãn trắng',
+  phieuCanTay: 'Phiếu cân tay nguyên liệu',
   production: 'Phần trăm BTP',
   nhapLieuSanXuat: 'Năng suất sản xuất',
   report: 'Báo cáo',
@@ -33,6 +34,7 @@ const DEFAULT_PAGE_ACCESS = {
   profile: true,
   label: true,
   labelTrang: true,
+  phieuCanTay: true,
   production: true,
   nhapLieuSanXuat: true,
   report: true,
@@ -115,8 +117,8 @@ createDevForm?.addEventListener('submit', async (event) => {
   const pagePermissions = normalizedRole === 'dev'
     ? Object.keys(PAGE_CONFIG)
     : normalizedRole === 'admin'
-      ? ['dashboard', 'profile', 'label', 'labelTrang', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history']
-      : ['dashboard', 'profile', 'label', 'labelTrang', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'history'];
+      ? ['dashboard', 'profile', 'label', 'labelTrang', 'phieuCanTay', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'settings', 'history']
+      : ['dashboard', 'profile', 'label', 'labelTrang', 'phieuCanTay', 'production', 'nhapLieuSanXuat', 'report', 'congTachMui', 'history'];
 
   if (!email) {
     showToast('Vui lòng nhập email dev.', 'error');

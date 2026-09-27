@@ -43,6 +43,7 @@
           <a class="sidebar-link" href="./production.html" data-page="production">Phần trăm BTP</a>
           <a class="sidebar-link" href="./nhap-lieu-san-xuat.html" data-page="nhapLieuSanXuat">Năng suất sản xuất</a>
           <a class="sidebar-link" href="./report.html" data-page="report">Báo cáo</a>
+          <a class="sidebar-link" href="./phieu-can-tay-nguyen-lieu.html" data-page="phieuCanTay">Phiếu cân tay nguyên liệu</a>
           <a class="sidebar-link" href="./cong-tach-mui.html" data-page="congTachMui">Năng xuất tách múi</a>
           <a class="sidebar-link admin-only" id="manageUsersMenu" href="#">Quản lý User</a>
           <a class="sidebar-link admin-only" href="./settings.html" data-page="settings">⚙ Quản lý danh mục</a>
@@ -103,6 +104,11 @@
                 <h3 class="text-base font-semibold text-slate-800">Báo cáo</h3>
                 <p class="mt-2 text-sm text-slate-600">Theo dõi xu hướng, KPI và biểu đồ tổng quan vận hành.</p>
                 <a class="inline-flex mt-4 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600" href="./report.html">Mở Báo cáo</a>
+              </div>
+              <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4" data-page-access="phieuCanTay">
+                <h3 class="text-base font-semibold text-slate-800">Phiếu cân tay nguyên liệu</h3>
+                <p class="mt-2 text-sm text-slate-600">Nhập và theo dõi số cân nguyên liệu theo từng lô, giúp kiểm tra nhanh tổng khối lượng và hao hụt.</p>
+                <a class="inline-flex mt-4 rounded-xl bg-amber-400 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-amber-500" href="./phieu-can-tay-nguyen-lieu.html">Mở Phiếu cân tay nguyên liệu</a>
               </div>
               <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4" data-page-access="congTachMui">
                 <h3 class="text-base font-semibold text-slate-800">Năng xuất tách múi</h3>
@@ -175,6 +181,7 @@
                     <option value="report">Báo cáo</option>
                     <option value="label">In nhãn</option>
                     <option value="labelTrang">In tem nhãn trắng</option>
+                    <option value="phieuCanTay">Phiếu cân tay nguyên liệu</option>
                     <option value="congTachMui">Năng xuất tách múi</option>
                   </select>
                   <select id="createUserPermissionTwo" class="form-select page-access-select">
@@ -184,6 +191,7 @@
                     <option value="report">Báo cáo</option>
                     <option value="label">In nhãn</option>
                     <option value="labelTrang">In tem nhãn trắng</option>
+                    <option value="phieuCanTay">Phiếu cân tay nguyên liệu</option>
                     <option value="congTachMui">Năng xuất tách múi</option>
                   </select>
                   <select id="createUserPermissionThree" class="form-select page-access-select">
@@ -193,6 +201,7 @@
                     <option value="report">Báo cáo</option>
                     <option value="label">In nhãn</option>
                     <option value="labelTrang">In tem nhãn trắng</option>
+                    <option value="phieuCanTay">Phiếu cân tay nguyên liệu</option>
                     <option value="congTachMui">Năng xuất tách múi</option>
                   </select>
                 </div>
@@ -288,6 +297,7 @@
                             <option value="report">Báo cáo</option>
                             <option value="label">In nhãn</option>
                             <option value="labelTrang">In tem nhãn trắng</option>
+                            <option value="phieuCanTay">Phiếu cân tay nguyên liệu</option>
                             <option value="congTachMui">Năng xuất tách múi</option>
                           </select>
                         </div>
@@ -299,6 +309,7 @@
                             <option value="report">Báo cáo</option>
                             <option value="label">In nhãn</option>
                             <option value="labelTrang">In tem nhãn trắng</option>
+                            <option value="phieuCanTay">Phiếu cân tay nguyên liệu</option>
                             <option value="congTachMui">Năng xuất tách múi</option>
                           </select>
                         </div>
@@ -310,6 +321,7 @@
                             <option value="report">Báo cáo</option>
                             <option value="label">In nhãn</option>
                             <option value="labelTrang">In tem nhãn trắng</option>
+                            <option value="phieuCanTay">Phiếu cân tay nguyên liệu</option>
                             <option value="congTachMui">Năng xuất tách múi</option>
                           </select>
                         </div>

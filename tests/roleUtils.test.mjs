@@ -18,8 +18,10 @@ test('resolveInitialRole prioritizes Firestore role and maps fixed emails correc
   assert.equal(resolveInitialRole('staff@company.com', ''), 'staff');
 });
 
-test('default permissions include the label-trang access and dashboard summary card', () => {
+test('default permissions include the label-trang and phieu-can-tay access cards', () => {
   assert.match(pageAccessText, /labelTrang/);
+  assert.match(pageAccessText, /phieuCanTay/);
   assert.match(dashboardHtml, /data-page-access="labelTrang"/);
-  assert.match(dashboardHtml, /value="labelTrang"/);
+  assert.match(dashboardHtml, /data-page-access="phieuCanTay"/);
+  assert.match(dashboardHtml, /value="phieuCanTay"/);
 });
