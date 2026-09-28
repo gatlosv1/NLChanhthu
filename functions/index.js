@@ -280,3 +280,76 @@ exports.recordStageEvent = functions.region('asia-southeast1').https.onCall(asyn
 
   return { eventId: eventRef.id };
 });
+
+/** Creates a new incoming lot at the first sorting stage and appends its creation event. */
+exports.createIncomingLot = functions.region('asia-southeast1').https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Bạn cần đăng nhập để tạo lô.');
+  }
+
+  const lotCode = typeof data?.lotCode === 'string' ? data.lotCode.trim().toUpperCase() : '';
+  const initialKg = Number(data?.initialKg);
+  const stageId = typeof data?.stageId === 'string' ? data.stageId.trim() : 'SORT_1';
+  if (!lotCode || !/^[A-Z0-9][A-Z0-9-]{2,79}$/.test(lotCode)) {
+    throw new functions.https.HttpsError('invalid-argument', 'Mã lô chỉ dùng chữ in hoa, số và dấu gạch ngang.');
+  }
+  if (!Number.isFinite(initialKg) || initialKg <= 0) {
+    throw new functions.https.HttpsError('invalid-argument', 'Khối lượng đầu vào phải lớn hơn 0.');
+  }
+
+  const db = admin.firestore();
+  const [stageSnapshot, userSnapshot, duplicateSnapshot] = await Promise.all([
+    db.collection('process_stages').doc(stageId).get(),
+    db.collection('users').doc(context.auth.uid).get(),
+    db.collection('lots').where('lotCode', '==', lotCode).limit(1).get()
+  ]);
+  if (!stageSnapshot.exists) {
+    throw new functions.https.HttpsError('failed-precondition', `Công đoạn ${stageId} chưa được cấu hình.`);
+  }
+  if (!duplicateSnapshot.empty) {
+    throw new functions.https.HttpsError('already-exists', `Mã lô ${lotCode} đã tồn tại.`);
+  }
+
+  const stage = stageSnapshot.data() || {};
+  const user = userSnapshot.exists ? userSnapshot.data() || {} : {};
+  const role = user.role || 'staff';
+  if (role !== 'admin' && role !== 'dev' && user.departmentId !== stage.departmentId) {
+    throw new functions.https.HttpsError('permission-denied', 'Bạn không thuộc bộ phận của công đoạn tạo lô.');
+  }
+
+  const lotRef = db.collection('lots').doc();
+  const eventRef = db.collection('stage_events').doc();
+  await db.runTransaction(async (transaction) => {
+    transaction.create(lotRef, {
+      lotCode,
+      parentLotIds: [],
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      status: 'waiting',
+      pendingStageId: stageId,
+      pendingDepartmentId: stage.departmentId || 'PREPROCESS',
+      currentQuantityKg: 0,
+      lastEventId: eventRef.id,
+      lastStageId: stageId
+    });
+    transaction.create(eventRef, {
+      eventType: 'LOT_CREATED',
+      lotId: lotRef.id,
+      stageId,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      inputKg: initialKg,
+      acceptedKg: initialKg,
+      rejectedKg: 0,
+      rejectReasonId: null,
+      quantityDeltaKg: initialKg,
+      operatorId: context.auth.uid,
+      operatorName: user.name || context.auth.token.name || '',
+      operatorEmail: context.auth.token.email || '',
+      note: typeof data?.note === 'string' ? data.note.trim() : '',
+      rework: false,
+      outputLotIds: []
+    });
+  });
+
+  return { lotId: lotRef.id, eventId: eventRef.id, lotCode };
+});

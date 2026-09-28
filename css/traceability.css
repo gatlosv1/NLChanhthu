@@ -55,6 +55,14 @@ h2 { font-size: 20px; }
   border: 1px solid var(--line);
   border-radius: 8px;
 }
+.create-panel {
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid #8ed5ad;
+  border-radius: 8px;
+  background: #f4fff8;
+}
+.is-hidden { display: none; }
 .scan-panel label, .entry-panel label { display: grid; gap: 7px; color: var(--ink); font-size: 14px; font-weight: 700; }
 .scan-controls { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 8px; }
 input, select, textarea {
@@ -76,6 +84,15 @@ input:focus, select:focus, textarea:focus { outline: 3px solid #b8ebd0; border-c
   background: var(--green);
   font-weight: 800;
 }
+.secondary-action {
+  min-height: 48px;
+  border: 1px solid var(--green);
+  border-radius: 6px;
+  color: var(--green-dark);
+  background: white;
+  font-weight: 800;
+}
+.secondary-action:hover { color: white; background: var(--green); }
 .scan-controls button { padding: 0 18px; }
 .primary-action { width: 100%; margin-top: 18px; font-size: 17px; }
 .scan-controls button:hover, .primary-action:hover { background: var(--green-dark); }

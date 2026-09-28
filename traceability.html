@@ -25,6 +25,31 @@
         <span id="operatorLabel">-</span>
       </section>
 
+      <section id="createLotPanel" class="create-panel is-hidden" aria-labelledby="createLotTitle">
+        <div class="section-title">
+          <div>
+            <p>Đầu vào nguyên liệu</p>
+            <h2 id="createLotTitle">Tạo lô mới</h2>
+          </div>
+          <span class="stage-badge">Phân loại 1</span>
+        </div>
+        <form id="createLotForm" class="form-grid">
+          <label>
+            Mã lô
+            <input id="newLotCode" type="text" autocomplete="off" placeholder="XM-20260927-001" required />
+          </label>
+          <label>
+            Khối lượng đầu vào (kg)
+            <input id="newLotKg" type="number" min="0.01" step="0.01" inputmode="decimal" required />
+          </label>
+          <label class="span-all">
+            Ghi chú lô đầu vào
+            <input id="newLotNote" type="text" placeholder="Nhà cung cấp, xe, tình trạng nguyên liệu" />
+          </label>
+          <button id="createLotBtn" class="secondary-action span-all" type="submit">Tạo lô và đưa vào Phân loại 1</button>
+        </form>
+      </section>
+
       <section class="scan-panel" aria-label="Tìm lô">
         <label for="lotSearch">Quét hoặc nhập mã lô</label>
         <div class="scan-controls">

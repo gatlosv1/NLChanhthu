@@ -19,6 +19,12 @@ const elements = {
   connection: document.getElementById('connectionStatus'),
   department: document.getElementById('departmentLabel'),
   operator: document.getElementById('operatorLabel'),
+  createPanel: document.getElementById('createLotPanel'),
+  createForm: document.getElementById('createLotForm'),
+  newLotCode: document.getElementById('newLotCode'),
+  newLotKg: document.getElementById('newLotKg'),
+  newLotNote: document.getElementById('newLotNote'),
+  createLotButton: document.getElementById('createLotBtn'),
   search: document.getElementById('lotSearch'),
   find: document.getElementById('findLotBtn'),
   status: document.getElementById('entryStatus'),
@@ -39,6 +45,7 @@ const elements = {
 
 const functions = getFunctions(undefined, 'asia-southeast1');
 const recordStageEvent = httpsCallable(functions, 'recordStageEvent');
+const createIncomingLot = httpsCallable(functions, 'createIncomingLot');
 let departmentId = '';
 let selectedLot = null;
 let stopQueue = () => {};
@@ -167,6 +174,8 @@ async function initialise() {
 
   elements.operator.textContent = profile?.name || user.email || 'Nhân viên';
   elements.department.textContent = departmentId || 'Quản trị';
+  const canCreateIncomingLot = departmentId === 'PREPROCESS' || ['admin', 'dev'].includes(profile?.role);
+  elements.createPanel.classList.toggle('is-hidden', !canCreateIncomingLot);
   await loadRejectReasons();
   if (departmentId) listenQueue();
   else setStatus('Admin cần chọn bộ phận trước khi xử lý hàng chờ.', 'error');
@@ -183,6 +192,25 @@ elements.rejectedKg.addEventListener('input', () => {
   const hasReject = Number(elements.rejectedKg.value || 0) > 0;
   elements.rejectReason.required = hasReject;
   if (!hasReject) elements.rework.checked = false;
+});
+elements.createForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  elements.createLotButton.disabled = true;
+  try {
+    const result = await createIncomingLot({
+      lotCode: elements.newLotCode.value.trim().toUpperCase(),
+      initialKg: Number(elements.newLotKg.value),
+      stageId: 'SORT_1',
+      note: elements.newLotNote.value.trim()
+    });
+    elements.createForm.reset();
+    elements.search.value = result.data.lotCode;
+    setStatus(`Đã tạo lô ${result.data.lotCode}. Lô đã vào hàng chờ Phân loại 1.`, 'success');
+  } catch (error) {
+    setStatus(error.message || 'Không thể tạo lô.', 'error');
+  } finally {
+    elements.createLotButton.disabled = false;
+  }
 });
 elements.form.addEventListener('submit', async (event) => {
   event.preventDefault();

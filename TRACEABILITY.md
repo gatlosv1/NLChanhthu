@@ -162,5 +162,5 @@ async function readLotGenealogy(db, initialLotId) {
 ## Deploy
 
 ```powershell
-firebase deploy --only firestore:rules,firestore:indexes,functions:onStageEventCreated,functions:recordStageEvent
+firebase deploy --only firestore:rules,firestore:indexes,functions:onStageEventCreated,functions:recordStageEvent,functions:createIncomingLot
 ```
