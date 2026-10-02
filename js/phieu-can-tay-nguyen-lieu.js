@@ -307,7 +307,7 @@ const STORAGE_KEY = 'chanhthu_can_tay_v4';
         row.ma = normalizeCode(els.currentMa.value) || state.lastMa || 'DK';
         row.kho = (els.currentKho?.value || '').trim() || row.kho || '';
         state.lastMa = row.ma;
-
+        
         if (state.cursorCol < state.weightCols - 1) {
           state.cursorCol += 1;
         } else {
@@ -403,10 +403,19 @@ const STORAGE_KEY = 'chanhthu_can_tay_v4';
       }
 
       /* ---------- Lưu / Khôi phục ---------- */
+      const LOT_QC_EXCEL_CELLS = [
+        ['C6', 0], ['C7', 1], ['C8', 2], ['C9', 3],
+        ['H6', 4], ['H7', 5], ['H8', 6], ['H9', 7]
+      ];
+
+      function normalizeLotValue(v) {
+        return String(v ?? '').trim().toUpperCase();
+      }
+
       function getLots() {
         return Array.from({ length: 8 }, (_, i) => ({
-          short: document.getElementById(`lot${i + 1}Short`)?.value || '',
-          detail: document.getElementById(`lot${i + 1}Detail`)?.value || ''
+          short: normalizeLotValue(document.getElementById(`lot${i + 1}Short`)?.value),
+          detail: normalizeLotValue(document.getElementById(`lot${i + 1}Detail`)?.value)
         }));
       }
 
@@ -525,14 +534,15 @@ const STORAGE_KEY = 'chanhthu_can_tay_v4';
           // Phiếu TTCH
           ws.cell('M5').value(sanitize(els.ttchSlip.value));
 
-          // Lot QC
+          // Lot QC: ghi cả 8 ô theo cấu trúc mẫu Excel (2 cột x 4 dòng)
           const lots = getLots();
-          [
-            ['C6', 0], ['C7', 1], ['C8', 2], ['C9', 3],
-            ['H6', 4], ['H7', 5], ['H8', 6], ['H9', 7]
-          ].forEach(([addr, idx]) => {
-            ws.cell(addr).value(lots[idx]?.short || '');
+          LOT_QC_EXCEL_CELLS.forEach(([addr, idx]) => {
+            const value = lots[idx]?.short || '';
+            ws.cell(addr).value(value);
           });
+
+          // Ghi chi tiết lot QC nếu có để tương ứng với từng ô nhập trên giao diện
+          // Mẫu Excel không có ô detail nhưng giữ đồng bộ dữ liệu nếu cần xử lý sau
 
           // Chi tiết cân: dòng 14 trở đi
           // A = mã, B→L = KG, N = kho  |  KHÔNG ghi cột M (công thức SUM)
